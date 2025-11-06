@@ -15,11 +15,16 @@ import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import toast from "react-hot-toast";
 
+// ✅ Unified UserProfile interface used across signup and profile
 export interface UserProfile {
   id: string;
   full_name: string;
+  email?: string;
   avatar_url?: string;
-  role?: string;
+  phone?: string;
+  bio?: string;
+  linkedin?: string;
+  created_at?: string;
 }
 
 interface AuthContextType {
@@ -31,7 +36,6 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
-  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,9 +51,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isAdmin = userProfile?.role === "admin";
-
-  // ✅ Listen to Firebase user state
+  // ✅ Listen to Firebase auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
@@ -80,7 +82,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // ✅ Email/password sign-up
+  // ✅ Sign up with email and password
   const signUp = async (email: string, password: string, fullName?: string) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -94,12 +96,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         displayName: fullName || "",
       });
 
-      await setDoc(doc(db, "user_profiles", firebaseUser.uid), {
+      const newUser: UserProfile = {
         id: firebaseUser.uid,
         full_name: fullName || "",
+        email,
         avatar_url: "",
-        role: "user",
-      });
+        created_at: new Date().toISOString(),
+      };
+
+      await setDoc(doc(db, "user_profiles", firebaseUser.uid), newUser);
 
       await fetchUserProfile(firebaseUser.uid);
       toast.success("Account created successfully!");
@@ -109,7 +114,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // ✅ Email/password sign-in
+  // ✅ Sign in with email and password
   const signIn = async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -120,7 +125,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // ✅ Google sign-in (still supported)
+  // ✅ Google sign-in (optional)
   const signInWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
@@ -131,12 +136,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const docSnap = await getDoc(userRef);
 
       if (!docSnap.exists()) {
-        await setDoc(userRef, {
+        const newUser: UserProfile = {
           id: firebaseUser.uid,
           full_name: firebaseUser.displayName || "",
+          email: firebaseUser.email || "",
           avatar_url: firebaseUser.photoURL || "",
-          role: "user",
-        });
+          created_at: new Date().toISOString(),
+        };
+
+        await setDoc(userRef, newUser);
       }
 
       await fetchUserProfile(firebaseUser.uid);
@@ -160,7 +168,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // ✅ Update profile in Firestore
+  // ✅ Update user profile
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user) throw new Error("No user logged in");
     try {
@@ -174,7 +182,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     userProfile,
     loading,
@@ -183,7 +191,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signInWithGoogle,
     signOut,
     updateProfile,
-    isAdmin,
   };
 
   return (

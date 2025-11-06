@@ -67,8 +67,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/connect-hr" className="text-gray-300 hover:text-white transition-colors">
-                  Connect HR
+                <Link href="/masterclasses" className="text-gray-300 hover:text-white transition-colors">
+                  Master Classes
                 </Link>
               </li>
             </ul>
@@ -85,14 +85,10 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/global-opportunities" className="text-gray-300 hover:text-white transition-colors">
-                  Job Matching
+                  Global Opportunity
                 </Link>
               </li>
-              <li>
-                <a href="#" className="text-gray-300 hover:text-white transition-colors">
-                  Career Coaching
-                </a>
-              </li>
+              
             </ul>
           </div>
 

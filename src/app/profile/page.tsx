@@ -1,59 +1,53 @@
 "use client";
 
-import React, { useState, useEffect, FormEvent, ChangeEvent } from "react";
+import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { motion } from "framer-motion";
-import { User, Mail, Phone, MapPin, Save, Camera, CheckCircle } from "lucide-react";
+import { User, Mail, Phone, MapPin, Camera, CheckCircle, Save } from "lucide-react";
 import { useAuth } from "@/context/AuthContexts";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import toast from "react-hot-toast";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
+import UserForm, { UserProfile } from "@/components/UserForm"; // 👈 imported
 
 export default function ProfilePage() {
   const { user, userProfile, updateProfile, loading } = useAuth();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<UserProfile>({
+    id: "",
     full_name: "",
-    countryCode: "+91",
-    phone: "",
-    location: "",
-    bio: "",
-    skills: [] as string[],
-    experience_level: "entry",
+    email: "",
     avatar_url: "",
+    phone: "",
+    bio: "",
+    linkedin: "",
+    created_at: "",
   });
 
-  const [newSkill, setNewSkill] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [purchasedClasses, setPurchasedClasses] = useState<string[]>([]);
 
-  const countryCodes = [
-    { code: "+91", name: "India" },
-    { code: "+1", name: "USA" },
-    { code: "+44", name: "UK" },
-    { code: "+81", name: "Japan" },
-    { code: "+61", name: "Australia" },
-    { code: "+49", name: "Germany" },
-    { code: "+33", name: "France" },
-  ];
-
   useEffect(() => {
     if (userProfile) {
       setFormData({
+        id: userProfile.id,
         full_name: userProfile.full_name || "",
-        countryCode: userProfile.countryCode || "+91",
-        phone: userProfile.phone || "",
-        location: userProfile.location || "",
-        bio: userProfile.bio || "",
-        skills: userProfile.skills || [],
-        experience_level: userProfile.experience_level || "entry",
+        email: userProfile.email || "",
         avatar_url: userProfile.avatar_url || "",
+        phone: userProfile.phone || "",
+        bio: userProfile.bio || "",
+        linkedin: userProfile.linkedin || "",
+        created_at: userProfile.created_at || "",
       });
       setPurchasedClasses(userProfile.purchasedClasses || []);
     }
   }, [userProfile]);
+
+  const handleFieldChange = (field: keyof UserProfile, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleAvatarUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -79,20 +73,8 @@ export default function ProfilePage() {
       toast.error("Please enter your full name");
       return false;
     }
-    if (!formData.phone.match(/^[0-9]{10}$/)) {
-      toast.error("Phone number must be exactly 10 digits");
-      return false;
-    }
-    if (!formData.location.trim()) {
-      toast.error("Please enter your location");
-      return false;
-    }
-    if (formData.bio.trim().length < 20) {
-      toast.error("Bio must be at least 20 characters long");
-      return false;
-    }
-    if (formData.skills.length === 0) {
-      toast.error("Please add at least one skill");
+    if (formData.bio && formData.bio.length < 20) {
+      toast.error("Bio must be at least 20 characters");
       return false;
     }
     return true;
@@ -111,27 +93,6 @@ export default function ProfilePage() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const addSkill = () => {
-    const skill = newSkill.trim();
-    if (!skill) {
-      toast.error("Enter a valid skill");
-      return;
-    }
-    if (formData.skills.includes(skill)) {
-      toast.error("Skill already added");
-      return;
-    }
-    setFormData((prev) => ({ ...prev, skills: [...prev.skills, skill] }));
-    setNewSkill("");
-  };
-
-  const removeSkill = (skillToRemove: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      skills: prev.skills.filter((s) => s !== skillToRemove),
-    }));
   };
 
   const fadeInUp = {
@@ -159,12 +120,8 @@ export default function ProfilePage() {
             animate="animate"
             variants={fadeInUp}
           >
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Edit Profile
-            </h1>
-            <p className="text-gray-600">
-              Update your information to personalize your experience.
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Profile</h1>
+            <p className="text-gray-600">Update your information to personalize your experience.</p>
           </motion.div>
 
           <div className="grid lg:grid-cols-3 gap-8">
@@ -207,26 +164,18 @@ export default function ProfilePage() {
                   {formData.full_name || "Your Name"}
                 </h3>
                 <p className="text-gray-600 mb-4 capitalize">
-                  {formData.experience_level} Level
+                  {formData.linkedin ? "Professional" : "New User"}
                 </p>
 
                 <div className="space-y-2 text-sm text-gray-700">
                   <div className="flex items-center justify-center space-x-2">
                     <Mail className="w-4 h-4" />
-                    <span>{user?.email}</span>
+                    <span>{formData.email}</span>
                   </div>
                   {formData.phone && (
                     <div className="flex items-center justify-center space-x-2">
                       <Phone className="w-4 h-4" />
-                      <span>
-                        {formData.countryCode} {formData.phone}
-                      </span>
-                    </div>
-                  )}
-                  {formData.location && (
-                    <div className="flex items-center justify-center space-x-2">
-                      <MapPin className="w-4 h-4" />
-                      <span>{formData.location}</span>
+                      <span>{formData.phone}</span>
                     </div>
                   )}
                 </div>
@@ -255,7 +204,7 @@ export default function ProfilePage() {
               </div>
             </motion.div>
 
-            {/* ===== Right Edit Form ===== */}
+            {/* ===== Right Form (Reused UserForm) ===== */}
             <motion.div
               className="lg:col-span-2"
               variants={fadeInUp}
@@ -264,158 +213,7 @@ export default function ProfilePage() {
             >
               <div className="bg-white rounded-2xl shadow-lg p-8">
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Full Name & Phone */}
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.full_name}
-                        onChange={(e) =>
-                          setFormData({ ...formData, full_name: e.target.value })
-                        }
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black text-black placeholder-gray-500"
-                        placeholder="Enter your full name"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone Number
-                      </label>
-                      <div className="flex gap-2">
-                        <select
-                          value={formData.countryCode}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              countryCode: e.target.value,
-                            })
-                          }
-                          className="border border-gray-300 rounded-lg px-3 py-3 focus:ring-2 focus:ring-black text-black"
-                        >
-                          {countryCodes.map((c) => (
-                            <option key={c.code} value={c.code}>
-                              {c.name} ({c.code})
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="text"
-                          value={formData.phone}
-                          onChange={(e) =>
-                            setFormData({ ...formData, phone: e.target.value })
-                          }
-                          maxLength={10}
-                          className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black text-black placeholder-gray-500"
-                          placeholder="10-digit number"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Location & Experience */}
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Location
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.location}
-                        onChange={(e) =>
-                          setFormData({ ...formData, location: e.target.value })
-                        }
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black text-black placeholder-gray-500"
-                        placeholder="City, Country"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Experience Level
-                      </label>
-                      <select
-                        value={formData.experience_level}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            experience_level: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black text-black"
-                      >
-                        <option value="entry">Entry</option>
-                        <option value="mid">Mid</option>
-                        <option value="senior">Senior</option>
-                        <option value="executive">Executive</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Bio */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Bio
-                    </label>
-                    <textarea
-                      value={formData.bio}
-                      onChange={(e) =>
-                        setFormData({ ...formData, bio: e.target.value })
-                      }
-                      rows={4}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black text-black placeholder-gray-500"
-                      placeholder="Tell us about yourself (min 20 chars)"
-                    />
-                  </div>
-
-                  {/* Skills */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Skills
-                    </label>
-                    <div className="flex items-center space-x-2 mb-4">
-                      <input
-                        type="text"
-                        value={newSkill}
-                        onChange={(e) => setNewSkill(e.target.value)}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" && (e.preventDefault(), addSkill())
-                        }
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black text-black placeholder-gray-500"
-                        placeholder="Add a skill (e.g. React, Marketing)"
-                      />
-                      <button
-                        type="button"
-                        onClick={addSkill}
-                        className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
-                      >
-                        Add
-                      </button>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {formData.skills.map((skill, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                        >
-                          {skill}
-                          <button
-                            type="button"
-                            onClick={() => removeSkill(skill)}
-                            className="ml-2 text-blue-600 hover:text-blue-800"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Submit */}
+                  <UserForm userData={formData} onChange={handleFieldChange} />
                   <button
                     type="submit"
                     disabled={saving || uploading}

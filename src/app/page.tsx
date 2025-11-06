@@ -5,24 +5,17 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
   ArrowRight,
-  CheckCircle,
   ChevronLeft,
   ChevronRight,
-  Play,
-  User,
-  Briefcase,
-  Calendar,
   AlertTriangle,
-  Lock,
-  Users,
-  IndianRupee,
 } from 'lucide-react';
-import { collection, getDocs, doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContexts';
 import toast from 'react-hot-toast';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import MasterclassCard from '@/components/masterclassCard';
 
 interface Masterclass {
   id: string;
@@ -35,12 +28,6 @@ interface Masterclass {
   joined_users: string[];
 }
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
 export default function HomePage() {
   // ✅ Testimonials
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
@@ -50,7 +37,7 @@ export default function HomePage() {
       description: "An experienced job seeker kept facing rejection. They:",
       points: [
         "Attended multiple resume workshops via the platform.",
-        "Used the AI resume screening to fix their CV.",
+        // "Used the AI resume screening to fix their CV.",
         "Cracked an interview after applying learnings.",
       ],
       image:
@@ -78,20 +65,11 @@ export default function HomePage() {
   const [masterclasses, setMasterclasses] = useState<Masterclass[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [processingPayment, setProcessingPayment] = useState<string | null>(null);
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchMasterclasses();
-    loadRazorpayScript();
   }, []);
-
-  const loadRazorpayScript = () => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-  };
 
   const fetchMasterclasses = async () => {
     try {
@@ -108,80 +86,6 @@ export default function HomePage() {
       console.error(error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getYouTubeVideoId = (url: string) => {
-    const match = url.match(
-      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/
-    );
-    return match ? match[1] : null;
-  };
-
-  const hasUserJoined = (masterclass: Masterclass) => {
-    if (!user) return false;
-    return masterclass.joined_users.includes(user.uid);
-  };
-
-  const handleBuyMasterclass = async (masterclass: Masterclass) => {
-    if (!user) {
-      toast.error('Please login to purchase this masterclass');
-      return;
-    }
-
-    if (hasUserJoined(masterclass)) {
-      toast.info('You have already purchased this masterclass');
-      return;
-    }
-
-    setProcessingPayment(masterclass.id);
-
-    try {
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_dummy_key',
-        amount: masterclass.price * 100,
-        currency: 'INR',
-        name: 'GrowPro',
-        description: masterclass.title,
-        image: '/logo_growpro.png',
-        handler: async function (response: any) {
-          try {
-            // Directly update Firestore with the user ID
-            const masterclassRef = doc(db, 'MasterClasses', masterclass.id);
-            await updateDoc(masterclassRef, {
-              joined_users: arrayUnion(user.uid),
-            });
-
-            toast.success('Payment successful! You can now access this masterclass');
-            fetchMasterclasses(); // Refresh the list
-            setProcessingPayment(null);
-          } catch (error) {
-            console.error('Error updating enrollment:', error);
-            toast.error('Error processing enrollment');
-            setProcessingPayment(null);
-          }
-        },
-        prefill: {
-          name: user.displayName || '',
-          email: user.email || '',
-        },
-        theme: {
-          color: '#000000',
-        },
-        modal: {
-          ondismiss: function () {
-            setProcessingPayment(null);
-            toast.info('Payment cancelled');
-          },
-        },
-      };
-
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
-    } catch (error) {
-      console.error('Error initiating payment:', error);
-      toast.error('Error initiating payment');
-      setProcessingPayment(null);
     }
   };
 
@@ -207,126 +111,6 @@ export default function HomePage() {
 
   const staggerChildren = {
     animate: { transition: { staggerChildren: 0.12 } },
-  };
-
-  const renderMasterclassCard = (mc: Masterclass) => {
-    const videoId = getYouTubeVideoId(mc.youtube_url);
-    const userJoined = hasUserJoined(mc);
-    const isFree = mc.price === 0;
-
-    return (
-      <div
-        key={mc.id}
-        className="bg-white rounded-2xl shadow-xl hover:shadow-2xl transition overflow-hidden flex flex-col h-full"
-      >
-        {/* Video/Thumbnail Section */}
-        <div className="aspect-video relative">
-          {userJoined || isFree ? (
-            videoId ? (
-              <iframe
-                src={`https://www.youtube.com/embed/${videoId}`}
-                title={mc.title}
-                className="w-full h-full"
-                frameBorder="0"
-                allowFullScreen
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full bg-gray-200">
-                <Play className="w-12 h-12 text-gray-400" />
-              </div>
-            )
-          ) : (
-            <div className="relative h-full bg-gradient-to-br from-gray-800 to-gray-900">
-              <img
-                src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
-                alt={mc.title}
-                className="w-full h-full object-cover opacity-40"
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-black bg-opacity-70 p-6 rounded-full">
-                  <Lock className="w-12 h-12 text-white" />
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Price Badge */}
-          {!isFree && (
-            <div className="absolute top-4 right-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-1">
-              <IndianRupee className="w-4 h-4" />
-              {mc.price}
-            </div>
-          )}
-          
-          {isFree && (
-            <div className="absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-full font-bold shadow-lg">
-              FREE
-            </div>
-          )}
-        </div>
-
-        {/* Content Section */}
-        <div className="p-6 flex-1 flex flex-col">
-          <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2">
-            {mc.title}
-          </h3>
-          
-          <div className="space-y-2 mb-4">
-            <div className="flex items-center gap-2 text-gray-600 text-sm">
-              <User className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">{mc.speaker_name}</span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-600 text-sm">
-              <Briefcase className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">{mc.speaker_designation}</span>
-            </div>
-            {mc.created_at && (
-              <div className="flex items-center gap-2 text-gray-500 text-sm">
-                <Calendar className="w-4 h-4 flex-shrink-0" />
-                {new Date(mc.created_at).toLocaleDateString()}
-              </div>
-            )}
-            <div className="flex items-center gap-2 text-gray-500 text-sm">
-              <Users className="w-4 h-4 flex-shrink-0" />
-              <span>{mc.joined_users.length} students enrolled</span>
-            </div>
-          </div>
-
-          {/* Action Button */}
-          <div className="mt-auto pt-4">
-            {userJoined || isFree ? (
-              <a
-                href={mc.youtube_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-green-700 text-white px-5 py-3 rounded-lg hover:from-green-700 hover:to-green-800 transition font-semibold"
-              >
-                <Play className="w-5 h-5" />
-                {isFree ? 'Watch Free' : 'Continue Learning'}
-              </a>
-            ) : (
-              <button
-                onClick={() => handleBuyMasterclass(mc)}
-                disabled={processingPayment === mc.id}
-                className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {processingPayment === mc.id ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <IndianRupee className="w-5 h-5" />
-                    Enroll Now - ₹{mc.price}
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -369,16 +153,10 @@ export default function HomePage() {
                 Global Remote Opportunities
               </Link>
               <Link
-                href="/resume-score"
+                href="/masterclasses"
                 className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-8 py-4 rounded-full font-medium transition-all duration-300 hover:scale-105"
               >
-                My Resume Score
-              </Link>
-              <Link
-                href="/connect-hr"
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-8 py-4 rounded-full font-medium transition-all duration-300 hover:scale-105"
-              >
-                Connect with HR
+                Master Classes
               </Link>
             </div>
           </motion.div>
@@ -497,7 +275,11 @@ export default function HomePage() {
                 >
                   {displayedMasterclasses.map((mc) => (
                     <div key={mc.id} className="w-full flex-shrink-0 px-2">
-                      {renderMasterclassCard(mc)}
+                      <MasterclassCard
+                        masterclass={mc}
+                        user={user}
+                        onPurchaseComplete={fetchMasterclasses}
+                      />
                     </div>
                   ))}
                 </div>
@@ -655,7 +437,7 @@ export default function HomePage() {
         </div>
       </motion.section>
 
-      <Footer />
+  
     </div>
   );
 }

@@ -5,22 +5,40 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContexts";
+import UserForm, { UserProfile } from "@/components/UserForm"; // 👈 import UserForm
 
 export default function SignUpPage() {
-  const [email, setEmail] = useState("");
+  const router = useRouter();
+  const { signUp, signInWithGoogle } = useAuth();
+
+  // 👇 Initialize empty user profile
+  const [userData, setUserData] = useState<UserProfile>({
+    id: "",
+    full_name: "",
+    email: "",
+    avatar_url: "",
+    phone: "",
+    bio: "",
+    linkedin: "",
+    created_at: "",
+  });
+
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  const { signUp, signInWithGoogle } = useAuth();
-  const router = useRouter();
+  // Handle field updates
+  const handleFieldChange = (field: keyof UserProfile, value: string) => {
+    setUserData((prev) => ({ ...prev, [field]: value }));
+  };
 
+  // Signup logic
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      const result = await signUp(email, password, fullName);
+      const result = await signUp(userData.email || "", password, userData.full_name);
       if (result?.user) router.push("/");
     } catch (error: any) {
       console.error("Sign up error:", error.message);
@@ -57,40 +75,18 @@ export default function SignUpPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Full Name */}
-            <div>
-              <input
-                id="fullName"
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
-                placeholder="Full Name"
-                required
-              />
-            </div>
-
-            {/* Email */}
-            <div>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
-                placeholder="Email"
-                required
-              />
-            </div>
+            {/* Reusable User Form */}
+            <UserForm userData={userData} onChange={handleFieldChange} isSignup={true} />
 
             {/* Password */}
             <div>
               <input
-                id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg 
+                           focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+                           text-gray-900 placeholder-gray-500"
                 placeholder="Password"
                 required
               />
@@ -114,7 +110,7 @@ export default function SignUpPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50"
             >
               {loading ? "Creating Account..." : "Agree & Join"}
             </button>
@@ -133,7 +129,8 @@ export default function SignUpPage() {
             <button
               type="button"
               onClick={signInWithGoogle}
-              className="w-full flex items-center justify-center px-6 py-3 border border-gray-300 rounded-full text-gray-700 bg-white hover:bg-gray-50 transition-colors font-medium"
+              className="w-full flex items-center justify-center px-6 py-3 border border-gray-300 rounded-full 
+                         text-gray-700 bg-white hover:bg-gray-50 transition-colors font-medium"
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                 <path
