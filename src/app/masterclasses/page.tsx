@@ -1,17 +1,22 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import Link from 'next/link';
-import { AlertTriangle, ArrowLeft, Search, RefreshCw } from 'lucide-react';
-import { collection, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { useAuth } from '@/context/AuthContexts';
-import toast from 'react-hot-toast';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import MasterclassCard from '@/components/masterclassCard';
-import { FirebaseError } from 'firebase/app';
+import React, { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Search,
+  RefreshCw,
+} from "lucide-react";
+import { collection, getDocs, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/context/AuthContexts";
+import toast from "react-hot-toast";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import MasterclassCard from "@/components/masterclassCard";
+import { FirebaseError } from "firebase/app";
 
 interface Masterclass {
   id: string;
@@ -22,28 +27,28 @@ interface Masterclass {
   created_at: string;
   price: number;
   joined_users: string[];
-  type: 'free' | 'paid' | 'featured';
+  type: "free" | "paid" | "featured";
 }
 
-type FilterType = 'all' | 'free' | 'paid' | 'featured' | 'enrolled';
+type FilterType = "all" | "free" | "paid" | "featured" | "enrolled";
 
 export default function MasterclassesPage() {
   const [masterclasses, setMasterclasses] = useState<Masterclass[]>([]);
   const [filteredMasterclasses, setFilteredMasterclasses] = useState<Masterclass[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<FilterType>("all");
   const { user } = useAuth();
 
-  // 🧠 Fetch masterclasses
+  // Fetch masterclasses
   const fetchMasterclasses = useCallback(async () => {
     setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, 'MasterClasses'));
-      await new Promise((res) => setTimeout(res, 1200)); // ⏳ Small delay for smooth transition
+      const querySnapshot = await getDocs(collection(db, "MasterClasses"));
+      await new Promise((res) => setTimeout(res, 600)); // smoother transition
 
       if (querySnapshot.empty) {
-        toast('No masterclasses available yet.');
+        toast("No masterclasses available yet.");
         setMasterclasses([]);
         return;
       }
@@ -52,36 +57,36 @@ export default function MasterclassesPage() {
       querySnapshot.docs.forEach((docSnap) => {
         const data = docSnap.data();
 
-        // Defensive checks
         if (!data.title || !data.speaker_name) return;
 
         let createdAt: string;
         if (data.created_at instanceof Timestamp) {
           createdAt = data.created_at.toDate().toISOString();
-        } else if (typeof data.created_at === 'string') {
+        } else if (typeof data.created_at === "string") {
           createdAt = data.created_at;
         } else {
           createdAt = new Date().toISOString();
         }
 
-        const price = typeof data.price === 'number' ? data.price : Number(data.price) || 0;
+        const price =
+          typeof data.price === "number" ? data.price : Number(data.price) || 0;
         const joinedUsers = Array.isArray(data.joined_users)
-          ? data.joined_users.filter((uid) => typeof uid === 'string')
+          ? data.joined_users.filter((uid) => typeof uid === "string")
           : [];
 
         const type =
-          data.type === 'free' || data.type === 'paid' || data.type === 'featured'
+          data.type === "free" || data.type === "paid" || data.type === "featured"
             ? data.type
             : price === 0
-            ? 'free'
-            : 'paid';
+            ? "free"
+            : "paid";
 
         list.push({
           id: docSnap.id,
           title: String(data.title),
           speaker_name: String(data.speaker_name),
-          speaker_designation: String(data.speaker_designation ?? 'N/A'),
-          youtube_url: String(data.youtube_url ?? ''),
+          speaker_designation: String(data.speaker_designation ?? "N/A"),
+          youtube_url: String(data.youtube_url ?? ""),
           created_at: createdAt,
           joined_users: joinedUsers,
           price,
@@ -90,13 +95,13 @@ export default function MasterclassesPage() {
       });
 
       setMasterclasses(list);
-      toast.success(`Loaded ${list.length} masterclass${list.length !== 1 ? 'es' : ''}`);
+      toast.success(`Loaded ${list.length} masterclass${list.length !== 1 ? "es" : ""}`);
     } catch (error) {
-      console.error('🔥 Error fetching masterclasses:', error);
+      console.error("🔥 Error fetching masterclasses:", error);
       if (error instanceof FirebaseError) {
         toast.error(`Firebase Error: ${error.code}`);
       } else {
-        toast.error('Unexpected error while loading masterclasses.');
+        toast.error("Unexpected error while loading masterclasses.");
       }
       setMasterclasses([]);
     } finally {
@@ -108,7 +113,7 @@ export default function MasterclassesPage() {
     fetchMasterclasses();
   }, [fetchMasterclasses]);
 
-  // 🎯 Filter logic
+  // Filter logic
   const filterMasterclasses = useCallback(() => {
     if (!masterclasses.length) {
       setFilteredMasterclasses([]);
@@ -127,18 +132,18 @@ export default function MasterclassesPage() {
     }
 
     switch (filterType) {
-      case 'free':
-        filtered = filtered.filter((mc) => mc.type === 'free' || mc.price === 0);
+      case "free":
+        filtered = filtered.filter((mc) => mc.type === "free" || mc.price === 0);
         break;
-      case 'paid':
-        filtered = filtered.filter((mc) => mc.type === 'paid' || mc.price > 0);
+      case "paid":
+        filtered = filtered.filter((mc) => mc.type === "paid" || mc.price > 0);
         break;
-      case 'featured':
-        filtered = filtered.filter((mc) => mc.type === 'featured');
+      case "featured":
+        filtered = filtered.filter((mc) => mc.type === "featured");
         break;
-      case 'enrolled':
+      case "enrolled":
         if (!user) {
-          toast('Login required to view enrolled courses.');
+          toast("Login required to view enrolled courses.");
           filtered = [];
         } else {
           filtered = filtered.filter((mc) => mc.joined_users.includes(user.uid));
@@ -153,15 +158,27 @@ export default function MasterclassesPage() {
     filterMasterclasses();
   }, [filterMasterclasses]);
 
-  const fadeInUp = {
-    initial: { opacity: 0, y: 40 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.6, ease: 'easeOut' },
-  };
-
   const handleRefresh = () => fetchMasterclasses();
 
-  // 🌀 Skeleton loader
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.15, delayChildren: 0.1 },
+    },
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 40 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: "easeOut" },
+    },
+  };
+
+  // Skeleton loader
   const SkeletonCard = () => (
     <div className="animate-pulse bg-white shadow rounded-xl p-6 space-y-4 border border-gray-200">
       <div className="h-40 bg-gray-200 rounded-lg" />
@@ -175,15 +192,10 @@ export default function MasterclassesPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-gray-50">
       <Header />
 
-      <motion.section
-        className="pt-24 pb-20"
-        initial="initial"
-        animate="animate"
-        variants={{ animate: { transition: { staggerChildren: 0.1 } } }}
-      >
+      <section className="pt-24 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* HEADER */}
-          <motion.div variants={fadeInUp} className="mb-8">
+          {/* Header */}
+          <div className="mb-8">
             <Link
               href="/"
               className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition mb-6"
@@ -205,14 +217,14 @@ export default function MasterclassesPage() {
                 disabled={loading}
                 className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-100 text-gray-700 rounded-lg transition disabled:opacity-50"
               >
-                <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
                 Refresh
               </button>
             </div>
-          </motion.div>
+          </div>
 
-          {/* SEARCH + FILTERS */}
-          <motion.div variants={fadeInUp} className="mb-8 flex flex-col md:flex-row gap-4">
+          {/* Search + Filters */}
+          <div className="mb-8 flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -224,7 +236,7 @@ export default function MasterclassesPage() {
               />
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => setSearchQuery("")}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   ×
@@ -233,14 +245,14 @@ export default function MasterclassesPage() {
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              {['all', 'free', 'paid', 'featured'].map((type) => (
+              {["all", "free", "paid", "featured"].map((type) => (
                 <button
                   key={type}
                   onClick={() => setFilterType(type as FilterType)}
                   className={`px-6 py-3 rounded-lg font-medium transition ${
                     filterType === type
-                      ? 'bg-black text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                      ? "bg-black text-white"
+                      : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
                   }`}
                 >
                   {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -248,20 +260,20 @@ export default function MasterclassesPage() {
               ))}
               {user && (
                 <button
-                  onClick={() => setFilterType('enrolled')}
+                  onClick={() => setFilterType("enrolled")}
                   className={`px-6 py-3 rounded-lg font-medium transition ${
-                    filterType === 'enrolled'
-                      ? 'bg-black text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                    filterType === "enrolled"
+                      ? "bg-black text-white"
+                      : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
                   }`}
                 >
                   My Courses
                 </button>
               )}
             </div>
-          </motion.div>
+          </div>
 
-          {/* RESULTS */}
+          {/* Results */}
           {loading ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 py-10">
               {[...Array(6)].map((_, i) => (
@@ -269,48 +281,50 @@ export default function MasterclassesPage() {
               ))}
             </div>
           ) : filteredMasterclasses.length === 0 ? (
-            <motion.div variants={fadeInUp} className="text-center py-20">
+            <div className="text-center py-20">
               <AlertTriangle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No Results Found</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                No Results Found
+              </h3>
               <p className="text-gray-600 mb-6">
                 {searchQuery
                   ? `No masterclass found for "${searchQuery}".`
-                  : filterType === 'enrolled' && !user
-                  ? 'Login to view your enrolled courses.'
-                  : filterType === 'enrolled'
+                  : filterType === "enrolled" && !user
+                  ? "Login to view your enrolled courses."
+                  : filterType === "enrolled"
                   ? "You haven't enrolled in any courses yet."
-                  : 'No masterclasses available under this filter.'}
+                  : "No masterclasses available under this filter."}
               </p>
               <button
                 onClick={() => {
-                  setSearchQuery('');
-                  setFilterType('all');
+                  setSearchQuery("");
+                  setFilterType("all");
                 }}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition"
               >
                 Clear Filters
               </button>
-            </motion.div>
+            </div>
           ) : (
             <motion.div
               className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.8 }}
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
             >
               {filteredMasterclasses.map((mc) => (
-                <MasterclassCard
-                  key={mc.id}
-                  masterclass={mc}
-                  user={user}
-                  onPurchaseComplete={fetchMasterclasses}
-                />
+                <motion.div key={mc.id} variants={cardVariants}>
+                  <MasterclassCard
+                    masterclass={mc}
+                    user={user}
+                    onPurchaseComplete={fetchMasterclasses}
+                  />
+                </motion.div>
               ))}
             </motion.div>
           )}
         </div>
-      </motion.section>
-
+      </section>
 
     </div>
   );
