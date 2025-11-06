@@ -4,13 +4,15 @@ import React from "react";
 export interface UserProfile {
   id: string;
   full_name: string;
-  email?: string;
-  avatar_url?: string;
+  email: string;
+  avatar_url: string;
   phone?: string;
   bio?: string;
   linkedin?: string;
   created_at?: string;
+  purchasedClasses?: string[]; // ✅ Added this line
 }
+
 
 interface UserFormProps {
   userData: UserProfile;

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Mail, Phone, MapPin, Send, MessageSquare, Clock, Users } from "lucide-react";
+import { Mail, Phone, MapPin, Send } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import toast from "react-hot-toast";
@@ -18,7 +18,6 @@ export default function ContactUsPage() {
   });
   const [sending, setSending] = useState(false);
 
-  // 🔹 Submit form data to Firestore
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSending(true);
@@ -50,7 +49,7 @@ export default function ContactUsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 text-gray-900">
       <Header />
 
       <div className="pt-24 pb-12">
@@ -62,10 +61,10 @@ export default function ContactUsPage() {
             animate="animate"
             variants={fadeInUp}
           >
-            <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+            <h1 className="text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
               Get in Touch
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-700 leading-relaxed max-w-3xl mx-auto">
               Have questions about our services? Need help with your career journey?
               We're here to help you succeed.
             </p>
@@ -74,19 +73,19 @@ export default function ContactUsPage() {
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Contact Form */}
             <motion.div
-              className="bg-white rounded-2xl shadow-lg p-8"
+              className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200"
               initial="initial"
               animate="animate"
               variants={fadeInUp}
             >
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">
                 Send us a Message
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-base font-medium text-gray-800 mb-2">
                       Full Name
                     </label>
                     <input
@@ -96,13 +95,13 @@ export default function ContactUsPage() {
                         setFormData((prev) => ({ ...prev, name: e.target.value }))
                       }
                       placeholder="Enter your full name"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-400 text-gray-900 placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent text-base"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-base font-medium text-gray-800 mb-2">
                       Email Address
                     </label>
                     <input
@@ -112,14 +111,14 @@ export default function ContactUsPage() {
                         setFormData((prev) => ({ ...prev, email: e.target.value }))
                       }
                       placeholder="Enter your email"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-400 text-gray-900 placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent text-base"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-base font-medium text-gray-800 mb-2">
                     Subject
                   </label>
                   <input
@@ -129,13 +128,13 @@ export default function ContactUsPage() {
                       setFormData((prev) => ({ ...prev, subject: e.target.value }))
                     }
                     placeholder="Enter subject"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-400 text-gray-900 placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent text-base"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-base font-medium text-gray-800 mb-2">
                     Message
                   </label>
                   <textarea
@@ -145,7 +144,7 @@ export default function ContactUsPage() {
                     }
                     rows={6}
                     placeholder="Write your message here..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-400 text-gray-900 placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent text-base"
                     required
                   />
                 </div>
@@ -153,10 +152,10 @@ export default function ContactUsPage() {
                 <button
                   type="submit"
                   disabled={sending}
-                  className="w-full bg-black text-white py-4 rounded-lg font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+                  className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60 text-lg flex items-center justify-center gap-2"
                 >
                   <Send className="w-5 h-5" />
-                  <span>{sending ? "Sending..." : "Send Message"}</span>
+                  {sending ? "Sending..." : "Send Message"}
                 </button>
               </form>
             </motion.div>
@@ -170,40 +169,40 @@ export default function ContactUsPage() {
             >
               <motion.div
                 variants={fadeInUp}
-                className="bg-white rounded-2xl shadow-lg p-8"
+                className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200"
               >
-                <h3 className="text-xl font-bold text-gray-900 mb-6">
+                <h3 className="text-2xl font-semibold text-gray-900 mb-6">
                   Contact Information
                 </h3>
 
-                <div className="space-y-6">
+                <div className="space-y-6 text-base">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Mail className="w-6 h-6 text-blue-600" />
+                      <Mail className="w-6 h-6 text-blue-700" />
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900">Email</p>
-                      <p className="text-gray-600">India.growpro@gmail.com</p>
+                      <p className="text-gray-700">India.growpro@gmail.com</p>
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <Phone className="w-6 h-6 text-green-600" />
+                      <Phone className="w-6 h-6 text-green-700" />
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900">Phone</p>
-                      <p className="text-gray-600">+91 9625003045</p>
+                      <p className="text-gray-700">+91 9625003045</p>
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <MapPin className="w-6 h-6 text-purple-600" />
+                      <MapPin className="w-6 h-6 text-purple-700" />
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900">Address</p>
-                      <p className="text-gray-600">New Delhi, India</p>
+                      <p className="text-gray-700">New Delhi, India</p>
                     </div>
                   </div>
                 </div>
@@ -213,7 +212,6 @@ export default function ContactUsPage() {
         </div>
       </div>
 
-   
     </div>
   );
 }

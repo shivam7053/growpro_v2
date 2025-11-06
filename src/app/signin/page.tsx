@@ -11,7 +11,8 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [loading, setLoading] = useState(false);
-  const { signIn, googleSignIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
+
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,16 +29,17 @@ export default function SignInPage() {
   };
 
   const handleGoogleLogin = async () => {
-    try {
-      setLoading(true);
-      await googleSignIn();
-      router.push("/");
-    } catch (error: any) {
-      console.error("Google sign-in failed:", error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    await signInWithGoogle(); // ✅ correct name
+    router.push("/");
+  } catch (error: any) {
+    console.error("Google sign-in failed:", error.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gray-100 flex">

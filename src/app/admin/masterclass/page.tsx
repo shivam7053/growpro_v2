@@ -13,7 +13,6 @@ import {
   getDoc,
 } from 'firebase/firestore';
 
-// 🧩 Masterclass interface
 interface Masterclass {
   id: string;
   title: string;
@@ -41,7 +40,6 @@ export default function AdminMasterclasses() {
     type: 'free' as 'free' | 'paid' | 'featured',
   });
 
-  // ✅ Fetch all masterclasses + user details using saved user IDs
   const fetchClasses = async () => {
     try {
       setLoading(true);
@@ -50,12 +48,10 @@ export default function AdminMasterclasses() {
 
       for (const docSnap of querySnapshot.docs) {
         const data = docSnap.data();
-
         const joinedUsers: string[] = Array.isArray(data.joined_users)
           ? data.joined_users.filter((id) => typeof id === 'string')
           : [];
 
-        // 🔹 Fetch user details for joined users (one by one)
         const joined_user_details: { id: string; name?: string; email?: string }[] = [];
         for (const userId of joinedUsers) {
           try {
@@ -103,7 +99,6 @@ export default function AdminMasterclasses() {
     fetchClasses();
   }, []);
 
-  // ✅ Add or Update masterclass
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -113,18 +108,12 @@ export default function AdminMasterclasses() {
 
     try {
       if (editingId) {
-        // Update existing masterclass
         await updateDoc(doc(db, 'MasterClasses', editingId), {
-          title: formData.title,
-          speaker_name: formData.speaker_name,
-          speaker_designation: formData.speaker_designation || '',
-          youtube_url: formData.youtube_url || '',
+          ...formData,
           price: Number(formData.price),
-          type: formData.type,
         });
         alert('✅ Masterclass updated successfully!');
       } else {
-        // Add new masterclass
         await addDoc(collection(db, 'MasterClasses'), {
           ...formData,
           price: Number(formData.price),
@@ -134,7 +123,6 @@ export default function AdminMasterclasses() {
         alert('✅ Masterclass added successfully!');
       }
 
-      // Reset form
       setFormData({
         title: '',
         speaker_name: '',
@@ -151,7 +139,6 @@ export default function AdminMasterclasses() {
     }
   };
 
-  // ✅ Delete masterclass
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this class?')) return;
     try {
@@ -163,7 +150,6 @@ export default function AdminMasterclasses() {
     }
   };
 
-  // ✅ Start editing
   const handleEdit = (cls: Masterclass) => {
     setEditingId(cls.id);
     setFormData({
@@ -177,7 +163,6 @@ export default function AdminMasterclasses() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // ✅ Cancel editing
   const cancelEdit = () => {
     setEditingId(null);
     setFormData({
@@ -191,15 +176,17 @@ export default function AdminMasterclasses() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-6">
-      <h1 className="text-3xl font-bold text-center mb-8">🎓 Manage Masterclasses</h1>
+    <div className="min-h-screen bg-gray-100 py-12 px-6 text-gray-800">
+      <h1 className="text-3xl font-bold text-center mb-8 text-gray-900">
+        🎓 Manage Masterclasses
+      </h1>
 
       {/* Add / Edit Masterclass Form */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white shadow-md rounded-xl p-6 max-w-2xl mx-auto mb-10"
+        className="bg-white shadow-lg rounded-xl p-6 max-w-2xl mx-auto mb-10 border border-gray-200"
       >
-        <h2 className="text-xl font-semibold mb-4">
+        <h2 className="text-xl font-semibold mb-4 text-gray-900">
           {editingId ? '✏️ Edit Masterclass' : '➕ Add New Masterclass'}
         </h2>
 
@@ -209,7 +196,7 @@ export default function AdminMasterclasses() {
             placeholder="Title *"
             value={formData.title}
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            className="border p-3 rounded-lg placeholder-gray-500"
+            className="border p-3 rounded-lg placeholder-gray-600 text-gray-900"
           />
 
           <input
@@ -217,7 +204,7 @@ export default function AdminMasterclasses() {
             placeholder="Speaker Name *"
             value={formData.speaker_name}
             onChange={(e) => setFormData({ ...formData, speaker_name: e.target.value })}
-            className="border p-3 rounded-lg placeholder-gray-500"
+            className="border p-3 rounded-lg placeholder-gray-600 text-gray-900"
           />
 
           <input
@@ -227,7 +214,7 @@ export default function AdminMasterclasses() {
             onChange={(e) =>
               setFormData({ ...formData, speaker_designation: e.target.value })
             }
-            className="border p-3 rounded-lg placeholder-gray-500"
+            className="border p-3 rounded-lg placeholder-gray-600 text-gray-900"
           />
 
           <input
@@ -235,7 +222,7 @@ export default function AdminMasterclasses() {
             placeholder="YouTube URL"
             value={formData.youtube_url}
             onChange={(e) => setFormData({ ...formData, youtube_url: e.target.value })}
-            className="border p-3 rounded-lg placeholder-gray-500"
+            className="border p-3 rounded-lg placeholder-gray-600 text-gray-900"
           />
 
           <input
@@ -243,15 +230,18 @@ export default function AdminMasterclasses() {
             placeholder="Price *"
             value={formData.price}
             onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-            className="border p-3 rounded-lg placeholder-gray-500"
+            className="border p-3 rounded-lg placeholder-gray-600 text-gray-900"
           />
 
           <select
             value={formData.type}
             onChange={(e) =>
-              setFormData({ ...formData, type: e.target.value as 'free' | 'paid' | 'featured' })
+              setFormData({
+                ...formData,
+                type: e.target.value as 'free' | 'paid' | 'featured',
+              })
             }
-            className="border p-3 rounded-lg"
+            className="border p-3 rounded-lg text-gray-900"
           >
             <option value="free">Free</option>
             <option value="paid">Paid</option>
@@ -262,7 +252,7 @@ export default function AdminMasterclasses() {
         <div className="flex gap-4 mt-6">
           <button
             type="submit"
-            className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition"
+            className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold"
           >
             {editingId ? 'Update Masterclass' : 'Add Masterclass'}
           </button>
@@ -270,7 +260,7 @@ export default function AdminMasterclasses() {
             <button
               type="button"
               onClick={cancelEdit}
-              className="flex-1 bg-gray-400 text-white py-3 rounded-lg hover:bg-gray-500 transition"
+              className="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 transition font-semibold"
             >
               Cancel
             </button>
@@ -280,34 +270,33 @@ export default function AdminMasterclasses() {
 
       {/* Show All Masterclasses */}
       {loading ? (
-        <p className="text-center text-gray-600">Loading...</p>
+        <p className="text-center text-gray-700 font-medium">Loading...</p>
       ) : classes.length === 0 ? (
-        <p className="text-center text-gray-600">No masterclasses found.</p>
+        <p className="text-center text-gray-700 font-medium">No masterclasses found.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {classes.map((cls) => (
             <div
               key={cls.id}
-              className="bg-white p-6 rounded-lg shadow-md flex flex-col justify-between"
+              className="bg-white p-6 rounded-lg shadow-lg border border-gray-200"
             >
               <div>
-                <h2 className="text-xl font-semibold mb-2">{cls.title}</h2>
-                <p className="text-sm text-gray-600">
+                <h2 className="text-xl font-semibold mb-2 text-gray-900">{cls.title}</h2>
+                <p className="text-sm text-gray-800">
                   {cls.speaker_name} • {cls.speaker_designation || '—'}
                 </p>
-                <p className="text-gray-700 mt-2">💰 {cls.price} INR</p>
-                <p className="text-gray-500 text-sm mt-1 capitalize">
+                <p className="text-gray-900 mt-2 font-medium">💰 {cls.price} INR</p>
+                <p className="text-gray-700 text-sm mt-1 capitalize">
                   Type: {cls.type}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Created: {cls.created_at}</p>
+                <p className="text-xs text-gray-600 mt-1">Created: {cls.created_at}</p>
 
-                {/* 👥 Joined Users Section */}
-                <div className="mt-3 bg-gray-50 p-3 rounded-lg border">
-                  <h3 className="font-semibold text-sm mb-1">
+                <div className="mt-3 bg-gray-100 p-3 rounded-lg border border-gray-200">
+                  <h3 className="font-semibold text-sm mb-1 text-gray-800">
                     👥 Joined Users ({cls.joined_user_details?.length || 0})
                   </h3>
                   {cls.joined_user_details?.length ? (
-                    <ul className="text-xs text-gray-600 space-y-1 max-h-28 overflow-y-auto">
+                    <ul className="text-xs text-gray-800 space-y-1 max-h-28 overflow-y-auto">
                       {cls.joined_user_details.map((user) => (
                         <li key={user.id}>
                           • {user.name} {user.email && <span>({user.email})</span>}
@@ -315,7 +304,7 @@ export default function AdminMasterclasses() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-xs text-gray-400">No users joined yet.</p>
+                    <p className="text-xs text-gray-600">No users joined yet.</p>
                   )}
                 </div>
               </div>
@@ -323,13 +312,13 @@ export default function AdminMasterclasses() {
               <div className="flex justify-between mt-4">
                 <button
                   onClick={() => handleEdit(cls)}
-                  className="text-blue-600 font-semibold hover:underline"
+                  className="text-blue-700 font-semibold hover:underline"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleDelete(cls.id)}
-                  className="text-red-600 font-semibold hover:underline"
+                  className="text-red-700 font-semibold hover:underline"
                 >
                   Delete
                 </button>

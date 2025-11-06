@@ -57,7 +57,6 @@ export default function AdminOpportunities() {
     skills: "",
   });
 
-  // 🔹 Fetch all opportunities
   const fetchOpportunities = async () => {
     setLoading(true);
     try {
@@ -74,7 +73,6 @@ export default function AdminOpportunities() {
     }
   };
 
-  // 🔹 Fetch all users (for showing applied names & emails)
   const fetchUsers = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, "user_profiles"));
@@ -93,7 +91,6 @@ export default function AdminOpportunities() {
     fetchUsers();
   }, []);
 
-  // 🔹 Add / Update opportunity
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -150,7 +147,6 @@ export default function AdminOpportunities() {
     }
   };
 
-  // 🔹 Delete opportunity
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this opportunity?")) return;
     try {
@@ -161,7 +157,6 @@ export default function AdminOpportunities() {
     }
   };
 
-  // 🔹 Edit handler
   const handleEdit = (opp: Opportunity) => {
     setEditId(opp.id);
     setNewOpp({
@@ -177,7 +172,6 @@ export default function AdminOpportunities() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // ✅ Get applied user names & emails
   const getAppliedUsers = (applied_user?: string[]) => {
     if (!applied_user || applied_user.length === 0) return "No applicants yet";
     const details = applied_user
@@ -191,54 +185,53 @@ export default function AdminOpportunities() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-6">
-      <h1 className="text-3xl font-bold text-center mb-8">
+    <div className="min-h-screen bg-gray-100 py-12 px-6 text-gray-800">
+      <h1 className="text-4xl font-bold text-center mb-10">
         💼 Manage Global Opportunities
       </h1>
 
-      {/* Form */}
       <form
         onSubmit={handleSave}
-        className="bg-white shadow-md rounded-xl p-6 max-w-2xl mx-auto mb-10"
+        className="bg-white shadow-lg rounded-2xl p-8 max-w-3xl mx-auto mb-12 border border-gray-200"
       >
-        <h2 className="text-xl font-semibold mb-4">
+        <h2 className="text-2xl font-semibold mb-6 text-gray-900">
           {editId ? "✏️ Edit Opportunity" : "➕ Add New Opportunity"}
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <input
             type="text"
             placeholder="Title *"
             value={newOpp.title}
             onChange={(e) => setNewOpp({ ...newOpp, title: e.target.value })}
-            className="border p-3 rounded-lg"
+            className="border border-gray-300 p-3 rounded-lg text-gray-800"
           />
           <input
             type="text"
             placeholder="Company *"
             value={newOpp.company}
             onChange={(e) => setNewOpp({ ...newOpp, company: e.target.value })}
-            className="border p-3 rounded-lg"
+            className="border border-gray-300 p-3 rounded-lg text-gray-800"
           />
           <input
             type="text"
             placeholder="Location *"
             value={newOpp.location}
             onChange={(e) => setNewOpp({ ...newOpp, location: e.target.value })}
-            className="border p-3 rounded-lg"
+            className="border border-gray-300 p-3 rounded-lg text-gray-800"
           />
           <input
             type="text"
             placeholder="Job Type (Internship, Full-Time)"
             value={newOpp.type}
             onChange={(e) => setNewOpp({ ...newOpp, type: e.target.value })}
-            className="border p-3 rounded-lg"
+            className="border border-gray-300 p-3 rounded-lg text-gray-800"
           />
 
           <select
             value={newOpp.types}
             onChange={(e) => setNewOpp({ ...newOpp, types: e.target.value })}
-            className="border p-3 rounded-lg bg-white"
+            className="border border-gray-300 p-3 rounded-lg bg-white text-gray-800"
           >
             <option value="">Select Category *</option>
             {TYPE_OPTIONS.map((t) => (
@@ -253,24 +246,22 @@ export default function AdminOpportunities() {
             placeholder="Salary"
             value={newOpp.salary}
             onChange={(e) => setNewOpp({ ...newOpp, salary: e.target.value })}
-            className="border p-3 rounded-lg"
+            className="border border-gray-300 p-3 rounded-lg text-gray-800"
           />
           <input
             type="text"
             placeholder="Skills (comma separated)"
             value={newOpp.skills}
             onChange={(e) => setNewOpp({ ...newOpp, skills: e.target.value })}
-            className="border p-3 rounded-lg"
+            className="border border-gray-300 p-3 rounded-lg text-gray-800"
           />
         </div>
 
         <textarea
           placeholder="Description"
           value={newOpp.description}
-          onChange={(e) =>
-            setNewOpp({ ...newOpp, description: e.target.value })
-          }
-          className="border p-3 rounded-lg mt-4 w-full"
+          onChange={(e) => setNewOpp({ ...newOpp, description: e.target.value })}
+          className="border border-gray-300 p-3 rounded-lg mt-5 w-full text-gray-800"
           rows={4}
         />
 
@@ -305,7 +296,7 @@ export default function AdminOpportunities() {
                   skills: "",
                 });
               }}
-              className="bg-gray-500 text-white py-3 px-4 rounded-lg hover:bg-gray-600"
+              className="bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700"
             >
               Cancel
             </button>
@@ -313,39 +304,41 @@ export default function AdminOpportunities() {
         </div>
       </form>
 
-      {/* Show Opportunities */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-black mb-3"></div>
-          <p className="text-gray-600">Loading opportunities...</p>
+        <div className="flex flex-col items-center justify-center py-20 text-gray-700">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800 mb-3"></div>
+          <p>Loading opportunities...</p>
         </div>
       ) : opportunities.length === 0 ? (
-        <p className="text-center text-gray-600">No opportunities found.</p>
+        <p className="text-center text-gray-700">No opportunities found.</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {opportunities.map((opp) => (
             <div
               key={opp.id}
-              className="bg-white p-6 rounded-lg shadow-md flex flex-col justify-between"
+              className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex flex-col justify-between"
             >
               <div>
-                <h2 className="text-xl font-semibold mb-2">{opp.title}</h2>
-                <p className="text-gray-600">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                  {opp.title}
+                </h2>
+                <p className="text-gray-700">
                   {opp.company} • {opp.location}
                 </p>
-                <p className="mt-2 text-gray-700">💰 {opp.salary}</p>
-                <p className="text-sm text-gray-600 mt-1">
-                  🏷️ {opp.type} | {opp.types ? opp.types : "N/A"}
+                <p className="mt-2 text-gray-800 font-medium">
+                  💰 {opp.salary}
                 </p>
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-sm text-gray-700 mt-1">
+                  🏷️ {opp.type} | {opp.types || "N/A"}
+                </p>
+                <p className="text-sm text-gray-700 mt-2">
                   🧠 Skills: {opp.skills?.join(", ")}
                 </p>
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-gray-600 mt-2">
                   📅 Posted: {opp.posted_date}
                 </p>
 
-                {/* ✅ Applied user names + emails */}
-                <p className="text-sm text-gray-600 mt-4">
+                <p className="text-sm text-gray-700 mt-4">
                   👥 Applied Users:{" "}
                   <span className="font-medium">
                     {getAppliedUsers(opp.applied_user)}
@@ -353,7 +346,7 @@ export default function AdminOpportunities() {
                 </p>
               </div>
 
-              <div className="mt-4 flex justify-between">
+              <div className="mt-5 flex justify-between">
                 <button
                   onClick={() => handleEdit(opp)}
                   className="text-blue-600 font-semibold hover:underline"

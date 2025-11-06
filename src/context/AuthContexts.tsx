@@ -17,6 +17,7 @@ import toast from "react-hot-toast";
 
 // ✅ Unified UserProfile interface used across signup and profile
 export interface UserProfile {
+  purchasedClasses?: string[];
   id: string;
   full_name: string;
   email?: string;
@@ -25,12 +26,14 @@ export interface UserProfile {
   bio?: string;
   linkedin?: string;
   created_at?: string;
+  role?: string; // ✅ Added role field for admin check
 }
 
 interface AuthContextType {
   user: FirebaseUser | null;
   userProfile: UserProfile | null;
   loading: boolean;
+  isAdmin: boolean; // ✅ Added isAdmin property
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -50,6 +53,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // ✅ Compute isAdmin based on userProfile role
+  const isAdmin = userProfile?.role === "admin";
 
   // ✅ Listen to Firebase auth state changes
   useEffect(() => {
@@ -85,11 +91,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // ✅ Sign up with email and password
   const signUp = async (email: string, password: string, fullName?: string) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
 
       await updateFirebaseProfile(firebaseUser, {
@@ -101,16 +103,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         full_name: fullName || "",
         email,
         avatar_url: "",
+        role: "user", // ✅ Default role is 'user'
         created_at: new Date().toISOString(),
       };
 
       await setDoc(doc(db, "user_profiles", firebaseUser.uid), newUser);
-
       await fetchUserProfile(firebaseUser.uid);
       toast.success("Account created successfully!");
     } catch (error: any) {
       console.error("Sign up error:", error);
       toast.error(error.message || "Failed to create account");
+      throw error;
     }
   };
 
@@ -122,10 +125,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error("Sign in error:", error);
       toast.error(error.message || "Failed to sign in");
+      throw error;
     }
   };
 
-  // ✅ Google sign-in (optional)
+  // ✅ Google sign-in
   const signInWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
@@ -141,6 +145,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           full_name: firebaseUser.displayName || "",
           email: firebaseUser.email || "",
           avatar_url: firebaseUser.photoURL || "",
+          role: "user", // ✅ Default role is 'user'
           created_at: new Date().toISOString(),
         };
 
@@ -152,6 +157,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error("Google Sign-in error:", error);
       toast.error(error.message || "Failed to sign in");
+      throw error;
     }
   };
 
@@ -165,6 +171,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error("Sign out error:", error);
       toast.error("Failed to sign out");
+      throw error;
     }
   };
 
@@ -179,6 +186,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error("Update profile error:", error);
       toast.error("Failed to update profile");
+      throw error;
     }
   };
 
@@ -186,6 +194,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     user,
     userProfile,
     loading,
+    isAdmin, // ✅ Added isAdmin to context value
     signUp,
     signIn,
     signInWithGoogle,

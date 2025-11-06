@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContexts";
-import UserForm, { UserProfile } from "@/components/UserForm"; // 👈 import UserForm
+import UserForm, { UserProfile } from "@/components/UserForm";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -38,11 +38,27 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      const result = await signUp(userData.email || "", password, userData.full_name);
-      if (result?.user) router.push("/");
+      await signUp(userData.email || "", password, userData.full_name);
+      // ✅ After successful signup, redirect to home
+      router.push("/");
     } catch (error: any) {
       console.error("Sign up error:", error.message);
-      alert(error.message);
+      // You can use toast here instead of alert if you prefer
+      alert(error.message || "Failed to create account");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Google sign-in
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+      router.push("/");
+    } catch (error: any) {
+      console.error("Google sign-in error:", error.message);
+      alert(error.message || "Failed to sign in with Google");
     } finally {
       setLoading(false);
     }
@@ -89,6 +105,7 @@ export default function SignUpPage() {
                            text-gray-900 placeholder-gray-500"
                 placeholder="Password"
                 required
+                minLength={6}
               />
             </div>
 
@@ -110,7 +127,9 @@ export default function SignUpPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50"
+              className="w-full bg-black text-white py-3 rounded-lg font-semibold 
+                         hover:bg-gray-800 transition-colors disabled:opacity-50 
+                         disabled:cursor-not-allowed"
             >
               {loading ? "Creating Account..." : "Agree & Join"}
             </button>
@@ -128,9 +147,12 @@ export default function SignUpPage() {
             {/* Google Sign Up */}
             <button
               type="button"
-              onClick={signInWithGoogle}
-              className="w-full flex items-center justify-center px-6 py-3 border border-gray-300 rounded-full 
-                         text-gray-700 bg-white hover:bg-gray-50 transition-colors font-medium"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full flex items-center justify-center px-6 py-3 border 
+                         border-gray-300 rounded-full text-gray-700 bg-white 
+                         hover:bg-gray-50 transition-colors font-medium 
+                         disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                 <path

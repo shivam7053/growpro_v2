@@ -62,9 +62,9 @@ export default function AdminContactsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-6">
+    <div className="min-h-screen bg-gray-100 py-12 px-6 text-gray-900">
       <motion.h1
-        className="text-3xl font-bold text-center mb-8"
+        className="text-4xl font-bold text-center mb-10 text-gray-900"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -72,67 +72,63 @@ export default function AdminContactsPage() {
       </motion.h1>
 
       {loading ? (
-        <p className="text-center text-gray-600">Loading messages...</p>
+        <p className="text-center text-gray-700 font-medium">
+          Loading messages...
+        </p>
       ) : contacts.length === 0 ? (
-        <p className="text-center text-gray-600">No contact messages found.</p>
+        <p className="text-center text-gray-700 font-medium">
+          No contact messages found.
+        </p>
       ) : (
         <div className="overflow-x-auto max-w-6xl mx-auto">
-          <table className="min-w-full bg-white rounded-xl shadow-md">
+          <table className="min-w-full bg-white rounded-xl shadow-lg border border-gray-200">
             <thead>
-              <tr className="bg-gray-100 text-left">
-                <th className="py-3 px-4 font-semibold text-gray-700">Name</th>
-                <th className="py-3 px-4 font-semibold text-gray-700">Email</th>
-                <th className="py-3 px-4 font-semibold text-gray-700">
-                  Subject
-                </th>
-                <th className="py-3 px-4 font-semibold text-gray-700">
-                  Message
-                </th>
-                <th className="py-3 px-4 font-semibold text-gray-700">
+              <tr className="bg-gray-200 text-left">
+                <th className="py-3 px-4 font-semibold text-gray-900">Name</th>
+                <th className="py-3 px-4 font-semibold text-gray-900">Email</th>
+                <th className="py-3 px-4 font-semibold text-gray-900">Subject</th>
+                <th className="py-3 px-4 font-semibold text-gray-900">Message</th>
+                <th className="py-3 px-4 font-semibold text-gray-900">
                   Created At
                 </th>
-                <th className="py-3 px-4 font-semibold text-gray-700">Action</th>
+                <th className="py-3 px-4 font-semibold text-gray-900">Action</th>
               </tr>
             </thead>
             <tbody>
               {contacts.map((msg) => (
                 <tr
                   key={msg.id}
-                  className="border-b hover:bg-gray-50 transition-colors"
+                  className="border-b hover:bg-gray-100 transition-colors"
                 >
-                  {/* CORRECTED: Removed flex from <td>, applied it to an inner div/span */}
-                  <td className="py-3 px-4">
-                    <span className="flex items-center gap-2"> 
-                      <User className="w-4 h-4 text-gray-500" />
+                  <td className="py-3 px-4 text-gray-800 font-medium">
+                    <span className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-gray-600" />
                       {msg.name}
                     </span>
                   </td>
-                  {/* CORRECTED: Removed flex from <td>, applied it to an inner div/span */}
-                  <td className="py-3 px-4">
+                  <td className="py-3 px-4 text-gray-800">
                     <span className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-gray-500" />
+                      <Mail className="w-4 h-4 text-gray-600" />
                       {msg.email}
                     </span>
                   </td>
-                  <td className="py-3 px-4">{msg.subject}</td>
-                  {/* CORRECTED: Removed flex from <td>, applied it to an inner div/span */}
-                  <td className="py-3 px-4">
+                  <td className="py-3 px-4 text-gray-800">{msg.subject}</td>
+                  <td className="py-3 px-4 text-gray-700">
                     <span className="flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4 text-gray-500 shrink-0" /> {/* shrink-0 keeps icon from shrinking */}
+                      <MessageSquare className="w-4 h-4 text-gray-600 shrink-0" />
                       <span className="truncate max-w-xs">{msg.message}</span>
                     </span>
                   </td>
-                  {/* CORRECTED: Removed flex from <td>, applied it to an inner div/span */}
-                  <td className="py-3 px-4">
+                  <td className="py-3 px-4 text-gray-700">
                     <span className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-500" />
+                      <Calendar className="w-4 h-4 text-gray-600" />
                       {msg.createdAt}
                     </span>
                   </td>
                   <td className="py-3 px-4">
                     <button
                       onClick={() => handleDelete(msg.id)}
-                      className="text-red-600 hover:text-red-800 flex items-center gap-1"
+                      className="text-red-600 hover:text-red-800 font-semibold flex items-center gap-1"
                     >
                       <Trash2 className="w-4 h-4" /> Delete
                     </button>

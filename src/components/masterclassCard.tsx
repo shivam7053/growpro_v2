@@ -70,7 +70,10 @@ export default function MasterclassCard({
     }
 
     if (userJoined) {
-      toast.info('Already enrolled!');
+      toast('Already enrolled!', {
+        icon: 'ℹ️',
+        duration: 3000,
+      }); // ✅ Fixed: Use toast() with icon instead of toast.info()
       return;
     }
 
