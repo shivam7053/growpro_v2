@@ -6,12 +6,13 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContexts";
 import UserForm, { UserProfile } from "@/components/UserForm";
+import { useTheme } from "next-themes";
 
 export default function SignUpPage() {
   const router = useRouter();
   const { signUp, signInWithGoogle } = useAuth();
+  const { theme } = useTheme();
 
-  // 👇 Initialize empty user profile
   const [userData, setUserData] = useState<UserProfile>({
     id: "",
     full_name: "",
@@ -27,30 +28,24 @@ export default function SignUpPage() {
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  // Handle field updates
   const handleFieldChange = (field: keyof UserProfile, value: string) => {
     setUserData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Signup logic
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       await signUp(userData.email || "", password, userData.full_name);
-      // ✅ After successful signup, redirect to home
       router.push("/");
     } catch (error: any) {
       console.error("Sign up error:", error.message);
-      // You can use toast here instead of alert if you prefer
       alert(error.message || "Failed to create account");
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle Google sign-in
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
@@ -65,10 +60,18 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div
+      className={`min-h-screen flex transition-colors duration-300 ${
+        theme === "dark"
+          ? "bg-gray-900 text-white"
+          : "bg-gray-100 text-gray-900"
+      }`}
+    >
       {/* Left Side (Form) */}
       <motion.div
-        className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white"
+        className={`w-full lg:w-1/2 flex items-center justify-center p-8 ${
+          theme === "dark" ? "bg-gray-800" : "bg-white"
+        }`}
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
@@ -76,7 +79,15 @@ export default function SignUpPage() {
         <div className="w-full max-w-md">
           {/* Logo */}
           <div className="flex justify-center items-center mb-8">
-            <img src="/logo_growpro.png" alt="GrowPro" className="h-20 w-20" />
+            <img
+              src={
+                theme === "dark"
+                  ? "/logo_growpro_white.png" // 👈 use white logo for dark theme
+                  : "/logo_growpro.png"
+              }
+              alt="GrowPro"
+              className="h-20 w-20 transition-all duration-300"
+            />
           </div>
 
           {/* Heading */}
@@ -84,15 +95,18 @@ export default function SignUpPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-3xl font-bold text-gray-900 mb-8 text-center"
+            className="text-3xl font-bold mb-8 text-center"
           >
             Unlock Your Career Potential with GrowPro
           </motion.h1>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Reusable User Form */}
-            <UserForm userData={userData} onChange={handleFieldChange} isSignup={true} />
+            <UserForm
+              userData={userData}
+              onChange={handleFieldChange}
+              isSignup={true}
+            />
 
             {/* Password */}
             <div>
@@ -100,9 +114,12 @@ export default function SignUpPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg 
-                           focus:ring-2 focus:ring-blue-500 focus:border-transparent 
-                           text-gray-900 placeholder-gray-500"
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-opacity-70
+                  ${
+                    theme === "dark"
+                      ? "bg-gray-700 border-white-600 text-white placeholder-white-300"
+                      : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+                  }`}
                 placeholder="Password"
                 required
                 minLength={6}
@@ -118,7 +135,12 @@ export default function SignUpPage() {
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
-              <label htmlFor="remember-me" className="ml-2 text-sm text-gray-700">
+              <label
+                htmlFor="remember-me"
+                className={`ml-2 text-sm ${
+                  theme === "dark" ? "text-gray-300" : "text-gray-700"
+                }`}
+              >
                 Remember me
               </label>
             </div>
@@ -127,9 +149,11 @@ export default function SignUpPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-black text-white py-3 rounded-lg font-semibold 
-                         hover:bg-gray-800 transition-colors disabled:opacity-50 
-                         disabled:cursor-not-allowed"
+              className={`w-full py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                theme === "dark"
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "bg-black hover:bg-gray-800 text-white"
+              }`}
             >
               {loading ? "Creating Account..." : "Agree & Join"}
             </button>
@@ -137,10 +161,24 @@ export default function SignUpPage() {
             {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+                <div
+                  className={`w-full border-t ${
+                    theme === "dark"
+                      ? "border-gray-600"
+                      : "border-gray-300"
+                  }`}
+                />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500">or</span>
+                <span
+                  className={`px-4 ${
+                    theme === "dark"
+                      ? "bg-gray-800 text-gray-400"
+                      : "bg-white text-gray-500"
+                  }`}
+                >
+                  or
+                </span>
               </div>
             </div>
 
@@ -149,10 +187,11 @@ export default function SignUpPage() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="w-full flex items-center justify-center px-6 py-3 border 
-                         border-gray-300 rounded-full text-gray-700 bg-white 
-                         hover:bg-gray-50 transition-colors font-medium 
-                         disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full flex items-center justify-center px-6 py-3 border rounded-full font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                theme === "dark"
+                  ? "border-gray-600 text-gray-200 bg-gray-700 hover:bg-gray-600"
+                  : "border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+              }`}
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                 <path
@@ -176,9 +215,20 @@ export default function SignUpPage() {
             </button>
 
             {/* Footer */}
-            <p className="text-center text-sm text-gray-600 mt-6">
+            <p
+              className={`text-center text-sm mt-6 ${
+                theme === "dark" ? "text-gray-400" : "text-gray-600"
+              }`}
+            >
               Already on GrowPro?{" "}
-              <Link href="/signin" className="text-blue-600 hover:underline font-medium">
+              <Link
+                href="/signin"
+                className={`font-medium ${
+                  theme === "dark"
+                    ? "text-blue-400 hover:underline"
+                    : "text-blue-600 hover:underline"
+                }`}
+              >
                 Sign in
               </Link>
             </p>
@@ -188,7 +238,9 @@ export default function SignUpPage() {
 
       {/* Right Side (Image) */}
       <motion.div
-        className="hidden lg:flex lg:w-1/2 bg-gray-100 items-center justify-center relative overflow-hidden"
+        className={`hidden lg:flex lg:w-1/2 items-center justify-center relative overflow-hidden ${
+          theme === "dark" ? "bg-gray-900" : "bg-gray-100"
+        }`}
         initial={{ opacity: 0, x: 50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}

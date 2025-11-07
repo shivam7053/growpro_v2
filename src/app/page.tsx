@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import Link from 'next/link';
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import Link from "next/link";
 import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
-} from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { useAuth } from '@/context/AuthContexts';
-import toast from 'react-hot-toast';
-import Header from '@/components/Header';
-import MasterclassCard from '@/components/masterclassCard';
+} from "lucide-react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/context/AuthContexts";
+import toast from "react-hot-toast";
+import Header from "@/components/Header";
+import MasterclassCard from "@/components/masterclassCard";
 
 interface Masterclass {
   id: string;
@@ -25,7 +25,7 @@ interface Masterclass {
   created_at: string;
   price: number;
   joined_users: string[];
-  type: 'free' | 'paid' | 'featured';
+  type: "free" | "paid" | "featured";
 }
 
 export default function HomePage() {
@@ -58,7 +58,9 @@ export default function HomePage() {
   const nextTestimonial = () =>
     setCurrentTestimonial((p) => (p + 1) % testimonials.length);
   const prevTestimonial = () =>
-    setCurrentTestimonial((p) => (p - 1 + testimonials.length) % testimonials.length);
+    setCurrentTestimonial(
+      (p) => (p - 1 + testimonials.length) % testimonials.length
+    );
 
   // ✅ Masterclass Section
   const [masterclasses, setMasterclasses] = useState<Masterclass[]>([]);
@@ -72,7 +74,7 @@ export default function HomePage() {
 
   const fetchMasterclasses = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'MasterClasses'));
+      const querySnapshot = await getDocs(collection(db, "MasterClasses"));
       const list = querySnapshot.docs.map((d) => ({
         id: d.id,
         ...d.data(),
@@ -81,7 +83,7 @@ export default function HomePage() {
       })) as Masterclass[];
       setMasterclasses(list);
     } catch (error: any) {
-      toast.error('Error loading masterclasses');
+      toast.error("Error loading masterclasses");
       console.error(error);
     } finally {
       setLoading(false);
@@ -113,16 +115,21 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-gray-100 overflow-hidden relative text-gray-900">
+    <div
+      className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-gray-100 
+                 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 
+                 overflow-hidden relative text-gray-900 dark:text-gray-100"
+    >
       {/* Background Animation */}
       <motion.div
-        className="absolute inset-0 bg-gradient-to-r from-blue-300 via-purple-200 to-pink-200 opacity-30 blur-3xl"
+        className="absolute inset-0 bg-gradient-to-r from-blue-300 via-purple-200 to-pink-200 
+                   dark:from-gray-700 dark:via-gray-800 dark:to-gray-900 opacity-30 blur-3xl"
         animate={{
-          backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+          backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
         }}
         transition={{
           duration: 15,
-          ease: 'linear',
+          ease: "linear",
           repeat: Infinity,
         }}
       />
@@ -131,27 +138,29 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <motion.section
-        className="pt-24 pb-20 bg-white relative z-10 shadow-sm"
+        className="pt-24 pb-20 bg-white dark:bg-gray-900 relative z-10 shadow-sm"
         initial="initial"
         animate="animate"
         variants={staggerChildren}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <motion.div variants={fadeInUp} className="text-center mb-12">
-            <h1 className="text-5xl lg:text-6xl font-extrabold text-gray-900 mb-6 leading-tight tracking-tight drop-shadow-sm">
+            <h1 className="text-5xl lg:text-6xl font-extrabold mb-6 leading-tight tracking-tight text-gray-900 dark:text-white">
               WE HELP YOU CRACK YOUR DREAM JOB!
             </h1>
 
             <div className="flex flex-wrap justify-center gap-4 mb-16">
               <Link
                 href="/global-opportunities"
-                className="bg-black text-white hover:bg-gray-900 px-8 py-4 rounded-full font-semibold transition-all duration-300 hover:scale-105 shadow-md"
+                className="bg-black text-white dark:bg-white dark:text-black 
+                           px-8 py-4 rounded-full font-semibold transition-all duration-300 hover:scale-105 shadow-md"
               >
                 Global Remote Opportunities
               </Link>
               <Link
                 href="/masterclasses"
-                className="bg-black text-white hover:bg-gray-900 px-8 py-4 rounded-full font-semibold transition-all duration-300 hover:scale-105 shadow-md"
+                className="bg-black text-white dark:bg-white dark:text-black 
+                           px-8 py-4 rounded-full font-semibold transition-all duration-300 hover:scale-105 shadow-md"
               >
                 Master Classes
               </Link>
@@ -168,36 +177,40 @@ export default function HomePage() {
 
             <motion.div
               variants={fadeInUp}
-              className="bg-gray-50 rounded-2xl shadow-lg p-8 border border-gray-200"
+              className="bg-gray-50 dark:bg-gray-800 rounded-2xl shadow-lg p-8 border border-gray-200 dark:border-gray-700"
             >
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">
                 Your Dream Job Awaits!
               </h2>
 
-              <div className="space-y-6 text-gray-800">
+              <div className="space-y-6 text-gray-800 dark:text-gray-300">
                 {[
                   {
                     title:
-                      'Join 10,000+ job seekers who leveled up their careers',
+                      "Join 10,000+ job seekers who leveled up their careers",
                     desc: "Be part of a thriving community that's landing dream jobs!",
                   },
                   {
                     title:
-                      'Get your resume screened, find the perfect job, and attend workshops',
-                    desc: 'A full suite of tools designed to boost your career.',
+                      "Get your resume screened, find the perfect job, and attend workshops",
+                    desc: "A full suite of tools designed to boost your career.",
                   },
                   {
-                    title: 'Personalised career support tailored for you',
+                    title: "Personalised career support tailored for you",
                     desc: "Guidance crafted around your career journey.",
                   },
                 ].map((step, index) => (
                   <div key={index} className="flex items-start space-x-4">
-                    <div className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-bold shadow-md">
+                    <div className="w-8 h-8 bg-black dark:bg-white dark:text-black text-white rounded-full flex items-center justify-center font-bold shadow-md">
                       {index + 1}
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">{step.title}</p>
-                      <p className="text-gray-700 text-sm mt-1">{step.desc}</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">
+                        {step.title}
+                      </p>
+                      <p className="text-gray-700 dark:text-gray-400 text-sm mt-1">
+                        {step.desc}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -205,7 +218,8 @@ export default function HomePage() {
 
               <Link
                 href="/signup"
-                className="w-full bg-black text-white py-4 mt-8 rounded-full font-semibold hover:bg-gray-900 transition-all duration-300 hover:scale-105 inline-flex items-center justify-center gap-2 shadow-lg"
+                className="w-full bg-black text-white dark:bg-white dark:text-black 
+                           py-4 mt-8 rounded-full font-semibold hover:scale-105 transition-all duration-300 inline-flex items-center justify-center gap-2 shadow-lg"
               >
                 <span>Get Started Now</span>
                 <ArrowRight className="w-5 h-5" />
@@ -217,25 +231,29 @@ export default function HomePage() {
 
       {/* Masterclass Section */}
       <motion.section
-        className="py-20 bg-gray-50 relative z-10"
+        className="py-20 bg-gray-50 dark:bg-gray-900 relative z-10"
         initial="initial"
         whileInView="animate"
         viewport={{ once: true }}
         variants={staggerChildren}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <motion.div variants={fadeInUp} className="flex justify-between items-center mb-10">
+          <motion.div
+            variants={fadeInUp}
+            className="flex justify-between items-center mb-10"
+          >
             <div>
-              <h2 className="text-4xl lg:text-5xl font-extrabold text-gray-900 mb-3 tracking-tight">
+              <h2 className="text-4xl lg:text-5xl font-extrabold mb-3 text-gray-900 dark:text-white">
                 Featured Masterclasses
               </h2>
-              <p className="text-gray-700 text-lg font-medium">
+              <p className="text-gray-700 dark:text-gray-300 text-lg font-medium">
                 Learn from industry experts and unlock your career potential
               </p>
             </div>
             <Link
               href="/masterclasses"
-              className="hidden md:inline-flex items-center gap-2 bg-black text-white px-6 py-3 rounded-full font-semibold hover:bg-gray-900 transition-all duration-300 shadow-md"
+              className="hidden md:inline-flex items-center gap-2 bg-black text-white dark:bg-white dark:text-black 
+                         px-6 py-3 rounded-full font-semibold hover:scale-105 transition-all duration-300 shadow-md"
             >
               View All
               <ArrowRight className="w-5 h-5" />
@@ -244,13 +262,13 @@ export default function HomePage() {
 
           {loading && (
             <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-black"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-black dark:border-gray-700 dark:border-t-white"></div>
             </div>
           )}
 
           {!loading && masterclasses.length === 0 && (
-            <div className="text-center text-gray-700 py-12">
-              <AlertTriangle className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+            <div className="text-center text-gray-700 dark:text-gray-300 py-12">
+              <AlertTriangle className="w-12 h-12 text-gray-500 dark:text-gray-400 mx-auto mb-4" />
               <p className="font-medium">No masterclasses available right now.</p>
             </div>
           )}
@@ -276,15 +294,15 @@ export default function HomePage() {
 
               <button
                 onClick={prevSlide}
-                className="absolute left-0 top-1/2 -translate-y-1/2 bg-white p-3 rounded-full shadow-md hover:bg-gray-100 transition"
+                className="absolute left-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-3 rounded-full shadow-md hover:scale-110 transition"
               >
-                <ChevronLeft className="w-6 h-6 text-gray-800" />
+                <ChevronLeft className="w-6 h-6 text-gray-800 dark:text-gray-100" />
               </button>
               <button
                 onClick={nextSlide}
-                className="absolute right-0 top-1/2 -translate-y-1/2 bg-white p-3 rounded-full shadow-md hover:bg-gray-100 transition"
+                className="absolute right-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-3 rounded-full shadow-md hover:scale-110 transition"
               >
-                <ChevronRight className="w-6 h-6 text-gray-800" />
+                <ChevronRight className="w-6 h-6 text-gray-800 dark:text-gray-100" />
               </button>
 
               <div className="flex justify-center gap-2 mt-6">
@@ -293,7 +311,9 @@ export default function HomePage() {
                     key={index}
                     onClick={() => setCurrentSlide(index)}
                     className={`w-3 h-3 rounded-full transition ${
-                      index === currentSlide ? 'bg-black' : 'bg-gray-300'
+                      index === currentSlide
+                        ? "bg-black dark:bg-white"
+                        : "bg-gray-300 dark:bg-gray-600"
                     }`}
                   />
                 ))}
@@ -303,9 +323,9 @@ export default function HomePage() {
         </div>
       </motion.section>
 
-      {/* Workshop Section + Testimonials */}
+      {/* Workshops + Testimonials */}
       <motion.section
-        className="py-20 bg-white relative z-10"
+        className="py-20 bg-white dark:bg-gray-900 relative z-10"
         initial="initial"
         whileInView="animate"
         viewport={{ once: true }}
@@ -314,7 +334,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <motion.h2
             variants={fadeInUp}
-            className="text-3xl lg:text-4xl font-extrabold text-gray-900 text-center mb-12 leading-tight"
+            className="text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white text-center mb-12 leading-tight"
           >
             Gain Insider Knowledge – Attend Workshops Led by Recruiters,
             Hiring Managers & Industry Leaders.
@@ -322,7 +342,7 @@ export default function HomePage() {
 
           <motion.div
             variants={fadeInUp}
-            className="flex justify-center flex-wrap gap-8 mb-16"
+            className="flex justify-center flex-wrap gap-8 mb-16 opacity-80"
           >
             <img src="/l-t.png" alt="L&T" className="h-12" />
             <img src="/walmart.png" alt="Walmart" className="h-8" />
@@ -335,7 +355,7 @@ export default function HomePage() {
           {/* Testimonials */}
           <motion.div
             variants={fadeInUp}
-            className="bg-gray-50 rounded-2xl shadow-lg p-8 max-w-4xl mx-auto border border-gray-200"
+            className="bg-gray-50 dark:bg-gray-800 rounded-2xl shadow-lg p-8 max-w-4xl mx-auto border border-gray-200 dark:border-gray-700"
           >
             <div className="grid md:grid-cols-2 gap-8 items-center">
               <img
@@ -344,13 +364,13 @@ export default function HomePage() {
                 className="w-full h-64 object-cover rounded-xl shadow-md"
               />
               <div>
-                <blockquote className="text-2xl text-blue-600 font-semibold mb-4 leading-snug">
+                <blockquote className="text-2xl text-blue-600 dark:text-blue-400 font-semibold mb-4 leading-snug">
                   “{testimonials[currentTestimonial].quote}”
                 </blockquote>
-                <p className="text-gray-800 mb-3 font-medium">
+                <p className="text-gray-800 dark:text-gray-300 mb-3 font-medium">
                   {testimonials[currentTestimonial].description}
                 </p>
-                <ul className="space-y-2 text-gray-700 mb-6">
+                <ul className="space-y-2 text-gray-700 dark:text-gray-400 mb-6">
                   {testimonials[currentTestimonial].points.map((p, i) => (
                     <li key={i}>• {p}</li>
                   ))}
@@ -359,9 +379,9 @@ export default function HomePage() {
                 <div className="flex items-center gap-4">
                   <button
                     onClick={prevTestimonial}
-                    className="p-2 bg-white border border-gray-200 rounded-full shadow hover:bg-gray-100 transition"
+                    className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                   >
-                    <ChevronLeft className="w-5 h-5 text-gray-800" />
+                    <ChevronLeft className="w-5 h-5 text-gray-800 dark:text-gray-100" />
                   </button>
                   <div className="flex gap-2">
                     {testimonials.map((_, i) => (
@@ -369,17 +389,17 @@ export default function HomePage() {
                         key={i}
                         className={`w-3 h-3 rounded-full ${
                           i === currentTestimonial
-                            ? 'bg-black'
-                            : 'bg-gray-300'
+                            ? "bg-black dark:bg-white"
+                            : "bg-gray-300 dark:bg-gray-600"
                         }`}
                       />
                     ))}
                   </div>
                   <button
                     onClick={nextTestimonial}
-                    className="p-2 bg-white border border-gray-200 rounded-full shadow hover:bg-gray-100 transition"
+                    className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                   >
-                    <ChevronRight className="w-5 h-5 text-gray-800" />
+                    <ChevronRight className="w-5 h-5 text-gray-800 dark:text-gray-100" />
                   </button>
                 </div>
               </div>
@@ -390,7 +410,7 @@ export default function HomePage() {
 
       {/* CTA Footer */}
       <motion.section
-        className="py-20 bg-black text-white relative z-10 text-center"
+        className="py-20 bg-black dark:bg-gray-950 text-white text-center"
         initial="initial"
         whileInView="animate"
         viewport={{ once: true }}
@@ -413,7 +433,8 @@ export default function HomePage() {
           <motion.div variants={fadeInUp}>
             <Link
               href="/signup"
-              className="bg-white text-black px-8 py-4 rounded-full font-semibold hover:bg-gray-100 transition-all duration-300 hover:scale-105 inline-flex items-center gap-2 shadow-lg"
+              className="bg-white text-black dark:bg-white dark:text-black 
+                         px-8 py-4 rounded-full font-semibold hover:scale-105 transition-all duration-300 inline-flex items-center gap-2 shadow-lg"
             >
               <span>Start Your Journey</span>
               <ArrowRight className="w-5 h-5" />
@@ -421,8 +442,6 @@ export default function HomePage() {
           </motion.div>
         </div>
       </motion.section>
-
-     
     </div>
   );
 }

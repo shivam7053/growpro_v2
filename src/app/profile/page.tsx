@@ -2,17 +2,26 @@
 
 import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { motion } from "framer-motion";
-import { User, Mail, Phone, MapPin, Camera, CheckCircle, Save } from "lucide-react";
+import {
+  User,
+  Mail,
+  Phone,
+  Camera,
+  CheckCircle,
+  Save,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContexts";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import toast from "react-hot-toast";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
-import UserForm, { UserProfile } from "@/components/UserForm"; // 👈 imported
+import UserForm, { UserProfile } from "@/components/UserForm";
+import { useTheme } from "next-themes";
 
 export default function ProfilePage() {
   const { user, userProfile, updateProfile, loading } = useAuth();
+  const { theme } = useTheme();
 
   const [formData, setFormData] = useState<UserProfile>({
     id: "",
@@ -103,13 +112,17 @@ export default function ProfilePage() {
 
   if (loading)
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-600">
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
         Loading profile...
       </div>
     );
 
   return (
-    <div className="min-h-screen bg-gray-50 text-black">
+    <div
+      className={`min-h-screen transition-colors duration-300 ${
+        theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
+      }`}
+    >
       <Header />
 
       <div className="pt-28 pb-12">
@@ -120,8 +133,10 @@ export default function ProfilePage() {
             animate="animate"
             variants={fadeInUp}
           >
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Profile</h1>
-            <p className="text-gray-600">Update your information to personalize your experience.</p>
+            <h1 className="text-3xl font-bold mb-2">Edit Profile</h1>
+            <p className="text-gray-500 dark:text-gray-400">
+              Update your information to personalize your experience.
+            </p>
           </motion.div>
 
           <div className="grid lg:grid-cols-3 gap-8">
@@ -132,7 +147,11 @@ export default function ProfilePage() {
               initial="initial"
               animate="animate"
             >
-              <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
+              <div
+                className={`rounded-2xl shadow-lg p-6 text-center transition-colors duration-300 ${
+                  theme === "dark" ? "bg-gray-800" : "bg-white"
+                }`}
+              >
                 <div className="relative inline-block mb-4">
                   {formData.avatar_url ? (
                     <img
@@ -141,13 +160,17 @@ export default function ProfilePage() {
                       className="w-24 h-24 rounded-full object-cover mx-auto"
                     />
                   ) : (
-                    <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto">
+                    <div
+                      className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto ${
+                        theme === "dark" ? "bg-gray-700" : "bg-gray-200"
+                      }`}
+                    >
                       <User className="w-12 h-12 text-gray-400" />
                     </div>
                   )}
                   <label
                     htmlFor="avatar-upload"
-                    className="absolute bottom-0 right-0 bg-black text-white p-2 rounded-full hover:bg-gray-800 cursor-pointer"
+                    className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full hover:bg-gray-700 cursor-pointer"
                   >
                     <Camera className="w-4 h-4" />
                     <input
@@ -160,14 +183,14 @@ export default function ProfilePage() {
                   </label>
                 </div>
 
-                <h3 className="text-xl font-bold text-gray-900 mb-1">
+                <h3 className="text-xl font-bold mb-1">
                   {formData.full_name || "Your Name"}
                 </h3>
-                <p className="text-gray-600 mb-4 capitalize">
+                <p className="text-gray-500 dark:text-gray-400 mb-4 capitalize">
                   {formData.linkedin ? "Professional" : "New User"}
                 </p>
 
-                <div className="space-y-2 text-sm text-gray-700">
+                <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-center space-x-2">
                     <Mail className="w-4 h-4" />
                     <span>{formData.email}</span>
@@ -182,15 +205,17 @@ export default function ProfilePage() {
 
                 {/* Purchased Classes */}
                 <div className="mt-6 text-left">
-                  <h4 className="font-semibold text-gray-800 mb-2">
-                    Purchased Classes
-                  </h4>
+                  <h4 className="font-semibold mb-2">Purchased Classes</h4>
                   {purchasedClasses.length > 0 ? (
-                    <ul className="space-y-1 text-gray-700">
+                    <ul className="space-y-1">
                       {purchasedClasses.map((cls, index) => (
                         <li
                           key={index}
-                          className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg"
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
+                            theme === "dark"
+                              ? "bg-gray-700 text-gray-200"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
                         >
                           <CheckCircle className="w-4 h-4 text-green-600" />
                           {cls}
@@ -198,7 +223,9 @@ export default function ProfilePage() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-gray-500">No classes purchased yet.</p>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      No classes purchased yet.
+                    </p>
                   )}
                 </div>
               </div>
@@ -211,7 +238,11 @@ export default function ProfilePage() {
               initial="initial"
               animate="animate"
             >
-              <div className="bg-white rounded-2xl shadow-lg p-8">
+              <div
+                className={`rounded-2xl shadow-lg p-8 transition-colors duration-300 ${
+                  theme === "dark" ? "bg-gray-800" : "bg-white"
+                }`}
+              >
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <UserForm userData={formData} onChange={handleFieldChange} />
                   <button
@@ -235,7 +266,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <Footer />
     </div>
   );
 }

@@ -163,24 +163,20 @@ export default function MasterclassesPage() {
 
   const cardVariants = {
     hidden: { opacity: 0, y: 40 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: easeOut },
-    },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: easeOut } },
   };
 
   const SkeletonCard = () => (
-    <div className="animate-pulse bg-white shadow rounded-xl p-6 space-y-4 border border-gray-300">
-      <div className="h-40 bg-gray-200 rounded-lg" />
-      <div className="h-6 bg-gray-300 rounded w-3/4" />
-      <div className="h-4 bg-gray-300 rounded w-1/2" />
-      <div className="h-4 bg-gray-300 rounded w-1/3" />
+    <div className="animate-pulse bg-white dark:bg-gray-800 shadow rounded-xl p-6 space-y-4 border border-gray-300 dark:border-gray-700">
+      <div className="h-40 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+      <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded w-3/4" />
+      <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/2" />
+      <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/3" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-100 text-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-100 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
       <Header />
 
       <section className="pt-24 pb-20">
@@ -189,7 +185,7 @@ export default function MasterclassesPage() {
           <div className="mb-8">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 text-gray-700 hover:text-black font-medium transition mb-6"
+              className="inline-flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white font-medium transition mb-6"
             >
               <ArrowLeft className="w-5 h-5" />
               Back to Home
@@ -197,17 +193,17 @@ export default function MasterclassesPage() {
 
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <h1 className="text-4xl lg:text-5xl font-extrabold text-gray-900 mb-2">
+                <h1 className="text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white mb-2">
                   All Masterclasses
                 </h1>
-                <p className="text-lg text-gray-700">
+                <p className="text-lg text-gray-700 dark:text-gray-400">
                   Explore expert-led sessions and level up your skills
                 </p>
               </div>
               <button
                 onClick={handleRefresh}
                 disabled={loading}
-                className="flex items-center gap-2 px-5 py-3 bg-black hover:bg-gray-800 text-white rounded-lg font-semibold transition disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-3 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black rounded-lg font-semibold transition disabled:opacity-50"
               >
                 <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
                 Refresh
@@ -218,18 +214,21 @@ export default function MasterclassesPage() {
           {/* Search + Filters */}
           <div className="mb-10 flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-400" />
               <input
                 type="text"
                 placeholder="Search by title, speaker, or designation..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-10 py-3 border border-gray-400 rounded-lg text-gray-900 placeholder-gray-700 bg-white focus:ring-2 focus:ring-black focus:border-transparent shadow-sm transition"
+                className="w-full pl-12 pr-10 py-3 border border-gray-400 dark:border-gray-700 rounded-lg 
+                           text-gray-900 dark:text-gray-100 placeholder-gray-700 dark:placeholder-gray-400 
+                           bg-white dark:bg-gray-800 focus:ring-2 focus:ring-black dark:focus:ring-gray-300 
+                           focus:border-transparent shadow-sm transition"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-900 text-xl"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xl"
                 >
                   ×
                 </button>
@@ -243,8 +242,8 @@ export default function MasterclassesPage() {
                   onClick={() => setFilterType(type as FilterType)}
                   className={`px-6 py-3 rounded-lg font-semibold transition ${
                     filterType === type
-                      ? "bg-black text-white shadow-md"
-                      : "bg-white text-gray-800 border border-gray-400 hover:bg-gray-200"
+                      ? "bg-black dark:bg-white text-white dark:text-black shadow-md"
+                      : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-400 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
                   }`}
                 >
                   {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -255,8 +254,8 @@ export default function MasterclassesPage() {
                   onClick={() => setFilterType("enrolled")}
                   className={`px-6 py-3 rounded-lg font-semibold transition ${
                     filterType === "enrolled"
-                      ? "bg-black text-white shadow-md"
-                      : "bg-white text-gray-800 border border-gray-400 hover:bg-gray-200"
+                      ? "bg-black dark:bg-white text-white dark:text-black shadow-md"
+                      : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-400 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
                   }`}
                 >
                   My Courses
@@ -274,9 +273,11 @@ export default function MasterclassesPage() {
             </div>
           ) : filteredMasterclasses.length === 0 ? (
             <div className="text-center py-20">
-              <AlertTriangle className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">No Results Found</h3>
-              <p className="text-gray-700 mb-6">
+              <AlertTriangle className="w-16 h-16 text-gray-500 dark:text-gray-400 mx-auto mb-4" />
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                No Results Found
+              </h3>
+              <p className="text-gray-700 dark:text-gray-400 mb-6">
                 {searchQuery
                   ? `No masterclass found for "${searchQuery}".`
                   : filterType === "enrolled" && !user
@@ -290,7 +291,7 @@ export default function MasterclassesPage() {
                   setSearchQuery("");
                   setFilterType("all");
                 }}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 font-semibold transition"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 font-semibold transition"
               >
                 Clear Filters
               </button>
@@ -316,7 +317,7 @@ export default function MasterclassesPage() {
         </div>
       </section>
 
-     
+      
     </div>
   );
 }

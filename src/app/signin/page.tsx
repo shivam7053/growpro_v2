@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContexts";
+import { useTheme } from "next-themes";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
@@ -12,7 +13,7 @@ export default function SignInPage() {
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [loading, setLoading] = useState(false);
   const { signIn, signInWithGoogle } = useAuth();
-
+  const { theme } = useTheme();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,23 +30,30 @@ export default function SignInPage() {
   };
 
   const handleGoogleLogin = async () => {
-  try {
-    setLoading(true);
-    await signInWithGoogle(); // ✅ correct name
-    router.push("/");
-  } catch (error: any) {
-    console.error("Google sign-in failed:", error.message);
-  } finally {
-    setLoading(false);
-  }
-};
-
+    try {
+      setLoading(true);
+      await signInWithGoogle();
+      router.push("/");
+    } catch (error: any) {
+      console.error("Google sign-in failed:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div
+      className={`min-h-screen flex transition-colors duration-300 ${
+        theme === "dark"
+          ? "bg-gray-900 text-white"
+          : "bg-gray-100 text-gray-900"
+      }`}
+    >
       {/* Left side image */}
       <motion.div
-        className="hidden lg:flex lg:w-1/2 bg-gray-100 items-center justify-center relative"
+        className={`hidden lg:flex lg:w-1/2 items-center justify-center relative ${
+          theme === "dark" ? "bg-gray-900" : "bg-gray-100"
+        }`}
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
@@ -59,21 +67,32 @@ export default function SignInPage() {
 
       {/* Right side form */}
       <motion.div
-        className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white"
+        className={`w-full lg:w-1/2 flex items-center justify-center p-8 ${
+          theme === "dark" ? "bg-gray-800" : "bg-white"
+        }`}
         initial={{ opacity: 0, x: 50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
       >
         <div className="w-full max-w-md">
+          {/* Logo */}
           <div className="text-center mb-8">
             <img
               src="/logo_growpro.png"
               alt="GrowPro"
               className="h-20 w-20 mx-auto"
+              style={{
+                filter: theme === "dark" ? "brightness(3)" : "none",
+              }}
             />
           </div>
 
-          <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">
+          {/* Title */}
+          <h1
+            className={`text-3xl font-bold mb-8 text-center ${
+              theme === "dark" ? "text-white" : "text-gray-900"
+            }`}
+          >
             Sign in
           </h1>
 
@@ -82,7 +101,12 @@ export default function SignInPage() {
             <button
               type="button"
               onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center px-6 py-3 border border-gray-300 rounded-full text-gray-700 bg-white hover:bg-gray-50 transition-colors font-medium"
+              disabled={loading}
+              className={`w-full flex items-center justify-center px-6 py-3 border rounded-full font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                theme === "dark"
+                  ? "border-gray-600 text-gray-200 bg-gray-700 hover:bg-gray-600"
+                  : "border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+              }`}
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                 <path
@@ -108,10 +132,24 @@ export default function SignInPage() {
             {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+                <div
+                  className={`w-full border-t ${
+                    theme === "dark"
+                      ? "border-gray-600"
+                      : "border-gray-300"
+                  }`}
+                />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500">or</span>
+                <span
+                  className={`px-4 ${
+                    theme === "dark"
+                      ? "bg-gray-800 text-gray-400"
+                      : "bg-white text-gray-500"
+                  }`}
+                >
+                  or
+                </span>
               </div>
             </div>
 
@@ -121,7 +159,11 @@ export default function SignInPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500 ${
+                theme === "dark"
+                  ? "bg-gray-700 border-gray-600 text-white"
+                  : "bg-white border-gray-300 text-gray-900"
+              }`}
               placeholder="Email"
               required
             />
@@ -132,7 +174,11 @@ export default function SignInPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500 ${
+                theme === "dark"
+                  ? "bg-gray-700 border-gray-600 text-white"
+                  : "bg-white border-gray-300 text-gray-900"
+              }`}
               placeholder="Password"
               required
             />
@@ -148,7 +194,9 @@ export default function SignInPage() {
               />
               <label
                 htmlFor="keep-logged-in"
-                className="ml-2 text-sm text-gray-700"
+                className={`ml-2 text-sm ${
+                  theme === "dark" ? "text-gray-300" : "text-gray-700"
+                }`}
               >
                 Keep me logged in
               </label>
@@ -158,15 +206,30 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                theme === "dark"
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "bg-black hover:bg-gray-800 text-white"
+              }`}
             >
               {loading ? "Signing In..." : "Sign in"}
             </button>
 
             {/* Footer */}
-            <p className="text-center text-sm text-gray-600 mt-6">
+            <p
+              className={`text-center text-sm mt-6 ${
+                theme === "dark" ? "text-gray-400" : "text-gray-600"
+              }`}
+            >
               New to GrowPro?{" "}
-              <Link href="/signup" className="text-blue-600 hover:underline">
+              <Link
+                href="/signup"
+                className={`font-medium ${
+                  theme === "dark"
+                    ? "text-blue-400 hover:underline"
+                    : "text-blue-600 hover:underline"
+                }`}
+              >
                 Join now
               </Link>
             </p>
