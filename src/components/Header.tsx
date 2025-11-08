@@ -44,7 +44,11 @@ export default function Header({ transparent = false }: HeaderProps) {
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <img src="/logo_growpro.png" alt="GrowPro" className="h-20 w-25" />
+            <img src={
+                theme === "dark"
+                  ? "/white-logo.png" // 👈 use white logo for dark theme
+                  : "/logo_growpro.png"
+              } alt="GrowPro" className="h-20 w-25" />
           </Link>
 
           {/* Navigation */}

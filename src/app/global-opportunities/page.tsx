@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import {
   MapPin,
   Clock,
@@ -21,10 +21,9 @@ import {
   doc,
   arrayUnion,
 } from "firebase/firestore";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { useAuth } from "@/context/AuthContexts";
 import toast from "react-hot-toast";
+import { useTheme } from "next-themes";
 
 interface Opportunity {
   id: string;
@@ -43,6 +42,7 @@ interface Opportunity {
 
 export default function GlobalOpportunitiesPage() {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -51,7 +51,10 @@ export default function GlobalOpportunitiesPage() {
 
   useEffect(() => {
     try {
-      const q = query(collection(db, "opportunities"), orderBy("created_at", "desc"));
+      const q = query(
+        collection(db, "opportunities"),
+        orderBy("created_at", "desc")
+      );
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const data = snapshot.docs.map((d) => ({
           id: d.id,
@@ -83,7 +86,10 @@ export default function GlobalOpportunitiesPage() {
       job.company?.toLowerCase().includes(search) ||
       job.skills?.some((s) => s.toLowerCase().includes(search));
     if (selectedCategory === "all") return matchesSearch;
-    return matchesSearch && job.types?.toLowerCase() === selectedCategory.toLowerCase();
+    return (
+      matchesSearch &&
+      job.types?.toLowerCase() === selectedCategory.toLowerCase()
+    );
   });
 
   const handleApply = async (jobId: string) => {
@@ -101,16 +107,25 @@ export default function GlobalOpportunitiesPage() {
     }
   };
 
-  const fadeInUp = {
+  // ✅ Fixed and typed animation variants
+  const fadeInUp: Variants = {
     initial: { opacity: 0, y: 30 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.6 },
+    animate: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.6 },
+    },
   };
-  const staggerChildren = { animate: { transition: { staggerChildren: 0.1 } } };
+
+  const staggerChildren: Variants = {
+    animate: {
+      transition: { staggerChildren: 0.1 },
+    },
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900">
-      <Header />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+
 
       <div className="pt-24 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -121,18 +136,22 @@ export default function GlobalOpportunitiesPage() {
             animate="animate"
             variants={fadeInUp}
           >
-            <h1 className="text-5xl lg:text-6xl font-extrabold text-gray-900 mb-6 tracking-tight">
+            <h1 className="text-5xl lg:text-6xl font-extrabold text-gray-900 dark:text-gray-100 mb-6 tracking-tight">
               Global Remote Opportunities
             </h1>
-            <p className="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
-              Discover <span className="font-semibold text-black">handpicked remote jobs</span> and
-              internships from top companies worldwide. Start your global career journey today.
+            <p className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto leading-relaxed">
+              Discover{" "}
+              <span className="font-semibold text-black dark:text-white">
+                handpicked remote jobs
+              </span>{" "}
+              and internships from top companies worldwide. Start your global
+              career journey today.
             </p>
           </motion.div>
 
           {/* Search + Filter */}
           <motion.div
-            className="bg-white rounded-3xl shadow-xl p-8 mb-12 border border-gray-100"
+            className="bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-8 mb-12 border border-gray-100 dark:border-gray-700"
             variants={fadeInUp}
             initial="initial"
             animate="animate"
@@ -145,7 +164,10 @@ export default function GlobalOpportunitiesPage() {
                   placeholder="Search by title, company, or skills..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 text-lg border border-gray-300 rounded-xl focus:ring-2 focus:ring-black focus:border-black outline-none placeholder-gray-400"
+                  className="w-full pl-12 pr-4 py-4 text-lg border border-gray-300 dark:border-gray-700 rounded-xl 
+                             bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+                             focus:ring-2 focus:ring-black dark:focus:ring-gray-500 
+                             focus:border-transparent outline-none placeholder-gray-400 dark:placeholder-gray-500"
                 />
               </div>
 
@@ -154,7 +176,9 @@ export default function GlobalOpportunitiesPage() {
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-5 py-4 text-lg border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-black outline-none"
+                  className="px-5 py-4 text-lg border border-gray-300 dark:border-gray-700 rounded-xl 
+                             bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+                             focus:ring-2 focus:ring-black dark:focus:ring-gray-500 outline-none"
                 >
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
@@ -166,7 +190,7 @@ export default function GlobalOpportunitiesPage() {
             </div>
           </motion.div>
 
-          {/* Stats */}
+          {/* Stats Section */}
           <motion.div
             className="grid md:grid-cols-4 gap-8 mb-16"
             initial="initial"
@@ -188,10 +212,16 @@ export default function GlobalOpportunitiesPage() {
               <motion.div
                 key={i}
                 variants={fadeInUp}
-                className="bg-white rounded-2xl shadow-lg p-8 text-center border border-gray-100 hover:shadow-2xl transition-all duration-300"
+                className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-8 text-center 
+                           border border-gray-100 dark:border-gray-700 hover:shadow-2xl 
+                           transition-all duration-300"
               >
-                <div className="text-4xl font-extrabold text-black mb-3">{stat.value}</div>
-                <div className="text-gray-700 text-lg font-medium">{stat.label}</div>
+                <div className="text-4xl font-extrabold text-black dark:text-white mb-3">
+                  {stat.value}
+                </div>
+                <div className="text-gray-700 dark:text-gray-300 text-lg font-medium">
+                  {stat.label}
+                </div>
               </motion.div>
             ))}
           </motion.div>
@@ -199,15 +229,17 @@ export default function GlobalOpportunitiesPage() {
           {/* Job Listings */}
           {loading ? (
             <div className="flex justify-center py-16">
-              <div className="animate-spin rounded-full h-14 w-14 border-b-4 border-black"></div>
+              <div className="animate-spin rounded-full h-14 w-14 border-b-4 border-black dark:border-white"></div>
             </div>
           ) : filteredOpportunities.length === 0 ? (
             <div className="text-center py-16">
               <Building className="w-20 h-20 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-2xl font-semibold text-gray-700 mb-2">
+              <h3 className="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
                 No opportunities found
               </h3>
-              <p className="text-gray-500 text-lg">Try adjusting your filters or search query.</p>
+              <p className="text-gray-500 dark:text-gray-400 text-lg">
+                Try adjusting your filters or search query.
+              </p>
             </div>
           ) : (
             <motion.div
@@ -220,12 +252,16 @@ export default function GlobalOpportunitiesPage() {
                 <motion.div
                   key={job.id}
                   variants={fadeInUp}
-                  className="bg-white rounded-3xl shadow-xl p-8 hover:shadow-2xl border border-gray-100 transition-all duration-300 hover:-translate-y-1"
+                  className="bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-8 
+                             hover:shadow-2xl border border-gray-100 dark:border-gray-700 
+                             transition-all duration-300 hover:-translate-y-1"
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex-1">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{job.title}</h3>
-                      <div className="flex flex-wrap items-center gap-4 text-gray-700 mb-3">
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                        {job.title}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-4 text-gray-700 dark:text-gray-300 mb-3">
                         <div className="flex items-center gap-1">
                           <Building className="w-5 h-5" />
                           <span className="font-medium">{job.company}</span>
@@ -239,12 +275,15 @@ export default function GlobalOpportunitiesPage() {
                           <span>{job.type}</span>
                         </div>
                       </div>
-                      <p className="text-gray-700 text-lg leading-relaxed">{job.description}</p>
+                      <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
+                        {job.description}
+                      </p>
                       <div className="flex flex-wrap gap-2 mt-4">
                         {job.skills?.map((s, idx) => (
                           <span
                             key={idx}
-                            className="px-4 py-2 bg-gray-100 text-gray-800 rounded-full text-sm font-medium border border-gray-200"
+                            className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 
+                                       rounded-full text-sm font-medium border border-gray-200 dark:border-gray-700"
                           >
                             {s}
                           </span>
@@ -253,17 +292,21 @@ export default function GlobalOpportunitiesPage() {
                     </div>
 
                     <div className="mt-6 lg:mt-0 lg:ml-8">
-                      {applied[job.id] || job.applied_user?.includes(user?.uid ?? "") ? (
+                      {applied[job.id] ||
+                      job.applied_user?.includes(user?.uid ?? "") ? (
                         <button
                           disabled
-                          className="w-full lg:w-auto bg-green-100 text-green-700 px-8 py-4 rounded-full font-semibold flex items-center justify-center gap-2 cursor-default"
+                          className="w-full lg:w-auto bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 
+                                     px-8 py-4 rounded-full font-semibold flex items-center justify-center gap-2 cursor-default"
                         >
                           <CheckCircle2 className="w-5 h-5" /> Applied
                         </button>
                       ) : (
                         <button
                           onClick={() => handleApply(job.id)}
-                          className="w-full lg:w-auto bg-gradient-to-r from-black to-gray-800 text-white px-10 py-4 rounded-full font-semibold hover:scale-105 hover:shadow-xl transition-all duration-300"
+                          className="w-full lg:w-auto bg-gradient-to-r from-black to-gray-800 dark:from-gray-200 dark:to-gray-400 
+                                     text-white dark:text-black px-10 py-4 rounded-full font-semibold 
+                                     hover:scale-105 hover:shadow-xl transition-all duration-300"
                         >
                           Apply Now
                         </button>
@@ -276,6 +319,7 @@ export default function GlobalOpportunitiesPage() {
           )}
         </div>
       </div>
+
 
     </div>
   );

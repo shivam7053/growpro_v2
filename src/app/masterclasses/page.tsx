@@ -1,31 +1,18 @@
+// app/masterclasses/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, easeOut } from "framer-motion";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, Search, RefreshCw } from "lucide-react";
-import { collection, getDocs, Timestamp } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContexts";
 import toast from "react-hot-toast";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import MasterclassCard from "@/components/masterclassCard";
 import { FirebaseError } from "firebase/app";
-
-interface Masterclass {
-  id: string;
-  title: string;
-  speaker_name: string;
-  speaker_designation: string;
-  youtube_url: string;
-  created_at: string;
-  price: number;
-  joined_users: string[];
-  type: "free" | "paid" | "featured";
-}
-
-type FilterType = "all" | "free" | "paid" | "featured" | "enrolled";
+import { Masterclass, FilterType } from "@/types/masterclass";
+import { parseMasterclassData, filterMasterclasses } from "@/utils/masterclass";
 
 export default function MasterclassesPage() {
   const [masterclasses, setMasterclasses] = useState<Masterclass[]>([]);
@@ -35,7 +22,7 @@ export default function MasterclassesPage() {
   const [filterType, setFilterType] = useState<FilterType>("all");
   const { user } = useAuth();
 
-  // 🔹 Fetch masterclasses
+  // Fetch masterclasses
   const fetchMasterclasses = useCallback(async () => {
     setLoading(true);
     try {
@@ -50,43 +37,8 @@ export default function MasterclassesPage() {
 
       const list: Masterclass[] = [];
       querySnapshot.docs.forEach((docSnap) => {
-        const data = docSnap.data();
-
-        if (!data.title || !data.speaker_name) return;
-
-        let createdAt: string;
-        if (data.created_at instanceof Timestamp) {
-          createdAt = data.created_at.toDate().toISOString();
-        } else if (typeof data.created_at === "string") {
-          createdAt = data.created_at;
-        } else {
-          createdAt = new Date().toISOString();
-        }
-
-        const price =
-          typeof data.price === "number" ? data.price : Number(data.price) || 0;
-        const joinedUsers = Array.isArray(data.joined_users)
-          ? data.joined_users.filter((uid) => typeof uid === "string")
-          : [];
-
-        const type =
-          data.type === "free" || data.type === "paid" || data.type === "featured"
-            ? data.type
-            : price === 0
-            ? "free"
-            : "paid";
-
-        list.push({
-          id: docSnap.id,
-          title: String(data.title),
-          speaker_name: String(data.speaker_name),
-          speaker_designation: String(data.speaker_designation ?? "N/A"),
-          youtube_url: String(data.youtube_url ?? ""),
-          created_at: createdAt,
-          joined_users: joinedUsers,
-          price,
-          type,
-        });
+        const parsed = parseMasterclassData(docSnap.id, docSnap.data());
+        if (parsed) list.push(parsed);
       });
 
       setMasterclasses(list);
@@ -108,54 +60,18 @@ export default function MasterclassesPage() {
     fetchMasterclasses();
   }, [fetchMasterclasses]);
 
-  // 🔹 Filter logic
-  const filterMasterclasses = useCallback(() => {
-    if (!masterclasses.length) {
-      setFilteredMasterclasses([]);
-      return;
+  // Apply filters
+  useEffect(() => {
+    if (filterType === "enrolled" && !user) {
+      toast("Login required to view enrolled courses.");
     }
-
-    let filtered = [...masterclasses];
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((mc) =>
-        [mc.title, mc.speaker_name, mc.speaker_designation].some((field) =>
-          field?.toLowerCase().includes(query)
-        )
-      );
-    }
-
-    switch (filterType) {
-      case "free":
-        filtered = filtered.filter((mc) => mc.type === "free" || mc.price === 0);
-        break;
-      case "paid":
-        filtered = filtered.filter((mc) => mc.type === "paid" || mc.price > 0);
-        break;
-      case "featured":
-        filtered = filtered.filter((mc) => mc.type === "featured");
-        break;
-      case "enrolled":
-        if (!user) {
-          toast("Login required to view enrolled courses.");
-          filtered = [];
-        } else {
-          filtered = filtered.filter((mc) => mc.joined_users.includes(user.uid));
-        }
-        break;
-    }
-
+    const filtered = filterMasterclasses(masterclasses, searchQuery, filterType, user?.uid);
     setFilteredMasterclasses(filtered);
   }, [masterclasses, searchQuery, filterType, user]);
 
-  useEffect(() => {
-    filterMasterclasses();
-  }, [filterMasterclasses]);
-
   const handleRefresh = () => fetchMasterclasses();
 
-  // 🔹 Animations
+  // Animations
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.15, delayChildren: 0.1 } },
@@ -177,7 +93,7 @@ export default function MasterclassesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-100 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
-      <Header />
+  
 
       <section className="pt-24 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -317,7 +233,7 @@ export default function MasterclassesPage() {
         </div>
       </section>
 
-      
+  
     </div>
   );
 }

@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContexts";
-import UserForm, { UserProfile } from "@/components/UserForm";
+import UserForm from "@/components/UserForm";
+import { UserProfile } from "@/types/auth";
 import { useTheme } from "next-themes";
+import { toast } from "react-hot-toast";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -22,6 +24,8 @@ export default function SignUpPage() {
     bio: "",
     linkedin: "",
     created_at: "",
+    purchasedClasses: [],
+    transactions: [],
   });
 
   const [password, setPassword] = useState("");
@@ -36,11 +40,17 @@ export default function SignUpPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await signUp(userData.email || "", password, userData.full_name);
+      if (!userData.email || !userData.full_name) {
+        toast.error("Please fill out all required fields.");
+        return;
+      }
+
+      await signUp(userData.email, password, userData.full_name);
+      toast.success("Account created successfully!");
       router.push("/");
     } catch (error: any) {
-      console.error("Sign up error:", error.message);
-      alert(error.message || "Failed to create account");
+      console.error("Sign-up error:", error.message);
+      toast.error(error.message || "Failed to create account");
     } finally {
       setLoading(false);
     }
@@ -50,10 +60,11 @@ export default function SignUpPage() {
     setLoading(true);
     try {
       await signInWithGoogle();
+      toast.success("Signed in with Google!");
       router.push("/");
     } catch (error: any) {
       console.error("Google sign-in error:", error.message);
-      alert(error.message || "Failed to sign in with Google");
+      toast.error(error.message || "Failed to sign in with Google");
     } finally {
       setLoading(false);
     }
@@ -62,12 +73,10 @@ export default function SignUpPage() {
   return (
     <div
       className={`min-h-screen flex transition-colors duration-300 ${
-        theme === "dark"
-          ? "bg-gray-900 text-white"
-          : "bg-gray-100 text-gray-900"
+        theme === "dark" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900"
       }`}
     >
-      {/* Left Side (Form) */}
+      {/* Left Side (Form Section) */}
       <motion.div
         className={`w-full lg:w-1/2 flex items-center justify-center p-8 ${
           theme === "dark" ? "bg-gray-800" : "bg-white"
@@ -78,12 +87,10 @@ export default function SignUpPage() {
       >
         <div className="w-full max-w-md">
           {/* Logo */}
-          <div className="flex justify-center items-center mb-8">
+          <div className="flex justify-center mb-8">
             <img
               src={
-                theme === "dark"
-                  ? "/logo_growpro_white.png" // 👈 use white logo for dark theme
-                  : "/logo_growpro.png"
+                theme === "dark" ? "/white-logo.png" : "/logo_growpro.png"
               }
               alt="GrowPro"
               className="h-20 w-20 transition-all duration-300"
@@ -100,7 +107,7 @@ export default function SignUpPage() {
             Unlock Your Career Potential with GrowPro
           </motion.h1>
 
-          {/* Form */}
+          {/* Sign-Up Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <UserForm
               userData={userData}
@@ -117,7 +124,7 @@ export default function SignUpPage() {
                 className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-opacity-70
                   ${
                     theme === "dark"
-                      ? "bg-gray-700 border-white-600 text-white placeholder-white-300"
+                      ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
                       : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
                   }`}
                 placeholder="Password"
@@ -163,9 +170,7 @@ export default function SignUpPage() {
               <div className="absolute inset-0 flex items-center">
                 <div
                   className={`w-full border-t ${
-                    theme === "dark"
-                      ? "border-gray-600"
-                      : "border-gray-300"
+                    theme === "dark" ? "border-gray-600" : "border-gray-300"
                   }`}
                 />
               </div>
@@ -236,7 +241,7 @@ export default function SignUpPage() {
         </div>
       </motion.div>
 
-      {/* Right Side (Image) */}
+      {/* Right Side (Image Section) */}
       <motion.div
         className={`hidden lg:flex lg:w-1/2 items-center justify-center relative overflow-hidden ${
           theme === "dark" ? "bg-gray-900" : "bg-gray-100"
@@ -251,10 +256,7 @@ export default function SignUpPage() {
             src="/authentication.png"
             alt="Professional working"
             className="h-4/5 w-auto object-cover object-top"
-            style={{
-              maxHeight: "80vh",
-              objectPosition: "center top",
-            }}
+            style={{ maxHeight: "80vh", objectPosition: "center top" }}
           />
         </div>
       </motion.div>

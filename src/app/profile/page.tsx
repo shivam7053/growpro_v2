@@ -1,28 +1,30 @@
 "use client";
 
 import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import {
   User,
   Mail,
   Phone,
   Camera,
-  CheckCircle,
   Save,
+  Receipt,
+  ShoppingBag,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContexts";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import toast from "react-hot-toast";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
-import UserForm, { UserProfile } from "@/components/UserForm";
+import UserForm from "@/components/UserForm";
+import { UserProfile } from "@/types/auth"; // ✅ Correct import
 import { useTheme } from "next-themes";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const { user, userProfile, updateProfile, loading } = useAuth();
   const { theme } = useTheme();
 
+  // ✅ useState now strongly typed with imported UserProfile
   const [formData, setFormData] = useState<UserProfile>({
     id: "",
     full_name: "",
@@ -32,11 +34,12 @@ export default function ProfilePage() {
     bio: "",
     linkedin: "",
     created_at: "",
+    purchasedClasses: [],
+    transactions: [],
   });
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [purchasedClasses, setPurchasedClasses] = useState<string[]>([]);
 
   useEffect(() => {
     if (userProfile) {
@@ -49,8 +52,9 @@ export default function ProfilePage() {
         bio: userProfile.bio || "",
         linkedin: userProfile.linkedin || "",
         created_at: userProfile.created_at || "",
+        purchasedClasses: userProfile.purchasedClasses || [],
+        transactions: userProfile.transactions || [],
       });
-      setPurchasedClasses(userProfile.purchasedClasses || []);
     }
   }, [userProfile]);
 
@@ -104,10 +108,14 @@ export default function ProfilePage() {
     }
   };
 
-  const fadeInUp = {
+  // ✅ Type-safe Framer Motion variants
+  const fadeInUp: Variants = {
     initial: { opacity: 0, y: 30 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.6 },
+    animate: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.6 },
+    },
   };
 
   if (loading)
@@ -120,13 +128,14 @@ export default function ProfilePage() {
   return (
     <div
       className={`min-h-screen transition-colors duration-300 ${
-        theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
+        theme === "dark"
+          ? "bg-gray-900 text-gray-100"
+          : "bg-gray-50 text-gray-900"
       }`}
     >
-      <Header />
-
       <div className="pt-28 pb-12">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* ===== Header ===== */}
           <motion.div
             className="text-center mb-8"
             initial="initial"
@@ -152,6 +161,7 @@ export default function ProfilePage() {
                   theme === "dark" ? "bg-gray-800" : "bg-white"
                 }`}
               >
+                {/* Avatar Upload */}
                 <div className="relative inline-block mb-4">
                   {formData.avatar_url ? (
                     <img
@@ -183,6 +193,7 @@ export default function ProfilePage() {
                   </label>
                 </div>
 
+                {/* Basic Info */}
                 <h3 className="text-xl font-bold mb-1">
                   {formData.full_name || "Your Name"}
                 </h3>
@@ -203,35 +214,31 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Purchased Classes */}
-                <div className="mt-6 text-left">
-                  <h4 className="font-semibold mb-2">Purchased Classes</h4>
-                  {purchasedClasses.length > 0 ? (
-                    <ul className="space-y-1">
-                      {purchasedClasses.map((cls, index) => (
-                        <li
-                          key={index}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-                            theme === "dark"
-                              ? "bg-gray-700 text-gray-200"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          {cls}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-500 dark:text-gray-400">
-                      No classes purchased yet.
-                    </p>
-                  )}
+                {/* Navigation Buttons */}
+                <div className="mt-6 flex flex-col gap-3">
+                  <motion.div whileHover={{ scale: 1.05 }}>
+                    <Link
+                      href="/purchases"
+                      className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                      View Purchased Classes
+                    </Link>
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.05 }}>
+                    <Link
+                      href="/transactions"
+                      className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+                    >
+                      <Receipt className="w-4 h-4" />
+                      View Transactions
+                    </Link>
+                  </motion.div>
                 </div>
               </div>
             </motion.div>
 
-            {/* ===== Right Form (Reused UserForm) ===== */}
+            {/* ===== Right Form Section ===== */}
             <motion.div
               className="lg:col-span-2"
               variants={fadeInUp}
@@ -265,7 +272,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }

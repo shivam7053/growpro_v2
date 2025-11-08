@@ -78,7 +78,11 @@ export default function SignInPage() {
           {/* Logo */}
           <div className="text-center mb-8">
             <img
-              src="/logo_growpro.png"
+              src={
+                theme === "dark"
+                  ? "/white-logo.png" // 👈 use white logo for dark theme
+                  : "/logo_growpro.png"
+              }
               alt="GrowPro"
               className="h-20 w-20 mx-auto"
               style={{

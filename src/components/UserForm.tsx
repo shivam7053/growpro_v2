@@ -1,17 +1,6 @@
 "use client";
 import React from "react";
-
-export interface UserProfile {
-  id: string;
-  full_name: string;
-  email: string;
-  avatar_url: string;
-  phone?: string;
-  bio?: string;
-  linkedin?: string;
-  created_at?: string;
-  purchasedClasses?: string[];
-}
+import { UserProfile } from "@/types/auth";
 
 interface UserFormProps {
   userData: UserProfile;
