@@ -1,3 +1,5 @@
+// context/AuthContexts.tsx
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -14,7 +16,7 @@ import {
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import toast from "react-hot-toast";
-import { UserProfile } from "@/types/auth"; // ✅ Shared type import
+import { UserProfile } from "@/types/masterclass"; // ✅ Single source of truth
 
 interface AuthContextType {
   user: FirebaseUser | null;

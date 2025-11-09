@@ -67,9 +67,7 @@ export default function SignInPage() {
 
       {/* Right side form */}
       <motion.div
-        className={`w-full lg:w-1/2 flex items-center justify-center p-8 ${
-          theme === "dark" ? "bg-gray-800" : "bg-white"
-        }`}
+        className={`w-full lg:w-1/2 flex items-center justify-center p-8` }
         initial={{ opacity: 0, x: 50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
@@ -79,15 +77,10 @@ export default function SignInPage() {
           <div className="text-center mb-8">
             <img
               src={
-                theme === "dark"
-                  ? "/white-logo.png" // 👈 use white logo for dark theme
-                  : "/logo_growpro.png"
+                  "/logo_growpro.png"
               }
               alt="GrowPro"
               className="h-20 w-20 mx-auto"
-              style={{
-                filter: theme === "dark" ? "brightness(3)" : "none",
-              }}
             />
           </div>
 

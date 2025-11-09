@@ -1,10 +1,9 @@
-// app/masterclasses/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, easeOut } from "framer-motion";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Search, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Search, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContexts";
@@ -21,6 +20,13 @@ export default function MasterclassesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
   const { user } = useAuth();
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+  const totalPages = Math.ceil(filteredMasterclasses.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentMasterclasses = filteredMasterclasses.slice(startIndex, startIndex + itemsPerPage);
 
   // Fetch masterclasses
   const fetchMasterclasses = useCallback(async () => {
@@ -67,6 +73,7 @@ export default function MasterclassesPage() {
     }
     const filtered = filterMasterclasses(masterclasses, searchQuery, filterType, user?.uid);
     setFilteredMasterclasses(filtered);
+    setCurrentPage(1); // Reset page when filter/search changes
   }, [masterclasses, searchQuery, filterType, user]);
 
   const handleRefresh = () => fetchMasterclasses();
@@ -93,8 +100,6 @@ export default function MasterclassesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-100 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
-  
-
       <section className="pt-24 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
@@ -213,27 +218,48 @@ export default function MasterclassesPage() {
               </button>
             </div>
           ) : (
-            <motion.div
-              className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-            >
-              {filteredMasterclasses.map((mc) => (
-                <motion.div key={mc.id} variants={cardVariants}>
-                  <MasterclassCard
-                    masterclass={mc}
-                    user={user}
-                    onPurchaseComplete={fetchMasterclasses}
-                  />
-                </motion.div>
-              ))}
-            </motion.div>
+            <>
+              <motion.div
+                className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                {currentMasterclasses.map((mc) => (
+                  <motion.div key={mc.id} variants={cardVariants}>
+                    <MasterclassCard masterclass={mc} user={user} onPurchaseComplete={fetchMasterclasses} />
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 mt-12">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 disabled:opacity-50 hover:bg-gray-300 dark:hover:bg-gray-700 transition"
+                  >
+                    <ChevronLeft className="w-5 h-5" /> Prev
+                  </button>
+
+                  <span className="font-medium">
+                    Page {currentPage} of {totalPages}
+                  </span>
+
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 disabled:opacity-50 hover:bg-gray-300 dark:hover:bg-gray-700 transition"
+                  >
+                    Next <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
-
-  
     </div>
   );
 }

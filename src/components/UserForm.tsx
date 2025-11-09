@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { UserProfile } from "@/types/auth";
+import { UserProfile } from "@/types/masterclass"; // ✅ Single source of truth
 
 interface UserFormProps {
   userData: UserProfile;

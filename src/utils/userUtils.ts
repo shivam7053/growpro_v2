@@ -1,31 +1,8 @@
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { Transaction, UserProfile } from "@/types/masterclass";
 
-// Reusable Transaction type
-export interface Transaction {
-  orderId: string;
-  paymentId: string;
-  masterclassId: string;
-  amount: number;
-  timestamp: string;
-}
-
-export interface UserDocument {
-  id: string;
-  email: string;
-  full_name: string;
-  phone?: string;
-  avatar_url?: string;
-  bio?: string;
-  linkedin?: string;
-  purchasedClasses: string[];
-  transactions?: Transaction[];
-  created_at: string;
-}
-
-/**
- * ✅ Ensures user document exists in Firestore (creates if missing)
- */
+/** ✅ Ensure a user document exists in Firestore */
 export async function ensureUserDocument(user: any): Promise<void> {
   if (!user?.uid) throw new Error("User not authenticated");
 
@@ -33,7 +10,7 @@ export async function ensureUserDocument(user: any): Promise<void> {
   const userSnap = await getDoc(userRef);
 
   if (!userSnap.exists()) {
-    const userData: UserDocument = {
+    const userData: UserProfile = {
       id: user.uid,
       email: user.email || "",
       full_name: user.displayName || "",
@@ -49,10 +26,7 @@ export async function ensureUserDocument(user: any): Promise<void> {
   }
 }
 
-/**
- * ✅ Safely adds a purchased class to user's profile
- * Creates the user document if missing
- */
+/** ✅ Add purchased class safely */
 export async function addPurchasedClass(
   userId: string,
   classTitle: string,
@@ -65,9 +39,10 @@ export async function addPurchasedClass(
     await updateDoc(userRef, {
       purchasedClasses: arrayUnion(classTitle),
     });
+    console.log("✅ Added to user's purchased classes:", classTitle);
   } catch (error: any) {
     if (error.code === "not-found" || error.message.includes("No document")) {
-      const userData: UserDocument = {
+      const userData: UserProfile = {
         id: userId,
         email: userEmail || "",
         full_name: userName || "",
@@ -85,14 +60,11 @@ export async function addPurchasedClass(
   }
 }
 
-/**
- * ✅ Fetch user's purchased classes safely
- */
+/** ✅ Get user's purchased classes */
 export async function getUserPurchasedClasses(userId: string): Promise<string[]> {
   try {
     const userRef = doc(db, "user_profiles", userId);
     const userSnap = await getDoc(userRef);
-
     if (userSnap.exists()) {
       const data = userSnap.data();
       return data.purchasedClasses || [];
@@ -105,7 +77,8 @@ export async function getUserPurchasedClasses(userId: string): Promise<string[]>
 }
 
 /**
- * ✅ Adds a transaction record to user's Firestore doc
+ * ✅ Add or update a transaction (prevents duplicates)
+ * If same `orderId` already exists, only updates instead of adding.
  */
 export async function addTransactionRecord(
   userId: string,
@@ -114,27 +87,101 @@ export async function addTransactionRecord(
   const userRef = doc(db, "user_profiles", userId);
 
   try {
-    await updateDoc(userRef, {
-      transactions: arrayUnion(transaction),
-    });
-  } catch (error: any) {
-    if (error.message.includes("No document to update") || error.code === "not-found") {
-      await setDoc(
-        userRef,
-        {
-          id: userId,
-          email: "",
-          full_name: "",
-          purchasedClasses: [],
-          transactions: [transaction],
-          created_at: new Date().toISOString(),
-        },
-        { merge: true } // ✅ Merges instead of overwriting
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      const currentData = userSnap.data();
+      const currentTransactions = currentData.transactions || [];
+
+      // ✅ Check if this transaction already exists
+      const existingTxn = currentTransactions.find(
+        (t: Transaction) => t.orderId === transaction.orderId
       );
-      console.log("✅ Created new user doc with first transaction");
+
+      if (existingTxn) {
+        console.warn(`⚠️ Transaction ${transaction.orderId} already exists → skipping to avoid overwriting method`);
+        // ✅ DON'T call updateTransactionStatus - it might change the method
+        // Just log and return
+        return;
+      }
+
+      // ✅ Otherwise, add it
+      await updateDoc(userRef, {
+        transactions: [...currentTransactions, transaction],
+      });
+
+      console.log(`✅ Transaction recorded (new): ${transaction.status} with method: ${transaction.method}`);
     } else {
-      console.error("❌ addTransactionRecord error:", error);
-      throw error;
+      // ✅ Create user doc with the first transaction
+      const userData: UserProfile = {
+        id: userId,
+        email: "",
+        full_name: "",
+        purchasedClasses: [],
+        transactions: [transaction],
+        created_at: new Date().toISOString(),
+      };
+      await setDoc(userRef, userData);
+      console.log("✅ Created new user doc with first transaction");
     }
+  } catch (error: any) {
+    console.error("❌ addTransactionRecord error:", error);
+    throw error;
+  }
+}
+
+/**
+ * ✅ Update transaction status (e.g., pending → success)
+ * CRITICAL: Preserves the original 'method' field
+ */
+export async function updateTransactionStatus(
+  userId: string,
+  orderId: string,
+  updates: Partial<Transaction>
+): Promise<void> {
+  try {
+    const userRef = doc(db, "user_profiles", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      console.error("❌ User not found:", userId);
+      return;
+    }
+
+    const data = userSnap.data();
+    const transactions = data.transactions || [];
+
+    const updatedTransactions = transactions.map((txn: Transaction) => {
+      if (txn.orderId === orderId) {
+        // ✅ CRITICAL: Only update provided fields, preserve everything else (especially 'method')
+        return { 
+          ...txn,           // Keep all existing fields
+          ...updates,       // Apply updates
+          method: txn.method,  // ✅ FORCE preserve original method
+          timestamp: new Date().toISOString() 
+        };
+      }
+      return txn;
+    });
+
+    await updateDoc(userRef, { transactions: updatedTransactions });
+    console.log(`✅ Transaction ${orderId} updated → ${updates.status || 'updated'} (method preserved: ${transactions.find((t: Transaction) => t.orderId === orderId)?.method})`);
+  } catch (error) {
+    console.error("❌ Error updating transaction status:", error);
+    throw error;
+  }
+}
+
+/** ✅ Get all transactions of a user */
+export async function getUserTransactions(userId: string): Promise<Transaction[]> {
+  try {
+    const userRef = doc(db, "user_profiles", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) return [];
+    return userSnap.data().transactions || [];
+  } catch (error) {
+    console.error("❌ Error fetching user transactions:", error);
+    return [];
   }
 }

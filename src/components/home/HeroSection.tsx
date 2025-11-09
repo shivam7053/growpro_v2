@@ -4,7 +4,25 @@ import { motion, Variants } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-// ✅ Correct variants definition
+// Variants for animations
+const fadeInLeft: Variants = {
+  initial: { opacity: 0, x: -100 },
+  animate: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.8, ease: "easeOut" },
+  },
+};
+
+const fadeInRight: Variants = {
+  initial: { opacity: 0, x: 100 },
+  animate: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.8, ease: "easeOut" },
+  },
+};
+
 const fadeInUp: Variants = {
   initial: { opacity: 0, y: 40 },
   animate: {
@@ -16,7 +34,7 @@ const fadeInUp: Variants = {
 
 const staggerChildren: Variants = {
   animate: {
-    transition: { staggerChildren: 0.12 },
+    transition: { staggerChildren: 0.15 },
   },
 };
 
@@ -26,12 +44,11 @@ const steps = [
     desc: "Be part of a thriving community that's landing dream jobs!",
   },
   {
-    title:
-      "Get your resume screened, find the perfect job, and attend workshops",
+    title: "Get your resume screened, find the perfect job, and attend workshops",
     desc: "A full suite of tools designed to boost your career.",
   },
   {
-    title: "Personalised career support tailored for you",
+    title: "Personalized career support tailored for you",
     desc: "Guidance crafted around your career journey.",
   },
 ];
@@ -39,7 +56,7 @@ const steps = [
 export default function HeroSection() {
   return (
     <motion.section
-      className="pt-24 pb-20 bg-white dark:bg-gray-900 relative z-10 shadow-sm"
+      className="pt-24 pb-20 bg-white dark:bg-gray-900 relative z-10 shadow-sm overflow-hidden"
       initial="initial"
       animate="animate"
       variants={staggerChildren}
@@ -71,15 +88,17 @@ export default function HeroSection() {
 
         {/* Hero Illustration + Steps */}
         <div className="grid lg:grid-cols-2 gap-12 items-center mb-20">
+          {/* Left Side Image */}
           <motion.img
             src="/1stpage.png"
             alt="Professional success illustration"
             className="w-full rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-            variants={fadeInUp}
+            variants={fadeInLeft}
           />
 
+          {/* Right Side Text */}
           <motion.div
-            variants={fadeInUp}
+            variants={fadeInRight}
             className="bg-gray-50 dark:bg-gray-800 rounded-2xl shadow-lg p-8 border border-gray-200 dark:border-gray-700"
           >
             <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">
@@ -88,7 +107,11 @@ export default function HeroSection() {
 
             <div className="space-y-6 text-gray-800 dark:text-gray-300">
               {steps.map((step, index) => (
-                <div key={index} className="flex items-start space-x-4">
+                <motion.div
+                  key={index}
+                  variants={fadeInUp}
+                  className="flex items-start space-x-4"
+                >
                   <div className="w-8 h-8 bg-black dark:bg-white dark:text-black text-white rounded-full flex items-center justify-center font-bold shadow-md">
                     {index + 1}
                   </div>
@@ -100,7 +123,7 @@ export default function HeroSection() {
                       {step.desc}
                     </p>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
 

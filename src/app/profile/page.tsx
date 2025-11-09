@@ -1,3 +1,5 @@
+// app/profile/page.tsx
+
 "use client";
 
 import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
@@ -16,7 +18,7 @@ import toast from "react-hot-toast";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 import UserForm from "@/components/UserForm";
-import { UserProfile } from "@/types/auth"; // ✅ Correct import
+import { UserProfile } from "@/types/masterclass"; // ✅ Single source of truth
 import { useTheme } from "next-themes";
 import Link from "next/link";
 

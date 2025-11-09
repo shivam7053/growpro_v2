@@ -17,10 +17,7 @@ import { db } from "@/lib/firebase";
 import toast from "react-hot-toast";
 import { Masterclass } from "@/types/masterclass";
 import { getYouTubeVideoId, formatMasterclassDate } from "@/utils/masterclass";
-import {
-  addPurchasedClass,
-  addTransactionRecord,
-} from "@/utils/userUtils";
+import { addPurchasedClass, addTransactionRecord } from "@/utils/userUtils";
 import PaymentModal from "@/components/PaymentModal";
 
 interface MasterclassCardProps {
@@ -52,31 +49,29 @@ export default function MasterclassCard({
   const userJoined = user?.uid && mc.joined_users?.includes(user.uid);
   const isFree = mc.price === 0;
 
-  // ✅ Free enrollment
+  // ✅ FREE ENROLLMENT
   const handleEnrollFree = async () => {
     if (!user?.uid) return toast.error("Please login to enroll");
-
     if (userJoined) return toast("Already enrolled!", { icon: "ℹ️" });
 
     try {
+      // 1️⃣ Add user to MasterClass
       const classRef = doc(db, "MasterClasses", mc.id);
       await updateDoc(classRef, {
         joined_users: arrayUnion(user.uid),
       });
 
-      await addPurchasedClass(
-        user.uid,
-        mc.title,
-        user.email,
-        user.displayName
-      );
+      // 2️⃣ Add class to user's profile
+      await addPurchasedClass(user.uid, mc.title, user.email, user.displayName);
 
-      // ✅ Also log transaction for free class (optional)
+      // 3️⃣ Add transaction record
       await addTransactionRecord(user.uid, {
         orderId: "free_enroll_" + Date.now(),
-        paymentId: "free_0",
         masterclassId: mc.id,
+        masterclassTitle: mc.title,
         amount: 0,
+        status: "success",
+        method: "dummy",
         timestamp: new Date().toISOString(),
       });
 
@@ -88,33 +83,36 @@ export default function MasterclassCard({
     }
   };
 
-  // ✅ Paid enrollment handler
+  // ✅ PAID ENROLLMENT
   const handleEnrollPaid = () => {
     if (!user?.uid) return toast.error("Please login to enroll");
     if (userJoined) return toast("Already enrolled!", { icon: "ℹ️" });
     setShowPaymentModal(true);
   };
 
-  // ✅ Payment success callback
+  // ✅ PAYMENT SUCCESS CALLBACK
   const handlePaymentSuccess = async (paymentResponse?: any) => {
     if (!user?.uid) return;
 
     try {
-      // 1️⃣ Add to MasterClasses joined_users
+      // 1️⃣ Add user to MasterClass
       const classRef = doc(db, "MasterClasses", mc.id);
       await updateDoc(classRef, {
         joined_users: arrayUnion(user.uid),
       });
 
-      // 2️⃣ Add to user’s purchasedClasses
+      // 2️⃣ Add purchased class
       await addPurchasedClass(user.uid, mc.title, user.email, user.displayName);
 
-      // 3️⃣ Add transaction record in user_profiles
+      // 3️⃣ Record transaction
       await addTransactionRecord(user.uid, {
         orderId: paymentResponse?.orderId || "dummy_order_" + Date.now(),
         paymentId: paymentResponse?.paymentId || "dummy_payment_" + Date.now(),
         masterclassId: mc.id,
+        masterclassTitle: mc.title,
         amount: mc.price,
+        status: "success",
+        method: "razorpay",
         timestamp: new Date().toISOString(),
       });
 
@@ -122,7 +120,7 @@ export default function MasterclassCard({
       setShowPaymentModal(false);
       onPurchaseComplete?.();
     } catch (err) {
-      console.error("Enrollment error:", err);
+      console.error("Payment success handling error:", err);
       toast.error("Error updating enrollment");
     }
   };
@@ -130,7 +128,7 @@ export default function MasterclassCard({
   return (
     <>
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden flex flex-col h-full border border-gray-200 dark:border-gray-700">
-        {/* Thumbnail / Video */}
+        {/* 🎬 Thumbnail / Video */}
         <div className="relative aspect-video bg-gray-200 dark:bg-gray-800 overflow-hidden">
           {userJoined || isFree ? (
             videoId ? (
@@ -171,7 +169,7 @@ export default function MasterclassCard({
             </>
           )}
 
-          {/* Badges */}
+          {/* 🏷️ Badges */}
           <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
             {userJoined && (
               <div className="bg-blue-600 text-white px-3 py-1 text-sm rounded-full font-medium shadow">
@@ -185,7 +183,7 @@ export default function MasterclassCard({
             )}
           </div>
 
-          {/* Price Badge */}
+          {/* 💸 Price Badge */}
           <div className="absolute top-3 right-3">
             {isFree ? (
               <div className="bg-green-500 text-white px-4 py-1 rounded-full font-bold shadow">
@@ -200,7 +198,7 @@ export default function MasterclassCard({
           </div>
         </div>
 
-        {/* Content */}
+        {/* 🧠 Content */}
         <div className="p-5 flex flex-col flex-1">
           <h3
             className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2"
@@ -227,7 +225,7 @@ export default function MasterclassCard({
             </div>
           </div>
 
-          {/* Action */}
+          {/* 🎯 Action Button */}
           <div className="mt-auto">
             {userJoined ? (
               mc.youtube_url ? (
@@ -266,7 +264,7 @@ export default function MasterclassCard({
         </div>
       </div>
 
-      {/* Payment modal */}
+      {/* 💳 Payment Modal */}
       <PaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}

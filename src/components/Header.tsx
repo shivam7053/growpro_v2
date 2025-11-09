@@ -43,13 +43,18 @@ export default function Header({ transparent = false }: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
-            <img src={
+          <Link href="/" className="flex items-center rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 shadow-sm">
+            <img
+              src={
                 theme === "dark"
-                  ? "/white-logo.png" // 👈 use white logo for dark theme
-                  : "/logo_growpro.png"
-              } alt="GrowPro" className="h-20 w-25" />
+                  ? "/white-logo.png" // 👈 White logo for dark mode
+                  : "/logo_growpro.png" // 👈 Default logo
+              }
+              alt="GrowPro"
+              className="h-20 w-auto rounded-xl object-contain"
+            />
           </Link>
+
 
           {/* Navigation */}
           <nav
@@ -81,6 +86,19 @@ export default function Header({ transparent = false }: HeaderProps) {
               }`}
             >
               Contact Us
+            </Link>
+
+            <Link
+              href="/about"
+              className={`px-6 py-3 rounded-full text-sm font-medium transition-colors ${
+                isActive("/about")
+                  ? "bg-white text-black"
+                  : transparent
+                  ? "text-white hover:bg-white/20"
+                  : "text-white hover:bg-gray-700"
+              }`}
+            >
+              About Us
             </Link>
 
             <Link

@@ -1,3 +1,5 @@
+// app/api/payment/verify/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { doc, updateDoc, arrayUnion, setDoc, getDoc } from "firebase/firestore";
@@ -6,6 +8,7 @@ import { addPurchasedClass, addTransactionRecord } from "@/utils/userUtils";
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("🔵 Payment verification started...");
     const body = await req.json();
     const {
       razorpay_order_id,
@@ -13,17 +16,92 @@ export async function POST(req: NextRequest) {
       razorpay_signature,
       masterclassId,
       userId,
+      masterclassTitle,
       amount,
+      method, // ✅ Accept method from frontend
     } = body;
 
+    // 🧩 ✅ DUMMY PAYMENT DETECTION
+    if (razorpay_order_id?.startsWith("dummy_")) {
+      console.log("🧩 Dummy payment detected — processing test transaction.");
+
+      // ✅ Check if transaction already exists
+      const userRef = doc(db, "user_profiles", userId);
+      const userSnap = await getDoc(userRef);
+      
+      let transactionExists = false;
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        const transactions = data.transactions || [];
+        transactionExists = transactions.some((txn: any) => txn.orderId === razorpay_order_id);
+      }
+
+      // ✅ Only create if it doesn't exist
+      if (!transactionExists) {
+        await addTransactionRecord(userId, {
+          orderId: razorpay_order_id,
+          paymentId: razorpay_payment_id,
+          masterclassId,
+          masterclassTitle: masterclassTitle || "Dummy Masterclass",
+          amount: amount || 0,
+          status: "success",
+          method: method || "dummy", // ✅ Use passed method or default to "dummy"
+          timestamp: new Date().toISOString(),
+        });
+        console.log("✅ Dummy transaction record created with method:", method || "dummy");
+      } else {
+        console.log("ℹ️ Dummy transaction already exists, skipping creation");
+      }
+
+      // ✅ Enroll user in masterclass
+      if (masterclassId && userId) {
+        const classRef = doc(db, "MasterClasses", masterclassId);
+        const masterclassSnap = await getDoc(classRef);
+        
+        if (masterclassSnap.exists()) {
+          const currentJoinedUsers = masterclassSnap.data().joined_users || [];
+          if (!currentJoinedUsers.includes(userId)) {
+            await updateDoc(classRef, { joined_users: arrayUnion(userId) });
+            console.log("✅ User enrolled in masterclass");
+          }
+        } else {
+          await setDoc(
+            classRef,
+            { joined_users: [userId], title: masterclassTitle || "Unknown" },
+            { merge: true }
+          );
+          console.log("✅ Masterclass created with user enrolled");
+        }
+        
+        await addPurchasedClass(userId, masterclassTitle || "Dummy Masterclass");
+        console.log("✅ Added to user's purchased classes");
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Dummy payment processed successfully",
+      });
+    }
+
+    // ✅ RAZORPAY PAYMENT VALIDATION
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      console.error("❌ Missing payment details");
       return NextResponse.json(
-        { error: "Missing payment details" },
+        { success: false, error: "Missing payment details" },
+        { status: 400 }
+      );
+    }
+
+    if (!masterclassId || !userId) {
+      console.error("❌ Missing masterclass or user ID");
+      return NextResponse.json(
+        { success: false, error: "Missing masterclass or user ID" },
         { status: 400 }
       );
     }
 
     // ✅ Verify Razorpay signature
+    console.log("🔵 Verifying Razorpay payment signature...");
     const text = `${razorpay_order_id}|${razorpay_payment_id}`;
     const generated_signature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
@@ -31,46 +109,120 @@ export async function POST(req: NextRequest) {
       .digest("hex");
 
     if (generated_signature !== razorpay_signature) {
+      console.error("❌ Invalid Razorpay signature");
+
+      // Update existing transaction to failed
+      const userRef = doc(db, "user_profiles", userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        const transactions = data.transactions || [];
+        const updatedTransactions = transactions.map((txn: any) =>
+          txn.orderId === razorpay_order_id
+            ? { 
+                ...txn, 
+                status: "failed", 
+                failureReason: "Invalid payment signature",
+                timestamp: new Date().toISOString() 
+              }
+            : txn
+        );
+        await updateDoc(userRef, { transactions: updatedTransactions });
+      }
+
       return NextResponse.json(
-        { error: "Invalid payment signature" },
+        { success: false, error: "Invalid payment signature. Verification failed." },
         { status: 400 }
       );
     }
 
-    // ✅ Firestore References
-    const masterclassRef = doc(db, "MasterClasses", masterclassId);
-    const userRef = doc(db, "user_profiles", userId);
+    console.log("✅ Payment signature verified successfully");
 
-    // 1️⃣ Add user to masterclass participants
-    const masterclassSnap = await getDoc(masterclassRef);
-    if (masterclassSnap.exists()) {
-      await updateDoc(masterclassRef, {
-        joined_users: arrayUnion(userId),
-      });
-    } else {
-      await setDoc(masterclassRef, { joined_users: [userId] }, { merge: true });
+    // ✅ Fetch masterclass title if not provided
+    let classTitle = masterclassTitle;
+    if (!classTitle) {
+      console.log("🔵 Fetching masterclass title from Firestore...");
+      const masterclassRef = doc(db, "MasterClasses", masterclassId);
+      const snap = await getDoc(masterclassRef);
+
+      if (snap.exists()) {
+        classTitle = snap.data().title || masterclassId;
+        console.log("✅ Masterclass title found:", classTitle);
+      } else {
+        console.warn("⚠️ Masterclass not found; using ID as title");
+        classTitle = masterclassId;
+      }
     }
 
-    // 2️⃣ Add purchased masterclass to user profile
-    await addPurchasedClass(userId, masterclassId);
+    // ✅ Enroll user in masterclass
+    const masterclassRef = doc(db, "MasterClasses", masterclassId);
+    console.log("🔵 Adding user to masterclass participants...");
+    const masterclassSnap = await getDoc(masterclassRef);
 
-    // 3️⃣ Add transaction record (no title)
-    await addTransactionRecord(userId, {
-      orderId: razorpay_order_id,
-      paymentId: razorpay_payment_id,
-      masterclassId,
-      amount: amount || 0,
-      timestamp: new Date().toISOString(),
-    });
+    if (masterclassSnap.exists()) {
+      const currentJoinedUsers = masterclassSnap.data().joined_users || [];
+      if (!currentJoinedUsers.includes(userId)) {
+        await updateDoc(masterclassRef, {
+          joined_users: arrayUnion(userId),
+        });
+        console.log("✅ User added to masterclass participants");
+      } else {
+        console.log("ℹ️ User already enrolled in masterclass");
+      }
+    } else {
+      console.warn("⚠️ Masterclass not found, creating document with user...");
+      await setDoc(
+        masterclassRef,
+        { joined_users: [userId], title: classTitle },
+        { merge: true }
+      );
+    }
+
+    // ✅ Add to user's purchased classes
+    console.log("🔵 Adding masterclass to user's purchased list...");
+    await addPurchasedClass(userId, classTitle);
+    console.log("✅ Added to user's purchased classes");
+
+    // ✅ Update transaction to success
+    console.log("🔵 Updating transaction record to success...");
+    const userRef = doc(db, "user_profiles", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      const transactions = data.transactions || [];
+      
+      const updatedTransactions = transactions.map((txn: any) =>
+        txn.orderId === razorpay_order_id
+          ? { 
+              ...txn, 
+              paymentId: razorpay_payment_id,
+              status: "success",
+              timestamp: new Date().toISOString() 
+            }
+          : txn
+      );
+      
+      await updateDoc(userRef, { transactions: updatedTransactions });
+      console.log("✅ Transaction updated successfully");
+    }
+
+    console.log("🎉 Payment verified and saved successfully!");
 
     return NextResponse.json({
       success: true,
-      message: "✅ Payment verified and enrollment completed",
+      message: "Payment verified successfully and enrollment completed",
     });
   } catch (error: any) {
-    console.error("Error verifying payment:", error);
+    console.error("❌ Payment verification error:", error);
+
     return NextResponse.json(
-      { error: error.message || "Payment verification failed" },
+      {
+        success: false,
+        error: error.message || "Payment verification failed",
+        details: error.stack || error.toString(),
+      },
       { status: 500 }
     );
   }

@@ -1,5 +1,9 @@
-import React, { useState } from "react";
-import { X, CreditCard, Shield, CheckCircle } from "lucide-react";
+// components/PaymentModal.tsx
+
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { X, CreditCard, Shield, CheckCircle, AlertCircle } from "lucide-react";
 import { PaymentService } from "@/services/paymentService";
 import { Masterclass } from "@/types/masterclass";
 import toast from "react-hot-toast";
@@ -9,7 +13,7 @@ interface PaymentModalProps {
   onClose: () => void;
   masterclass: Masterclass;
   user: any;
-  onPaymentSuccess: (paymentData?: any) => void; // ✅ Updated type
+  onPaymentSuccess: (paymentData?: any) => void;
 }
 
 export default function PaymentModal({
@@ -21,6 +25,14 @@ export default function PaymentModal({
 }: PaymentModalProps) {
   const [processing, setProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"dummy" | "razorpay">("dummy");
+  const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setProcessing(false);
+      setError("");
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -31,6 +43,7 @@ export default function PaymentModal({
     }
 
     setProcessing(true);
+    setError("");
 
     try {
       const paymentDetails = {
@@ -42,82 +55,136 @@ export default function PaymentModal({
         phone: user.phone,
       };
 
+      // ✅ DUMMY PAYMENT: Handle completely with backend verification
       if (paymentMethod === "dummy") {
-        // ✅ Dummy payment for testing
-        const response = await PaymentService.processDummyPayment(paymentDetails);
-
-        if (response.success) {
-          const paymentData = {
-            orderId: "dummy_order_" + Date.now(),
-            paymentId: "dummy_payment_" + Date.now(),
+        // Generate dummy order ID with "dummy_" prefix
+        const dummyOrderId = `dummy_order_${Date.now()}`;
+        const dummyPaymentId = `dummy_pay_${Date.now()}`;
+        
+        try {
+          // ✅ Call verify endpoint to handle all Firestore operations
+          const verified = await PaymentService.verifyPayment({
+            razorpay_order_id: dummyOrderId,
+            razorpay_payment_id: dummyPaymentId,
+            razorpay_signature: "dummy_signature", // Not used for dummy
             masterclassId: masterclass.id,
+            userId: user.uid,
+            masterclassTitle: masterclass.title,
             amount: masterclass.price,
-            method: "dummy",
-            timestamp: new Date().toISOString(),
-          };
-
-          toast.success("Payment successful!");
-          onPaymentSuccess(paymentData); // ✅ pass data to parent
-          onClose();
-        } else {
+            method: "dummy", // ✅ Explicitly pass method
+          });
+          
+          if (verified) {
+            const paymentData = {
+              orderId: dummyOrderId,
+              paymentId: dummyPaymentId,
+              masterclassId: masterclass.id,
+              amount: masterclass.price,
+              method: "dummy",
+              timestamp: new Date().toISOString(),
+            };
+            
+            toast.success("Payment successful!");
+            onPaymentSuccess(paymentData);
+            setTimeout(onClose, 600);
+          } else {
+            setError("Dummy payment verification failed");
+            toast.error("Payment failed");
+          }
+        } catch (error: any) {
+          console.error("❌ Dummy payment error:", error);
+          setError(error.message || "Dummy payment failed");
           toast.error("Payment failed");
         }
-
+        
         setProcessing(false);
-      } else {
-        // ✅ Razorpay payment - handle asynchronously
-        PaymentService.processRazorpayPayment(
-          paymentDetails,
-          async (response) => {
-            try {
-              // Verify payment on backend
-              const verified = await PaymentService.verifyPayment({
-                ...response,
+        return;
+      }
+
+      // 🔵 RAZORPAY PAYMENT: Use full flow with backend
+      let razorpayOrderId: string | null = null;
+
+      await PaymentService.processRazorpayPayment(
+        paymentDetails,
+        masterclass.title,
+        async (response) => {
+          try {
+            const verified = await PaymentService.verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              masterclassId: masterclass.id,
+              userId: user.uid,
+              masterclassTitle: masterclass.title,
+              amount: masterclass.price,
+            });
+
+            if (verified) {
+              const paymentData = {
+                orderId: response.razorpay_order_id,
+                paymentId: response.razorpay_payment_id,
                 masterclassId: masterclass.id,
-                userId: user.uid,
-                masterclassTitle: masterclass.title,
                 amount: masterclass.price,
-              });
-
-              if (verified) {
-                const paymentData = {
-                  orderId: response.orderId,
-                  paymentId: response.paymentId,
-                  masterclassId: masterclass.id,
-                  amount: masterclass.price,
-                  method: "razorpay",
-                  timestamp: new Date().toISOString(),
-                };
-
-                toast.success("Payment successful!");
-                onPaymentSuccess(paymentData); // ✅ pass data to parent
-                onClose();
-              } else {
-                toast.error("Payment verification failed");
-              }
-            } catch (error) {
-              console.error("Verification error:", error);
+                method: "razorpay",
+                timestamp: new Date().toISOString(),
+              };
+              toast.success("Payment successful!");
+              onPaymentSuccess(paymentData);
+              setTimeout(onClose, 600);
+            } else {
+              setError("Payment verification failed");
               toast.error("Payment verification failed");
-            } finally {
-              setProcessing(false);
             }
-          },
-          (error) => {
-            console.error("Payment error:", error);
-            toast.error(error.error || "Payment failed");
+          } catch (verifyError: any) {
+            console.error("❌ Verification error:", verifyError);
+            setError(verifyError.message || "Payment verification failed");
+            toast.error("Payment verification failed");
+          } finally {
             setProcessing(false);
           }
-        ).catch((error) => {
-          console.error("Razorpay initialization error:", error);
-          toast.error("Failed to initialize payment");
+        },
+        async (error, orderId) => {
+          console.error("❌ Razorpay payment error:", error);
+          const errorMessage = error?.error || error?.message || "Payment failed or cancelled";
+          setError(errorMessage);
+          toast.error(errorMessage);
+          
+          // ✅ Mark transaction as failed if we have an orderId
+          if (orderId) {
+            try {
+              await PaymentService.markTransactionAsFailed(
+                user.uid,
+                orderId,
+                errorMessage
+              );
+              console.log("✅ Transaction marked as failed");
+            } catch (markError) {
+              console.error("❌ Failed to mark transaction as failed:", markError);
+            }
+          }
+          
           setProcessing(false);
-        });
-      }
-    } catch (error) {
-      console.error("Payment error:", error);
-      toast.error("Payment failed. Please try again.");
+        },
+        (orderId) => {
+          // ✅ Store orderId for failure handling
+          razorpayOrderId = orderId;
+        }
+      );
+
+      // ⏳ Safety fallback: stop loading if SDK fails silently
+      setTimeout(() => setProcessing(false), 8000);
+    } catch (error: any) {
+      console.error("❌ Payment error:", error);
+      setError(error.message || "Payment failed. Please try again.");
+      toast.error(error.message || "Payment failed. Please try again.");
       setProcessing(false);
     }
+  };
+
+  const handleClose = () => {
+    if (processing) setProcessing(false);
+    setError("");
+    onClose();
   };
 
   return (
@@ -126,8 +193,9 @@ export default function PaymentModal({
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white relative">
           <button
-            onClick={onClose}
-            className="absolute top-4 right-4 hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition"
+            onClick={handleClose}
+            disabled={processing}
+            className="absolute top-4 right-4 hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="w-5 h-5" />
           </button>
@@ -137,7 +205,7 @@ export default function PaymentModal({
 
         {/* Content */}
         <div className="p-6 space-y-6">
-          {/* Masterclass Details */}
+          {/* Masterclass Info */}
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             <h3 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
               {masterclass.title}
@@ -153,80 +221,87 @@ export default function PaymentModal({
             </div>
           </div>
 
-          {/* Payment Method Selection */}
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900 dark:bg-opacity-20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+                  Payment Error
+                </p>
+                <p className="text-xs text-red-700 dark:text-red-400 mt-1">{error}</p>
+              </div>
+              <button
+                onClick={() => setError("")}
+                className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Payment Method */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               Select Payment Method
             </label>
             <div className="space-y-2">
-              <button
-                onClick={() => setPaymentMethod("dummy")}
-                className={`w-full p-4 rounded-lg border-2 transition flex items-center gap-3 ${
-                  paymentMethod === "dummy"
-                    ? "border-blue-600 bg-blue-50 dark:bg-blue-900 dark:bg-opacity-20"
-                    : "border-gray-200 dark:border-gray-600 hover:border-gray-300"
-                }`}
-              >
-                <CreditCard className="w-5 h-5" />
-                <div className="text-left">
-                  <div className="font-semibold text-gray-900 dark:text-white">
-                    Dummy Payment (Test Mode)
+              {["dummy", "razorpay"].map((method) => (
+                <button
+                  key={method}
+                  onClick={() => setPaymentMethod(method as "dummy" | "razorpay")}
+                  disabled={processing}
+                  className={`w-full p-4 rounded-lg border-2 transition flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    paymentMethod === method
+                      ? "border-blue-600 bg-blue-50 dark:bg-blue-900 dark:bg-opacity-20"
+                      : "border-gray-200 dark:border-gray-600 hover:border-gray-300"
+                  }`}
+                >
+                  {method === "dummy" ? (
+                    <CreditCard className="w-5 h-5" />
+                  ) : (
+                    <Shield className="w-5 h-5" />
+                  )}
+                  <div className="text-left flex-1">
+                    <div className="font-semibold text-gray-900 dark:text-white">
+                      {method === "dummy" ? "Dummy Payment (Test Mode)" : "Razorpay (Live Mode)"}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {method === "dummy"
+                        ? "For testing purposes only"
+                        : "UPI, Cards, Netbanking & more"}
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    For testing purposes only
-                  </div>
-                </div>
-                {paymentMethod === "dummy" && (
-                  <CheckCircle className="w-5 h-5 ml-auto text-blue-600" />
-                )}
-              </button>
-
-              <button
-                onClick={() => setPaymentMethod("razorpay")}
-                className={`w-full p-4 rounded-lg border-2 transition flex items-center gap-3 ${
-                  paymentMethod === "razorpay"
-                    ? "border-blue-600 bg-blue-50 dark:bg-blue-900 dark:bg-opacity-20"
-                    : "border-gray-200 dark:border-gray-600 hover:border-gray-300"
-                }`}
-              >
-                <Shield className="w-5 h-5" />
-                <div className="text-left">
-                  <div className="font-semibold text-gray-900 dark:text-white">
-                    Razorpay (Live Mode)
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    UPI, Cards, Netbanking & more
-                  </div>
-                </div>
-                {paymentMethod === "razorpay" && (
-                  <CheckCircle className="w-5 h-5 ml-auto text-blue-600" />
-                )}
-              </button>
+                  {paymentMethod === method && (
+                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Security Notice */}
+          {/* Security Info */}
           <div className="flex items-start gap-3 bg-green-50 dark:bg-green-900 dark:bg-opacity-20 p-4 rounded-lg">
-            <Shield className="w-5 h-5 text-green-600 mt-0.5" />
+            <Shield className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-green-800 dark:text-green-300">
               <p className="font-semibold mb-1">Secure Payment</p>
               <p className="text-xs">Your payment information is encrypted and secure.</p>
             </div>
           </div>
 
-          {/* Action Buttons */}
+          {/* Buttons */}
           <div className="flex gap-3">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               disabled={processing}
-              className="flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50"
+              className="flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               onClick={handlePayment}
               disabled={processing}
-              className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {processing ? (
                 <>

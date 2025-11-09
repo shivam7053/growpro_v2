@@ -1,3 +1,5 @@
+// app/signup/page.tsx
+
 "use client";
 
 import React, { useState } from "react";
@@ -6,7 +8,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContexts";
 import UserForm from "@/components/UserForm";
-import { UserProfile } from "@/types/auth";
+import { UserProfile } from "@/types/masterclass"; // ✅ Single source of truth
 import { useTheme } from "next-themes";
 import { toast } from "react-hot-toast";
 

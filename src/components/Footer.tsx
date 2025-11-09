@@ -35,11 +35,16 @@ export default function Footer() {
         <div className="grid md:grid-cols-4 gap-8">
           {/* Company Info */}
           <div>
-            <img
-              src="/white-logo.png"
-              alt="GrowPro"
-              className="h-12 md:h-14 w-auto"
-            />
+            <Link href="/" className="flex items-center rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 shadow-sm">
+              <img
+                src={
+                   "/logo_growpro.png" // 👈 Default logo
+                }
+                alt="GrowPro"
+                className="h-20 w-auto rounded-xl object-contain"
+              />
+            </Link>
+
 
             <p className="text-gray-300 dark:text-gray-400 mb-4">
               Empowering careers through expert guidance, global opportunities,
@@ -92,6 +97,14 @@ export default function Footer() {
                   className="text-gray-300 dark:text-gray-400 hover:text-white transition-colors"
                 >
                   Master Classes
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/about"
+                  className="text-gray-300 dark:text-gray-400 hover:text-white transition-colors"
+                >
+                  About Us
                 </Link>
               </li>
             </ul>
