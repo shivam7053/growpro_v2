@@ -45,6 +45,18 @@ export default function AdminDashboard() {
             Manage all masterclass data
           </p>
         </Link>
+
+        <Link
+          href="/admin/checkpoints"
+          className="p-8 bg-white rounded-2xl shadow-md hover:shadow-xl text-center transition-all duration-300 border border-gray-200"
+        >
+          <h2 className="text-2xl font-semibold mb-3 text-gray-800">
+            ✔️ Checkpoints
+          </h2>
+          <p className="text-gray-600">
+            Manage all archieve related checkpoints data
+          </p>
+        </Link>
       </div>
     </div>
   );

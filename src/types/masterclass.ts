@@ -58,6 +58,11 @@ export interface UserProfile {
   purchasedClasses: string[];
   transactions?: Transaction[];
   created_at: string;
+  selectedCheckpoints?: {
+    category: string;
+    checkpoints: string[];
+  }[];
 }
+
 
 export type UserDocument = UserProfile;

@@ -62,28 +62,12 @@ export default function HeroSection() {
       variants={staggerChildren}
     >
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        {/* Hero Title & Buttons */}
+        
         <motion.div variants={fadeInUp} className="text-center mb-12">
           <h1 className="text-5xl lg:text-6xl font-extrabold mb-6 leading-tight tracking-tight text-gray-900 dark:text-white">
             WE HELP YOU CRACK YOUR DREAM JOB!
           </h1>
 
-          {/* <div className="flex flex-wrap justify-center gap-4 mb-16">
-            <Link
-              href="/global-opportunities"
-              className="bg-black text-white dark:bg-white dark:text-black 
-                         px-8 py-4 rounded-full font-semibold transition-all duration-300 hover:scale-105 shadow-md"
-            >
-              Global Remote Opportunities
-            </Link>
-            <Link
-              href="/masterclasses"
-              className="bg-black text-white dark:bg-white dark:text-black 
-                         px-8 py-4 rounded-full font-semibold transition-all duration-300 hover:scale-105 shadow-md"
-            >
-              Master Classes
-            </Link>
-          </div> */}
         </motion.div>
 
         {/* Hero Illustration + Steps */}
