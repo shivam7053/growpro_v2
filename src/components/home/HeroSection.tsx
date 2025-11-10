@@ -3,6 +3,7 @@
 import { motion, Variants } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import AchievementGoals from "./AchievementGoals"
 
 // Variants for animations
 const fadeInLeft: Variants = {
@@ -67,6 +68,8 @@ export default function HeroSection() {
           <h1 className="text-5xl lg:text-6xl font-extrabold mb-6 leading-tight tracking-tight text-gray-900 dark:text-white">
             WE HELP YOU CRACK YOUR DREAM JOB!
           </h1>
+
+        <AchievementGoals />
 
         </motion.div>
 
