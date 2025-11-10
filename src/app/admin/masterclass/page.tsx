@@ -369,7 +369,6 @@
 //   );
 // }
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -531,6 +530,22 @@ export default function AdminMasterclasses() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const cancelEdit = () => {
+    setEditingId(null);
+    setFormData({
+      title: '',
+      speaker_name: '',
+      speaker_designation: '',
+      youtube_url: '',
+      price: '',
+      type: 'free',
+      description: '',
+      duration: '',
+      thumbnail_url: '',
+      scheduled_date: '',
+    });
+  };
+
   const filteredClasses =
     filter === 'all' ? classes : classes.filter((cls) => cls.type === filter);
 
@@ -549,7 +564,94 @@ export default function AdminMasterclasses() {
         🎓 Manage Masterclasses
       </h1>
 
-      {/* Filter Section */}
+      {/* Add/Edit Form */}
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white shadow-lg rounded-xl p-6 max-w-4xl mx-auto mb-10 border border-gray-200"
+      >
+        <h2 className="text-xl font-semibold mb-4 text-gray-900">
+          {editingId ? '✏️ Edit Masterclass' : '➕ Add New Masterclass'}
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input type="text" placeholder="Title *" value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            className="border p-3 rounded-lg text-gray-900" />
+
+          <input type="text" placeholder="Speaker Name *" value={formData.speaker_name}
+            onChange={(e) => setFormData({ ...formData, speaker_name: e.target.value })}
+            className="border p-3 rounded-lg text-gray-900" />
+
+          <input type="text" placeholder="Speaker Designation" value={formData.speaker_designation}
+            onChange={(e) => setFormData({ ...formData, speaker_designation: e.target.value })}
+            className="border p-3 rounded-lg text-gray-900" />
+
+          <input type="text" placeholder="YouTube URL" value={formData.youtube_url}
+            onChange={(e) => setFormData({ ...formData, youtube_url: e.target.value })}
+            className="border p-3 rounded-lg text-gray-900" />
+
+          <input type="number" placeholder="Price *" value={formData.price}
+            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+            className="border p-3 rounded-lg text-gray-900" />
+
+          <select
+            value={formData.type}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                type: e.target.value as 'free' | 'paid' | 'featured' | 'upcoming',
+              })
+            }
+            className="border p-3 rounded-lg text-gray-900"
+          >
+            <option value="free">Free</option>
+            <option value="paid">Paid</option>
+            <option value="featured">Featured</option>
+            <option value="upcoming">Upcoming</option>
+          </select>
+
+          <input type="text" placeholder="Duration (e.g., 2 hours)"
+            value={formData.duration}
+            onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+            className="border p-3 rounded-lg text-gray-900" />
+
+          <input type="text" placeholder="Thumbnail URL"
+            value={formData.thumbnail_url}
+            onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+            className="border p-3 rounded-lg text-gray-900" />
+
+          {formData.type === 'upcoming' && (
+            <input type="datetime-local" value={formData.scheduled_date}
+              onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+              className="border p-3 rounded-lg text-gray-900" />
+          )}
+        </div>
+
+        <textarea
+          placeholder="Description"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          className="border p-3 rounded-lg text-gray-900 w-full mt-4"
+          rows={3}
+        />
+
+        <div className="flex gap-4 mt-6">
+          <button type="submit" className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700">
+            {editingId ? 'Update Masterclass' : 'Add Masterclass'}
+          </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 font-semibold"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </form>
+
+      {/* Filter Buttons */}
       <div className="flex justify-center mb-6 gap-3 flex-wrap">
         {['all', 'free', 'paid', 'featured', 'upcoming'].map((f) => (
           <button
@@ -564,7 +666,7 @@ export default function AdminMasterclasses() {
         ))}
       </div>
 
-      {/* Show All Masterclasses */}
+      {/* Display Masterclasses */}
       {loading ? (
         <p className="text-center text-gray-700 font-medium">Loading...</p>
       ) : filteredClasses.length === 0 ? (
@@ -572,13 +674,12 @@ export default function AdminMasterclasses() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredClasses.map((cls) => (
-            <div
-              key={cls.id}
-              className="bg-white p-6 rounded-lg shadow-lg border border-gray-200"
-            >
+            <div key={cls.id} className="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
               <div className="flex items-start justify-between mb-3">
                 <h2 className="text-xl font-semibold text-gray-900">{cls.title}</h2>
-                <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase text-white ${getTypeBadgeColor(cls.type)}`}>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-bold uppercase text-white ${getTypeBadgeColor(cls.type)}`}
+                >
                   {cls.type}
                 </span>
               </div>
@@ -608,16 +709,10 @@ export default function AdminMasterclasses() {
               </div>
 
               <div className="flex justify-between mt-4">
-                <button
-                  onClick={() => handleEdit(cls)}
-                  className="text-blue-700 font-semibold hover:underline"
-                >
+                <button onClick={() => handleEdit(cls)} className="text-blue-700 font-semibold hover:underline">
                   Edit
                 </button>
-                <button
-                  onClick={() => handleDelete(cls.id!)}
-                  className="text-red-700 font-semibold hover:underline"
-                >
+                <button onClick={() => handleDelete(cls.id!)} className="text-red-700 font-semibold hover:underline">
                   Delete
                 </button>
               </div>
