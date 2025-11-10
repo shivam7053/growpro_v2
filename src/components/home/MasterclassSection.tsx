@@ -3,25 +3,9 @@
 import { useState } from "react";
 import { motion, Variants } from "framer-motion";
 import Link from "next/link";
-import {
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  AlertTriangle,
-} from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import MasterclassCard from "@/components/masterclassCard";
-
-interface Masterclass {
-  id: string;
-  title: string;
-  speaker_name: string;
-  speaker_designation: string;
-  youtube_url: string;
-  created_at: string;
-  price: number;
-  joined_users: string[];
-  type: "free" | "paid" | "featured";
-}
+import { Masterclass } from "@/types/masterclass";
 
 interface Props {
   masterclasses: Masterclass[];
@@ -30,7 +14,6 @@ interface Props {
   onPurchaseComplete: () => void;
 }
 
-// ✅ Type-safe animations
 const fadeInUp: Variants = {
   initial: { opacity: 0, y: 40 },
   animate: { opacity: 1, y: 0 },
@@ -47,17 +30,21 @@ export default function MasterclassSection({
   onPurchaseComplete,
 }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const displayedMasterclasses = masterclasses.slice(0, 4);
+  
+  // Show featured, upcoming, and recent masterclasses (max 4)
+  const displayedMasterclasses = masterclasses
+    .filter((mc) => mc.type === "featured" || mc.type === "upcoming")
+    .slice(0, 4);
 
   const nextSlide = () => {
     setCurrentSlide((prev) =>
-      prev >= Math.min(masterclasses.length - 1, 3) ? 0 : prev + 1
+      prev >= displayedMasterclasses.length - 1 ? 0 : prev + 1
     );
   };
 
   const prevSlide = () => {
     setCurrentSlide((prev) =>
-      prev <= 0 ? Math.min(masterclasses.length - 1, 3) : prev - 1
+      prev <= 0 ? displayedMasterclasses.length - 1 : prev - 1
     );
   };
 
@@ -102,14 +89,14 @@ export default function MasterclassSection({
         )}
 
         {/* No Masterclasses */}
-        {!loading && masterclasses.length === 0 && (
+        {!loading && displayedMasterclasses.length === 0 && (
           <motion.div
             variants={fadeInUp}
             transition={{ duration: 0.7 }}
             className="text-center text-gray-700 dark:text-gray-300 py-12"
           >
             <AlertTriangle className="w-12 h-12 text-gray-500 dark:text-gray-400 mx-auto mb-4" />
-            <p className="font-medium">No masterclasses available right now.</p>
+            <p className="font-medium">No featured masterclasses available right now.</p>
           </motion.div>
         )}
 
@@ -138,33 +125,37 @@ export default function MasterclassSection({
             </div>
 
             {/* Navigation Buttons */}
-            <button
-              onClick={prevSlide}
-              className="absolute left-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-3 rounded-full shadow-md hover:scale-110 transition"
-            >
-              <ChevronLeft className="w-6 h-6 text-gray-800 dark:text-gray-100" />
-            </button>
-            <button
-              onClick={nextSlide}
-              className="absolute right-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-3 rounded-full shadow-md hover:scale-110 transition"
-            >
-              <ChevronRight className="w-6 h-6 text-gray-800 dark:text-gray-100" />
-            </button>
-
-            {/* Pagination Dots */}
-            <div className="flex justify-center gap-2 mt-6">
-              {displayedMasterclasses.map((_, index) => (
+            {displayedMasterclasses.length > 1 && (
+              <>
                 <button
-                  key={index}
-                  onClick={() => setCurrentSlide(index)}
-                  className={`w-3 h-3 rounded-full transition ${
-                    index === currentSlide
-                      ? "bg-black dark:bg-white"
-                      : "bg-gray-300 dark:bg-gray-600"
-                  }`}
-                />
-              ))}
-            </div>
+                  onClick={prevSlide}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-3 rounded-full shadow-md hover:scale-110 transition"
+                >
+                  <ChevronLeft className="w-6 h-6 text-gray-800 dark:text-gray-100" />
+                </button>
+                <button
+                  onClick={nextSlide}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-3 rounded-full shadow-md hover:scale-110 transition"
+                >
+                  <ChevronRight className="w-6 h-6 text-gray-800 dark:text-gray-100" />
+                </button>
+
+                {/* Pagination Dots */}
+                <div className="flex justify-center gap-2 mt-6">
+                  {displayedMasterclasses.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentSlide(index)}
+                      className={`w-3 h-3 rounded-full transition ${
+                        index === currentSlide
+                          ? "bg-black dark:bg-white"
+                          : "bg-gray-300 dark:bg-gray-600"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </motion.div>
         )}
       </div>

@@ -12,19 +12,7 @@ import {
   serverTimestamp,
   getDoc,
 } from 'firebase/firestore';
-
-interface Masterclass {
-  id: string;
-  title: string;
-  speaker_name: string;
-  speaker_designation: string;
-  youtube_url: string;
-  created_at: string;
-  price: number;
-  joined_users: string[];
-  joined_user_details?: { id: string; name?: string; email?: string }[];
-  type: 'free' | 'paid' | 'featured';
-}
+import { Masterclass } from '@/types/masterclass';
 
 export default function AdminMasterclasses() {
   const [classes, setClasses] = useState<Masterclass[]>([]);
@@ -37,7 +25,11 @@ export default function AdminMasterclasses() {
     speaker_designation: '',
     youtube_url: '',
     price: '',
-    type: 'free' as 'free' | 'paid' | 'featured',
+    type: 'free' as 'free' | 'paid' | 'featured' | 'upcoming',
+    description: '',
+    duration: '',
+    thumbnail_url: '',
+    scheduled_date: '',
   });
 
   const fetchClasses = async () => {
@@ -52,24 +44,6 @@ export default function AdminMasterclasses() {
           ? data.joined_users.filter((id) => typeof id === 'string')
           : [];
 
-        const joined_user_details: { id: string; name?: string; email?: string }[] = [];
-        for (const userId of joinedUsers) {
-          try {
-            const userRef = doc(db, 'user_profiles', userId);
-            const userSnap = await getDoc(userRef);
-            if (userSnap.exists()) {
-              const userData = userSnap.data();
-              joined_user_details.push({
-                id: userId,
-                name: userData.full_name || 'Unknown User',
-                email: userData.email || '',
-              });
-            }
-          } catch (err) {
-            console.warn(`Failed to fetch user ${userId}:`, err);
-          }
-        }
-
         masterclassList.push({
           id: docSnap.id,
           title: data.title || '',
@@ -81,8 +55,11 @@ export default function AdminMasterclasses() {
             : 'N/A',
           price: data.price || 0,
           joined_users: joinedUsers,
-          joined_user_details,
           type: data.type || 'free',
+          description: data.description || '',
+          duration: data.duration || '',
+          thumbnail_url: data.thumbnail_url || '',
+          scheduled_date: data.scheduled_date || '',
         });
       }
 
@@ -107,16 +84,25 @@ export default function AdminMasterclasses() {
     if (!formData.price) return alert('Price is required');
 
     try {
+      const dataToSave = {
+        title: formData.title,
+        speaker_name: formData.speaker_name,
+        speaker_designation: formData.speaker_designation,
+        youtube_url: formData.youtube_url,
+        price: Number(formData.price),
+        type: formData.type,
+        description: formData.description,
+        duration: formData.duration,
+        thumbnail_url: formData.thumbnail_url,
+        scheduled_date: formData.scheduled_date,
+      };
+
       if (editingId) {
-        await updateDoc(doc(db, 'MasterClasses', editingId), {
-          ...formData,
-          price: Number(formData.price),
-        });
+        await updateDoc(doc(db, 'MasterClasses', editingId), dataToSave);
         alert('✅ Masterclass updated successfully!');
       } else {
         await addDoc(collection(db, 'MasterClasses'), {
-          ...formData,
-          price: Number(formData.price),
+          ...dataToSave,
           joined_users: [],
           created_at: serverTimestamp(),
         });
@@ -130,6 +116,10 @@ export default function AdminMasterclasses() {
         youtube_url: '',
         price: '',
         type: 'free',
+        description: '',
+        duration: '',
+        thumbnail_url: '',
+        scheduled_date: '',
       });
       setEditingId(null);
       fetchClasses();
@@ -159,6 +149,10 @@ export default function AdminMasterclasses() {
       youtube_url: cls.youtube_url,
       price: String(cls.price),
       type: cls.type,
+      description: cls.description || '',
+      duration: cls.duration || '',
+      thumbnail_url: cls.thumbnail_url || '',
+      scheduled_date: cls.scheduled_date || '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -172,7 +166,20 @@ export default function AdminMasterclasses() {
       youtube_url: '',
       price: '',
       type: 'free',
+      description: '',
+      duration: '',
+      thumbnail_url: '',
+      scheduled_date: '',
     });
+  };
+
+  const getTypeBadgeColor = (type: string) => {
+    switch (type) {
+      case 'upcoming': return 'bg-blue-500';
+      case 'featured': return 'bg-yellow-500';
+      case 'paid': return 'bg-purple-500';
+      default: return 'bg-green-500';
+    }
   };
 
   return (
@@ -184,7 +191,7 @@ export default function AdminMasterclasses() {
       {/* Add / Edit Masterclass Form */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-xl p-6 max-w-2xl mx-auto mb-10 border border-gray-200"
+        className="bg-white shadow-lg rounded-xl p-6 max-w-4xl mx-auto mb-10 border border-gray-200"
       >
         <h2 className="text-xl font-semibold mb-4 text-gray-900">
           {editingId ? '✏️ Edit Masterclass' : '➕ Add New Masterclass'}
@@ -238,7 +245,7 @@ export default function AdminMasterclasses() {
             onChange={(e) =>
               setFormData({
                 ...formData,
-                type: e.target.value as 'free' | 'paid' | 'featured',
+                type: e.target.value as 'free' | 'paid' | 'featured' | 'upcoming',
               })
             }
             className="border p-3 rounded-lg text-gray-900"
@@ -246,8 +253,43 @@ export default function AdminMasterclasses() {
             <option value="free">Free</option>
             <option value="paid">Paid</option>
             <option value="featured">Featured</option>
+            <option value="upcoming">Upcoming</option>
           </select>
+
+          <input
+            type="text"
+            placeholder="Duration (e.g., 2 hours)"
+            value={formData.duration}
+            onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+            className="border p-3 rounded-lg placeholder-gray-600 text-gray-900"
+          />
+
+          <input
+            type="text"
+            placeholder="Thumbnail URL"
+            value={formData.thumbnail_url}
+            onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+            className="border p-3 rounded-lg placeholder-gray-600 text-gray-900"
+          />
+
+          {formData.type === 'upcoming' && (
+            <input
+              type="datetime-local"
+              placeholder="Scheduled Date"
+              value={formData.scheduled_date}
+              onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+              className="border p-3 rounded-lg placeholder-gray-600 text-gray-900"
+            />
+          )}
         </div>
+
+        <textarea
+          placeholder="Description"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          className="border p-3 rounded-lg placeholder-gray-600 text-gray-900 w-full mt-4"
+          rows={3}
+        />
 
         <div className="flex gap-4 mt-6">
           <button
@@ -280,33 +322,29 @@ export default function AdminMasterclasses() {
               key={cls.id}
               className="bg-white p-6 rounded-lg shadow-lg border border-gray-200"
             >
-              <div>
-                <h2 className="text-xl font-semibold mb-2 text-gray-900">{cls.title}</h2>
-                <p className="text-sm text-gray-800">
-                  {cls.speaker_name} • {cls.speaker_designation || '—'}
+              <div className="flex items-start justify-between mb-3">
+                <h2 className="text-xl font-semibold text-gray-900">{cls.title}</h2>
+                <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase text-white ${getTypeBadgeColor(cls.type)}`}>
+                  {cls.type}
+                </span>
+              </div>
+              
+              <p className="text-sm text-gray-800">
+                {cls.speaker_name} • {cls.speaker_designation || '—'}
+              </p>
+              <p className="text-gray-900 mt-2 font-medium">💰 {cls.price} INR</p>
+              {cls.duration && <p className="text-sm text-gray-700 mt-1">⏱️ {cls.duration}</p>}
+              {cls.scheduled_date && (
+                <p className="text-sm text-gray-700 mt-1">
+                  📅 {new Date(cls.scheduled_date).toLocaleString()}
                 </p>
-                <p className="text-gray-900 mt-2 font-medium">💰 {cls.price} INR</p>
-                <p className="text-gray-700 text-sm mt-1 capitalize">
-                  Type: {cls.type}
-                </p>
-                <p className="text-xs text-gray-600 mt-1">Created: {cls.created_at}</p>
+              )}
+              <p className="text-xs text-gray-600 mt-1">Created: {cls.created_at}</p>
 
-                <div className="mt-3 bg-gray-100 p-3 rounded-lg border border-gray-200">
-                  <h3 className="font-semibold text-sm mb-1 text-gray-800">
-                    👥 Joined Users ({cls.joined_user_details?.length || 0})
-                  </h3>
-                  {cls.joined_user_details?.length ? (
-                    <ul className="text-xs text-gray-800 space-y-1 max-h-28 overflow-y-auto">
-                      {cls.joined_user_details.map((user) => (
-                        <li key={user.id}>
-                          • {user.name} {user.email && <span>({user.email})</span>}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-xs text-gray-600">No users joined yet.</p>
-                  )}
-                </div>
+              <div className="mt-3 bg-gray-100 p-3 rounded-lg border border-gray-200">
+                <h3 className="font-semibold text-sm mb-1 text-gray-800">
+                  👥 Enrolled Users ({cls.joined_users?.length || 0})
+                </h3>
               </div>
 
               <div className="flex justify-between mt-4">

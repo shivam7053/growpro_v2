@@ -10,13 +10,14 @@ export interface Masterclass {
   created_at: string;
   price: number;
   joined_users: string[];
-  type: "free" | "paid" | "featured";
+  type: "free" | "paid" | "featured" | "upcoming";
   description?: string;
   duration?: string;
   thumbnail_url?: string;
+  scheduled_date?: string; // ISO timestamp for upcoming classes
 }
 
-export type FilterType = "all" | "free" | "paid" | "featured" | "enrolled";
+export type FilterType = "all" | "free" | "paid" | "featured" | "enrolled" | "upcoming";
 
 export interface PaymentDetails {
   amount: number;
@@ -36,28 +37,27 @@ export interface PaymentResponse {
 
 export interface Transaction {
   orderId: string;
-  paymentId?: string;             // Optional: only exists for successful payments
+  paymentId?: string;
   masterclassId: string;
   masterclassTitle: string;
   amount: number;
   status: "pending" | "success" | "failed";
   method: "razorpay" | "dummy";
-  failureReason?: string;         // Optional: reason for failure
-  timestamp: string;              // ISO timestamp
+  failureReason?: string;
+  timestamp: string;
 }
 
 export interface UserProfile {
-  id: string;                     // User UID from Firebase Auth
-  email: string;                  // User email
-  full_name: string;              // User's display name
-  phone?: string;                 // Phone number (optional)
-  avatar_url?: string;            // Profile picture URL (optional)
-  bio?: string;                   // User bio (optional)
-  linkedin?: string;              // LinkedIn profile (optional)
-  purchasedClasses: string[];     // Array of masterclass titles (successful purchases only)
-  transactions?: Transaction[];   // All transaction history (success + failed)
-  created_at: string;             // ISO timestamp
+  id: string;
+  email: string;
+  full_name: string;
+  phone?: string;
+  avatar_url?: string;
+  bio?: string;
+  linkedin?: string;
+  purchasedClasses: string[];
+  transactions?: Transaction[];
+  created_at: string;
 }
 
-// ✅ Type alias for backward compatibility
 export type UserDocument = UserProfile;

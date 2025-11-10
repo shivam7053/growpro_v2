@@ -73,7 +73,7 @@ export default function MasterclassesPage() {
     }
     const filtered = filterMasterclasses(masterclasses, searchQuery, filterType, user?.uid);
     setFilteredMasterclasses(filtered);
-    setCurrentPage(1); // Reset page when filter/search changes
+    setCurrentPage(1);
   }, [masterclasses, searchQuery, filterType, user]);
 
   const handleRefresh = () => fetchMasterclasses();
@@ -97,6 +97,14 @@ export default function MasterclassesPage() {
       <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/3" />
     </div>
   );
+
+  const filterButtons: { type: FilterType; label: string }[] = [
+    { type: "all", label: "All" },
+    { type: "free", label: "Free" },
+    { type: "paid", label: "Paid" },
+    { type: "featured", label: "Featured" },
+    { type: "upcoming", label: "Upcoming" },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-100 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
@@ -157,17 +165,17 @@ export default function MasterclassesPage() {
             </div>
 
             <div className="flex gap-2 flex-wrap justify-start">
-              {["all", "free", "paid", "featured"].map((type) => (
+              {filterButtons.map(({ type, label }) => (
                 <button
                   key={type}
-                  onClick={() => setFilterType(type as FilterType)}
+                  onClick={() => setFilterType(type)}
                   className={`px-6 py-3 rounded-lg font-semibold transition ${
                     filterType === type
                       ? "bg-black dark:bg-white text-white dark:text-black shadow-md"
                       : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-400 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
                   }`}
                 >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                  {label}
                 </button>
               ))}
               {user && (
