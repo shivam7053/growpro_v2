@@ -68,7 +68,7 @@ export default function HeroSection() {
             WE HELP YOU CRACK YOUR DREAM JOB!
           </h1>
 
-          <div className="flex flex-wrap justify-center gap-4 mb-16">
+          {/* <div className="flex flex-wrap justify-center gap-4 mb-16">
             <Link
               href="/global-opportunities"
               className="bg-black text-white dark:bg-white dark:text-black 
@@ -83,7 +83,7 @@ export default function HeroSection() {
             >
               Master Classes
             </Link>
-          </div>
+          </div> */}
         </motion.div>
 
         {/* Hero Illustration + Steps */}

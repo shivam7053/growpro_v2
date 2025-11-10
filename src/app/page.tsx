@@ -7,7 +7,6 @@ import { useAuth } from "@/context/AuthContexts";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 
-import Header from "@/components/Header";
 import HeroSection from "@/components/home/HeroSection";
 import MasterclassSection from "@/components/home/MasterclassSection";
 import WorkshopsTestimonialsSection from "@/components/home/WorkshopsTestimonialsSection";
@@ -50,7 +49,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 overflow-hidden relative text-gray-900 dark:text-gray-100">
       <BackgroundAnimation />
-      <Header />
+
 
       {/* ✅ Animate only when visible */}
       <motion.div
