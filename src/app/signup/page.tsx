@@ -1,22 +1,21 @@
-// app/signup/page.tsx
-
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContexts";
 import UserForm from "@/components/UserForm";
-import { UserProfile } from "@/types/masterclass"; // ✅ Single source of truth
+import { UserProfile } from "@/types/masterclass";
 import { useTheme } from "next-themes";
 import { toast } from "react-hot-toast";
 
 export default function SignUpPage() {
   const router = useRouter();
   const { signUp, signInWithGoogle } = useAuth();
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
 
+  const [mounted, setMounted] = useState(false);
   const [userData, setUserData] = useState<UserProfile>({
     id: "",
     full_name: "",
@@ -33,6 +32,8 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const handleFieldChange = (field: keyof UserProfile, value: string) => {
     setUserData((prev) => ({ ...prev, [field]: value }));
@@ -88,11 +89,15 @@ export default function SignUpPage() {
         transition={{ duration: 0.6 }}
       >
         <div className="w-full max-w-md">
-          {/* Logo */}
+          {/* ✅ Dynamic Logo (safe for hydration) */}
           <div className="flex justify-center mb-8">
             <img
               src={
-                theme === "dark" ? "/white-logo.png" : "/logo_growpro.png"
+                !mounted
+                  ? "/logo_growpro.png"
+                  : (theme === "dark" || resolvedTheme === "dark")
+                  ? "/white-logo.png"
+                  : "/logo_growpro.png"
               }
               alt="GrowPro"
               className="h-20 w-20 transition-all duration-300"

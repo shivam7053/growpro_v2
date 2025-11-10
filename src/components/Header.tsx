@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,7 +16,10 @@ export default function Header({ transparent = false }: HeaderProps) {
   const { user, userProfile, signOut, loading, isAdmin } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const handleSignOut = async () => {
     try {
@@ -42,80 +45,53 @@ export default function Header({ transparent = false }: HeaderProps) {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
-          {/* Logo */}
-          <Link href="/" className="flex items-center rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 shadow-sm">
+          {/* ✅ Logo */}
+          <Link
+            href="/"
+            className="flex items-center rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 shadow-sm"
+          >
             <img
               src={
-                theme === "dark"
-                  ? "/white-logo.png" // 👈 White logo for dark mode
-                  : "/logo_growpro.png" // 👈 Default logo
+                !mounted
+                  ? "/logo_growpro.png"
+                  : theme === "dark" || resolvedTheme === "dark"
+                  ? "/white-logo.png"
+                  : "/logo_growpro.png"
               }
               alt="GrowPro"
               className="h-20 w-auto rounded-xl object-contain"
             />
           </Link>
 
-
-          {/* Navigation */}
+          {/* ✅ Navigation */}
           <nav
             className={`hidden md:flex items-center space-x-1 rounded-full px-3 py-2 transition-all ${
               transparent ? "bg-white/10" : "bg-black dark:bg-gray-800"
             }`}
           >
-            <Link
-              href="/"
-              className={`px-6 py-3 rounded-full text-sm font-medium transition-colors ${
-                isActive("/")
-                  ? "bg-white text-black"
-                  : transparent
-                  ? "text-white hover:bg-white/20"
-                  : "text-white hover:bg-gray-700"
-              }`}
-            >
-              Home
-            </Link>
-
-            <Link
-              href="/contact"
-              className={`px-6 py-3 rounded-full text-sm font-medium transition-colors ${
-                isActive("/contact")
-                  ? "bg-white text-black"
-                  : transparent
-                  ? "text-white hover:bg-white/20"
-                  : "text-white hover:bg-gray-700"
-              }`}
-            >
-              Contact Us
-            </Link>
-
-            <Link
-              href="/about"
-              className={`px-6 py-3 rounded-full text-sm font-medium transition-colors ${
-                isActive("/about")
-                  ? "bg-white text-black"
-                  : transparent
-                  ? "text-white hover:bg-white/20"
-                  : "text-white hover:bg-gray-700"
-              }`}
-            >
-              About Us
-            </Link>
-
-            <Link
-              href="/masterclasses"
-              className={`px-6 py-3 rounded-full text-sm font-medium transition-colors ${
-                isActive("/masterclasses")
-                  ? "bg-white text-black"
-                  : transparent
-                  ? "text-white hover:bg-white/20"
-                  : "text-white hover:bg-gray-700"
-              }`}
-            >
-              Master Classes
-            </Link>
+            {[
+              { path: "/", label: "Home" },
+              { path: "/contact", label: "Contact Us" },
+              { path: "/about", label: "About Us" },
+              { path: "/masterclasses", label: "Master Classes" },
+            ].map((link) => (
+              <Link
+                key={link.path}
+                href={link.path}
+                className={`px-6 py-3 rounded-full text-sm font-medium transition-colors ${
+                  isActive(link.path)
+                    ? "bg-white text-black"
+                    : transparent
+                    ? "text-white hover:bg-white/20"
+                    : "text-white hover:bg-gray-700"
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
 
-          {/* Right Actions */}
+          {/* ✅ Right Actions */}
           <div className="flex items-center space-x-4">
             {/* Theme Toggle Button */}
             <button
@@ -145,13 +121,11 @@ export default function Header({ transparent = false }: HeaderProps) {
             </button>
 
             {loading ? (
-              // Loading Skeleton
               <div className="flex items-center space-x-2">
                 <div className="animate-pulse bg-gray-200 h-10 w-20 rounded-full"></div>
                 <div className="animate-pulse bg-gray-200 h-10 w-24 rounded-full"></div>
               </div>
             ) : user ? (
-              // Logged-in User
               <>
                 {isAdmin && (
                   <Link
@@ -195,7 +169,6 @@ export default function Header({ transparent = false }: HeaderProps) {
                 </button>
               </>
             ) : (
-              // Guest (Not logged in)
               <>
                 <Link
                   href="/signin"

@@ -38,7 +38,7 @@ export default function Footer() {
             <Link href="/" className="flex items-center rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 shadow-sm">
               <img
                 src={
-                   "/logo_growpro.png" // 👈 Default logo
+                   "/white-logo.png" // 👈 Default logo
                 }
                 alt="GrowPro"
                 className="h-20 w-auto rounded-xl object-contain"

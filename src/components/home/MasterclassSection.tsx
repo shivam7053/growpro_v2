@@ -31,10 +31,11 @@ export default function MasterclassSection({
 }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0);
   
-  // Show featured, upcoming, and recent masterclasses (max 4)
-  const displayedMasterclasses = masterclasses
-    .filter((mc) => mc.type === "featured" || mc.type === "upcoming")
-    .slice(0, 4);
+  // Show any 4 masterclasses (prioritize featured, then others)
+  const displayedMasterclasses = [
+    ...masterclasses.filter((mc) => mc.type === "featured"),
+    ...masterclasses.filter((mc) => mc.type !== "featured"),
+  ].slice(0, 4);
 
   const nextSlide = () => {
     setCurrentSlide((prev) =>
@@ -96,7 +97,7 @@ export default function MasterclassSection({
             className="text-center text-gray-700 dark:text-gray-300 py-12"
           >
             <AlertTriangle className="w-12 h-12 text-gray-500 dark:text-gray-400 mx-auto mb-4" />
-            <p className="font-medium">No featured masterclasses available right now.</p>
+            <p className="font-medium">No masterclasses available right now.</p>
           </motion.div>
         )}
 
@@ -129,13 +130,13 @@ export default function MasterclassSection({
               <>
                 <button
                   onClick={prevSlide}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-3 rounded-full shadow-md hover:scale-110 transition"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-3 rounded-full shadow-md hover:scale-110 transition z-10"
                 >
                   <ChevronLeft className="w-6 h-6 text-gray-800 dark:text-gray-100" />
                 </button>
                 <button
                   onClick={nextSlide}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-3 rounded-full shadow-md hover:scale-110 transition"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-3 rounded-full shadow-md hover:scale-110 transition z-10"
                 >
                   <ChevronRight className="w-6 h-6 text-gray-800 dark:text-gray-100" />
                 </button>

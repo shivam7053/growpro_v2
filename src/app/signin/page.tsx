@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,8 +13,11 @@ export default function SignInPage() {
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [loading, setLoading] = useState(false);
   const { signIn, signInWithGoogle } = useAuth();
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,9 +47,7 @@ export default function SignInPage() {
   return (
     <div
       className={`min-h-screen flex transition-colors duration-300 ${
-        theme === "dark"
-          ? "bg-gray-900 text-white"
-          : "bg-gray-100 text-gray-900"
+        theme === "dark" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900"
       }`}
     >
       {/* Left side image */}
@@ -67,20 +68,24 @@ export default function SignInPage() {
 
       {/* Right side form */}
       <motion.div
-        className={`w-full lg:w-1/2 flex items-center justify-center p-8` }
+        className="w-full lg:w-1/2 flex items-center justify-center p-8"
         initial={{ opacity: 0, x: 50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
       >
         <div className="w-full max-w-md">
-          {/* Logo */}
+          {/* ✅ Logo */}
           <div className="text-center mb-8">
             <img
               src={
-                  "/logo_growpro.png"
+                !mounted
+                  ? "/logo_growpro.png"
+                  : theme === "dark" || resolvedTheme === "dark"
+                  ? "/white-logo.png"
+                  : "/logo_growpro.png"
               }
               alt="GrowPro"
-              className="h-20 w-20 mx-auto"
+              className="h-20 w-20 mx-auto rounded-xl object-contain transition-all duration-300"
             />
           </div>
 
@@ -131,9 +136,7 @@ export default function SignInPage() {
               <div className="absolute inset-0 flex items-center">
                 <div
                   className={`w-full border-t ${
-                    theme === "dark"
-                      ? "border-gray-600"
-                      : "border-gray-300"
+                    theme === "dark" ? "border-gray-600" : "border-gray-300"
                   }`}
                 />
               </div>
