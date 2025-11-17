@@ -136,7 +136,7 @@ export default function MasterclassDetailPage() {
         joined_users: arrayUnion(user.uid),
       });
 
-      await addPurchasedClass(user.uid, masterclass!.title, user.email, user.displayName);
+      await addPurchasedClass(user.uid, masterclass!.title, user.email || undefined, user.displayName || undefined);
 
       await addTransactionRecord(user.uid, {
         orderId: "free_video_" + Date.now(),
@@ -186,7 +186,7 @@ export default function MasterclassDetailPage() {
         purchasedVideos: arrayUnion(purchasingVideo.id),
       });
 
-      await addPurchasedClass(user.uid, masterclass!.title, user.email, user.displayName);
+      await addPurchasedClass(user.uid, masterclass!.title, user.email || undefined, user.displayName || undefined);
 
       await addTransactionRecord(user.uid, {
         orderId: paymentResponse?.orderId || "paid_video_" + Date.now(),
