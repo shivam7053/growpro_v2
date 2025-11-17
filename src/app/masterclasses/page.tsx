@@ -1,4 +1,6 @@
+//masterclasses/page.tsx
 "use client";
+
 
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, easeOut } from "framer-motion";
