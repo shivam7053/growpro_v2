@@ -117,11 +117,12 @@ export default function MasterclassDetailPage() {
   }, [masterclassId, router]);
 
   const userHasAccess = user?.uid && masterclass?.joined_users?.includes(user.uid);
+  
   const userHasVideoAccess = (video: MasterclassVideo) => {
     if (!user?.uid) return false;
     if (userHasAccess) return true; // Full access to masterclass
-    // Check if user purchased individual video
-    return userPurchasedVideos.includes(video.id) || false;
+    // Check if user purchased individual video from state
+    return userPurchasedVideos.includes(video.id);
   };
 
   // Handle video enrollment
