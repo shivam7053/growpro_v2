@@ -429,10 +429,11 @@ export default function MasterclassCard({
   const userJoined = user?.uid && mc.joined_users?.includes(user.uid);
   const isUpcoming = mc.type === "upcoming";
   const freeVideosCount = mc.videos?.filter(v => v.type === "free").length || 0;
-  const paidVideosCount = mc.videos?.filter(v => v.type === "paid").length || 0;
   const totalVideos = mc.videos?.length || 0;
 
-  // ✅ UPCOMING REGISTRATION
+  // ---------------------------------------------------
+  // UPCOMING REGISTRATION
+  // ---------------------------------------------------
   const handleUpcomingRegistration = async () => {
     if (!user?.uid) return toast.error("Please login to register");
     if (userJoined) return toast("Already registered!", { icon: "ℹ️" });
@@ -453,7 +454,7 @@ export default function MasterclassCard({
         timestamp: new Date().toISOString(),
       });
 
-      toast.success("Registered successfully! We'll notify you when it goes live.");
+      toast.success("Registered successfully!");
       onPurchaseComplete?.();
     } catch (err) {
       console.error("Registration error:", err);
@@ -461,12 +462,8 @@ export default function MasterclassCard({
     }
   };
 
-  // ✅ NAVIGATE TO DETAIL PAGE
-  const handleViewDetails = () => {
-    router.push(`/masterclasses/${mc.id}`);
-  };
+  const handleViewDetails = () => router.push(`/masterclasses/${mc.id}`);
 
-  // ✅ GET TYPE BADGE COLOR
   const getTypeBadgeColor = () => {
     if (isUpcoming) return "bg-blue-500 text-white";
     if (mc.type === "featured") return "bg-yellow-500 text-black";
@@ -474,10 +471,16 @@ export default function MasterclassCard({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden flex flex-col h-full border border-gray-200 dark:border-gray-700 group cursor-pointer"
-         onClick={handleViewDetails}>
-      {/* 🎬 Thumbnail */}
-      <div className="relative aspect-video bg-gray-200 dark:bg-gray-800 overflow-hidden">
+    <div
+      className="bg-white dark:bg-gray-900 rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden flex flex-col h-full border border-gray-200 dark:border-gray-700 group"
+      onClick={handleViewDetails}
+    >
+      {/* ---------------------------------------------------
+          THUMBNAIL + BADGES
+      --------------------------------------------------- */}
+      <div className="relative aspect-video bg-gray-200 dark:bg-gray-800 overflow-hidden pr-16">
+
+        {/* Thumbnail Image */}
         {!imageError && mc.thumbnail_url ? (
           <img
             src={mc.thumbnail_url}
@@ -491,38 +494,42 @@ export default function MasterclassCard({
           </div>
         )}
 
-        {/* Overlay on hover */}
-        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity flex items-center justify-center">
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Hover Overlay */}
+        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition flex items-center justify-center">
+          <div className="opacity-0 group-hover:opacity-100 transition">
             <div className="bg-white dark:bg-gray-900 rounded-full p-4">
               <ChevronRight className="w-8 h-8 text-gray-900 dark:text-white" />
             </div>
           </div>
         </div>
 
-        {/* 🏷️ Badges */}
-        <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
+        {/* Left Badges */}
+        <div className="absolute top-3 left-3 flex gap-2 flex-wrap z-[30]">
+
           {userJoined && (
             <div className="bg-green-600 text-white px-3 py-1 text-sm rounded-full font-medium shadow flex items-center gap-1">
               <CheckCircle className="w-4 h-4" />
               {isUpcoming ? "Registered" : "Enrolled"}
             </div>
           )}
+
           {mc.type && (
-            <div className={`px-3 py-1 text-sm rounded-full flex items-center gap-1 font-semibold shadow ${getTypeBadgeColor()}`}>
+            <div
+              className={`px-3 py-1 text-sm rounded-full flex items-center gap-1 font-semibold shadow ${getTypeBadgeColor()}`}
+            >
               <Tag className="w-4 h-4" /> {mc.type}
             </div>
           )}
         </div>
 
-        {/* 💸 Price Badge */}
-        <div className="absolute top-3 right-3">
+        {/* Right Badge (FREE REGISTRATION) */}
+        <div className="absolute top-3 right-3 z-[20]">
           {isUpcoming ? (
-            <div className="bg-blue-500 text-white px-4 py-1 rounded-full font-bold shadow">
+            <div className="bg-blue-600 text-white px-4 py-1 rounded-full font-semibold shadow">
               FREE REGISTRATION
             </div>
           ) : mc.starting_price === 0 ? (
-            <div className="bg-green-500 text-white px-4 py-1 rounded-full font-bold shadow">
+            <div className="bg-green-600 text-white px-4 py-1 rounded-full font-semibold shadow">
               FREE
             </div>
           ) : (
@@ -534,8 +541,11 @@ export default function MasterclassCard({
         </div>
       </div>
 
-      {/* 🧠 Content */}
+      {/* ---------------------------------------------------
+          CARD CONTENT
+      --------------------------------------------------- */}
       <div className="p-5 flex flex-col flex-1">
+
         <h3
           className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2"
           title={mc.title}
@@ -544,14 +554,17 @@ export default function MasterclassCard({
         </h3>
 
         <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300 mb-3">
+
           <div className="flex items-center gap-2">
-            <User className="w-4 h-4" /> {mc.speaker_name}
+            <User className="w-4 h-4" />
+            {mc.speaker_name}
           </div>
+
           <div className="flex items-center gap-2">
-            <Briefcase className="w-4 h-4" /> {mc.speaker_designation}
+            <Briefcase className="w-4 h-4" />
+            {mc.speaker_designation}
           </div>
-          
-          {/* Show scheduled date for upcoming, created date for others */}
+
           {isUpcoming && mc.scheduled_date ? (
             <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium">
               <Calendar className="w-4 h-4" />
@@ -571,40 +584,39 @@ export default function MasterclassCard({
           )}
 
           <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-            <Users className="w-4 h-4" /> {mc.joined_users?.length || 0} {isUpcoming ? "registered" : "enrolled"}
+            <Users className="w-4 h-4" />
+            {mc.joined_users?.length || 0} {isUpcoming ? "registered" : "enrolled"}
           </div>
 
-          {/* Video count */}
           {totalVideos > 0 && (
             <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-medium">
-              <Video className="w-4 h-4" /> 
-              {totalVideos} video{totalVideos !== 1 ? 's' : ''} 
+              <Video className="w-4 h-4" />
+              {totalVideos} video{totalVideos !== 1 ? "s" : ""}
               {freeVideosCount > 0 && ` (${freeVideosCount} free)`}
             </div>
           )}
         </div>
 
-        {/* Description */}
         {mc.description && (
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
             {mc.description}
           </p>
         )}
 
-        {/* 🎯 Action Button */}
+        {/* Action Button */}
         <div className="mt-auto">
           {isUpcoming ? (
             userJoined ? (
               <button
                 disabled
-                onClick={(e) => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
                 className="w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white px-5 py-3 rounded-lg font-semibold cursor-not-allowed opacity-80"
               >
                 <CheckCircle className="w-5 h-5" /> Registered
               </button>
             ) : (
               <button
-                onClick={(e) => {
+                onClick={e => {
                   e.stopPropagation();
                   handleUpcomingRegistration();
                 }}

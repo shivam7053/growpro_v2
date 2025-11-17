@@ -802,12 +802,18 @@ export default function AdminMasterclasses() {
 
                 {videoFormData.type === 'paid' && (
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     placeholder="Price *"
                     value={videoFormData.price}
-                    onChange={(e) => setVideoFormData({ ...videoFormData, price: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      setVideoFormData({ ...videoFormData, price: Number(val) });
+                    }}
                     className="border p-3 rounded-lg"
                   />
+
                 )}
               </div>
 
