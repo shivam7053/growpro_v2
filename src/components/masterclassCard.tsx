@@ -530,26 +530,24 @@ export default function MasterclassCard({
         </div>
 
         {/* Right Badge (FREE REGISTRATION) */}
-        <div className="absolute top-3 right-3 z-30">
-          {/*
-            CORRECTION 3: Changed z-index from 'z-[20]' to 'z-30'
-            to ensure it's on the same layer as the Left Badges and avoid overlap issues.
-          */}
+       
+        <div className="mb-3">
           {isUpcoming ? (
-            <div className="bg-blue-600 text-white px-4 py-1 rounded-full font-semibold shadow">
+            <div className="bg-blue-600 text-white px-4 py-1 rounded-full font-semibold shadow inline-block">
               FREE REGISTRATION
             </div>
           ) : mc.starting_price === 0 ? (
-            <div className="bg-green-600 text-white px-4 py-1 rounded-full font-semibold shadow">
+            <div className="bg-green-600 text-white px-4 py-1 rounded-full font-semibold shadow inline-block">
               FREE
             </div>
           ) : (
-            <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-1 rounded-full font-semibold shadow flex items-center gap-1">
-              <IndianRupee className="w-4 h-4" />
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-1 rounded-full font-semibold shadow inline-block">
+              <IndianRupee className="w-4 h-4 inline-block" />
               {mc.starting_price}+
             </div>
           )}
         </div>
+
       </div>
 
       {/* ---------------------------------------------------
