@@ -35,8 +35,33 @@ export default function MasterclassDetailPage() {
   const [selectedVideo, setSelectedVideo] = useState<MasterclassVideo | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [purchasingVideo, setPurchasingVideo] = useState<MasterclassVideo | null>(null);
+  const [userPurchasedVideos, setUserPurchasedVideos] = useState<string[]>([]);
 
   const masterclassId = params.id as string;
+
+  // Fetch user's purchased videos
+  useEffect(() => {
+    const fetchUserPurchasedVideos = async () => {
+      if (!user?.uid) {
+        setUserPurchasedVideos([]);
+        return;
+      }
+
+      try {
+        const userDocRef = doc(db, "user_profiles", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          setUserPurchasedVideos(userData.purchasedVideos || []);
+        }
+      } catch (error) {
+        console.error("Error fetching user purchased videos:", error);
+      }
+    };
+
+    fetchUserPurchasedVideos();
+  }, [user?.uid]);
 
   // Fetch masterclass details
   useEffect(() => {
@@ -95,8 +120,8 @@ export default function MasterclassDetailPage() {
   const userHasVideoAccess = (video: MasterclassVideo) => {
     if (!user?.uid) return false;
     if (userHasAccess) return true; // Full access to masterclass
-    // Check if user purchased individual video (you'll need to store this in user profile)
-    return user.purchasedVideos?.includes(video.id) || false;
+    // Check if user purchased individual video
+    return userPurchasedVideos.includes(video.id) || false;
   };
 
   // Handle video enrollment
@@ -154,6 +179,12 @@ export default function MasterclassDetailPage() {
         joined_users: arrayUnion(user.uid),
       });
 
+      // Update user's purchased videos list
+      const userRef = doc(db, "user_profiles", user.uid);
+      await updateDoc(userRef, {
+        purchasedVideos: arrayUnion(purchasingVideo.id),
+      });
+
       await addPurchasedClass(user.uid, masterclass!.title, user.email, user.displayName);
 
       await addTransactionRecord(user.uid, {
@@ -179,6 +210,14 @@ export default function MasterclassDetailPage() {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setMasterclass(prev => prev ? { ...prev, joined_users: data.joined_users || [] } : null);
+      }
+
+      // Refresh user's purchased videos
+      const userDocRef = doc(db, "user_profiles", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        setUserPurchasedVideos(userData.purchasedVideos || []);
       }
     } catch (err) {
       console.error("Payment success handling error:", err);
