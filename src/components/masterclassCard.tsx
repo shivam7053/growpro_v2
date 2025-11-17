@@ -375,7 +375,6 @@
 // }
 
 
-// components/masterclassCard.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -478,7 +477,11 @@ export default function MasterclassCard({
       {/* ---------------------------------------------------
           THUMBNAIL + BADGES
       --------------------------------------------------- */}
-      <div className="relative aspect-video bg-gray-200 dark:bg-gray-800 overflow-hidden pr-16">
+      <div className="relative aspect-video bg-gray-200 dark:bg-gray-800 overflow-hidden">
+        {/*
+          CORRECTION 1: Removed 'pr-16' from the thumbnail container.
+          This was likely causing the thumbnail to be cut off or squished.
+        */}
 
         {/* Thumbnail Image */}
         {!imageError && mc.thumbnail_url ? (
@@ -504,7 +507,11 @@ export default function MasterclassCard({
         </div>
 
         {/* Left Badges */}
-        <div className="absolute top-3 left-3 flex gap-2 flex-wrap z-[30]">
+        <div className="absolute top-3 left-3 flex gap-2 z-30">
+          {/*
+            CORRECTION 2: Removed 'flex-wrap' from Left Badges container
+            to keep them on a single line and avoid potential overlap with the right badge.
+          */}
 
           {userJoined && (
             <div className="bg-green-600 text-white px-3 py-1 text-sm rounded-full font-medium shadow flex items-center gap-1">
@@ -523,7 +530,11 @@ export default function MasterclassCard({
         </div>
 
         {/* Right Badge (FREE REGISTRATION) */}
-        <div className="absolute top-3 right-3 z-[20]">
+        <div className="absolute top-3 right-3 z-30">
+          {/*
+            CORRECTION 3: Changed z-index from 'z-[20]' to 'z-30'
+            to ensure it's on the same layer as the Left Badges and avoid overlap issues.
+          */}
           {isUpcoming ? (
             <div className="bg-blue-600 text-white px-4 py-1 rounded-full font-semibold shadow">
               FREE REGISTRATION
@@ -545,7 +556,6 @@ export default function MasterclassCard({
           CARD CONTENT
       --------------------------------------------------- */}
       <div className="p-5 flex flex-col flex-1">
-
         <h3
           className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2"
           title={mc.title}
@@ -554,7 +564,6 @@ export default function MasterclassCard({
         </h3>
 
         <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300 mb-3">
-
           <div className="flex items-center gap-2">
             <User className="w-4 h-4" />
             {mc.speaker_name}
