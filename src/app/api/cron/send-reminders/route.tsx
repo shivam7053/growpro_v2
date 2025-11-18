@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       for (const userId of joinedUsers) {
         try {
           // Get user email
-          const userDoc = await getDoc(doc(db, "users", userId));
+          const userDoc = await getDoc(doc(db, "user_profiles", userId));
           if (!userDoc.exists()) continue;
           
           const userData = userDoc.data();
