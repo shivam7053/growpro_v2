@@ -1,4 +1,4 @@
-// //admin/masterclass/page.tsx
+// // app/admin/masterclass/page.tsx
 // 'use client';
 
 // import { useState, useEffect } from 'react';
@@ -13,7 +13,8 @@
 //   doc,
 //   serverTimestamp,
 // } from 'firebase/firestore';
-// import { Masterclass } from '@/types/masterclass';
+// import { Masterclass, MasterclassVideo } from '@/types/masterclass';
+// import { Plus, Trash2, Edit2, Video, X } from 'lucide-react';
 
 // export default function AdminMasterclasses() {
 //   const router = useRouter();
@@ -21,19 +22,33 @@
 //   const [loading, setLoading] = useState(true);
 //   const [filter, setFilter] = useState<'all' | 'free' | 'paid' | 'featured' | 'upcoming'>('all');
 //   const [editingId, setEditingId] = useState<string | null>(null);
+//   const [showVideoModal, setShowVideoModal] = useState(false);
 
 //   const [formData, setFormData] = useState({
 //     title: '',
 //     speaker_name: '',
 //     speaker_designation: '',
-//     youtube_url: '',
-//     price: '',
+//     starting_price: '',
 //     type: 'free' as 'free' | 'paid' | 'featured' | 'upcoming',
 //     description: '',
-//     duration: '',
+//     total_duration: '',
 //     thumbnail_url: '',
 //     scheduled_date: '',
 //   });
+
+//   const [videoFormData, setVideoFormData] = useState<MasterclassVideo>({
+//     id: '',
+//     title: '',
+//     youtube_url: '',
+//     duration: '',
+//     order: 0,
+//     type: 'free',
+//     price: 0,
+//     description: '',
+//   });
+
+//   const [currentVideos, setCurrentVideos] = useState<MasterclassVideo[]>([]);
+//   const [editingVideoIndex, setEditingVideoIndex] = useState<number | null>(null);
 
 //   const fetchClasses = async () => {
 //     try {
@@ -52,17 +67,17 @@
 //           title: data.title || '',
 //           speaker_name: data.speaker_name || '',
 //           speaker_designation: data.speaker_designation || '',
-//           youtube_url: data.youtube_url || '',
 //           created_at: data.created_at
-//             ? new Date(data.created_at.seconds * 1000).toLocaleString()
-//             : 'N/A',
-//           price: data.price || 0,
+//             ? new Date(data.created_at.seconds * 1000).toISOString()
+//             : new Date().toISOString(),
 //           joined_users: joinedUsers,
 //           type: data.type || 'free',
 //           description: data.description || '',
-//           duration: data.duration || '',
+//           total_duration: data.total_duration || '',
 //           thumbnail_url: data.thumbnail_url || '',
 //           scheduled_date: data.scheduled_date || '',
+//           videos: data.videos || [],
+//           starting_price: data.starting_price || 0,
 //         });
 //       }
 
@@ -79,25 +94,70 @@
 //     fetchClasses();
 //   }, []);
 
+//   const handleAddVideo = () => {
+//     if (!videoFormData.title.trim() || !videoFormData.youtube_url.trim()) {
+//       return alert('Video title and URL are required');
+//     }
+
+//     const newVideo: MasterclassVideo = {
+//       ...videoFormData,
+//       id: `video_${Date.now()}`,
+//       order: currentVideos.length,
+//     };
+
+//     if (editingVideoIndex !== null) {
+//       const updated = [...currentVideos];
+//       updated[editingVideoIndex] = newVideo;
+//       setCurrentVideos(updated);
+//       setEditingVideoIndex(null);
+//     } else {
+//       setCurrentVideos([...currentVideos, newVideo]);
+//     }
+
+//     setVideoFormData({
+//       id: '',
+//       title: '',
+//       youtube_url: '',
+//       duration: '',
+//       order: 0,
+//       type: 'free',
+//       price: 0,
+//       description: '',
+//     });
+//     setShowVideoModal(false);
+//   };
+
+//   const handleEditVideo = (index: number) => {
+//     setVideoFormData(currentVideos[index]);
+//     setEditingVideoIndex(index);
+//     setShowVideoModal(true);
+//   };
+
+//   const handleDeleteVideo = (index: number) => {
+//     if (confirm('Delete this video?')) {
+//       setCurrentVideos(currentVideos.filter((_, i) => i !== index));
+//     }
+//   };
+
 //   const handleSubmit = async (e: React.FormEvent) => {
 //     e.preventDefault();
 
 //     if (!formData.title.trim()) return alert('Title is required');
 //     if (!formData.speaker_name.trim()) return alert('Speaker name is required');
-//     if (!formData.price) return alert('Price is required');
+//     if (currentVideos.length === 0) return alert('Add at least one video');
 
 //     try {
 //       const dataToSave = {
 //         title: formData.title,
 //         speaker_name: formData.speaker_name,
 //         speaker_designation: formData.speaker_designation,
-//         youtube_url: formData.youtube_url,
-//         price: Number(formData.price),
+//         starting_price: Number(formData.starting_price),
 //         type: formData.type,
 //         description: formData.description,
-//         duration: formData.duration,
+//         total_duration: formData.total_duration,
 //         thumbnail_url: formData.thumbnail_url,
 //         scheduled_date: formData.scheduled_date,
+//         videos: currentVideos,
 //       };
 
 //       if (editingId) {
@@ -116,14 +176,14 @@
 //         title: '',
 //         speaker_name: '',
 //         speaker_designation: '',
-//         youtube_url: '',
-//         price: '',
+//         starting_price: '',
 //         type: 'free',
 //         description: '',
-//         duration: '',
+//         total_duration: '',
 //         thumbnail_url: '',
 //         scheduled_date: '',
 //       });
+//       setCurrentVideos([]);
 //       setEditingId(null);
 //       fetchClasses();
 //     } catch (err) {
@@ -149,14 +209,14 @@
 //       title: cls.title,
 //       speaker_name: cls.speaker_name,
 //       speaker_designation: cls.speaker_designation,
-//       youtube_url: cls.youtube_url,
-//       price: String(cls.price),
+//       starting_price: String(cls.starting_price),
 //       type: cls.type,
 //       description: cls.description || '',
-//       duration: cls.duration || '',
+//       total_duration: cls.total_duration || '',
 //       thumbnail_url: cls.thumbnail_url || '',
 //       scheduled_date: cls.scheduled_date || '',
 //     });
+//     setCurrentVideos(cls.videos || []);
 //     window.scrollTo({ top: 0, behavior: 'smooth' });
 //   };
 
@@ -166,14 +226,14 @@
 //       title: '',
 //       speaker_name: '',
 //       speaker_designation: '',
-//       youtube_url: '',
-//       price: '',
+//       starting_price: '',
 //       type: 'free',
 //       description: '',
-//       duration: '',
+//       total_duration: '',
 //       thumbnail_url: '',
 //       scheduled_date: '',
 //     });
+//     setCurrentVideos([]);
 //   };
 
 //   const filteredClasses =
@@ -197,7 +257,7 @@
 //       {/* Add/Edit Form */}
 //       <form
 //         onSubmit={handleSubmit}
-//         className="bg-white shadow-lg rounded-xl p-6 max-w-4xl mx-auto mb-10 border border-gray-200"
+//         className="bg-white shadow-lg rounded-xl p-6 max-w-6xl mx-auto mb-10 border border-gray-200"
 //       >
 //         <h2 className="text-xl font-semibold mb-4 text-gray-900">
 //           {editingId ? '✏️ Edit Masterclass' : '➕ Add New Masterclass'}
@@ -216,12 +276,8 @@
 //             onChange={(e) => setFormData({ ...formData, speaker_designation: e.target.value })}
 //             className="border p-3 rounded-lg text-gray-900" />
 
-//           <input type="text" placeholder="YouTube URL" value={formData.youtube_url}
-//             onChange={(e) => setFormData({ ...formData, youtube_url: e.target.value })}
-//             className="border p-3 rounded-lg text-gray-900" />
-
-//           <input type="number" placeholder="Price *" value={formData.price}
-//             onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+//           <input type="number" placeholder="Starting Price" value={formData.starting_price}
+//             onChange={(e) => setFormData({ ...formData, starting_price: e.target.value })}
 //             className="border p-3 rounded-lg text-gray-900" />
 
 //           <select
@@ -240,9 +296,9 @@
 //             <option value="upcoming">Upcoming</option>
 //           </select>
 
-//           <input type="text" placeholder="Duration (e.g., 2 hours)"
-//             value={formData.duration}
-//             onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+//           <input type="text" placeholder="Total Duration (e.g., 5 hours)"
+//             value={formData.total_duration}
+//             onChange={(e) => setFormData({ ...formData, total_duration: e.target.value })}
 //             className="border p-3 rounded-lg text-gray-900" />
 
 //           <input type="text" placeholder="Thumbnail URL"
@@ -265,6 +321,45 @@
 //           rows={3}
 //         />
 
+//         {/* Videos Section */}
+//         <div className="mt-6 border-t pt-6">
+//           <div className="flex justify-between items-center mb-4">
+//             <h3 className="text-lg font-semibold">Videos ({currentVideos.length})</h3>
+//             <button
+//               type="button"
+//               onClick={() => setShowVideoModal(true)}
+//               className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+//             >
+//               <Plus className="w-4 h-4" /> Add Video
+//             </button>
+//           </div>
+
+//           <div className="space-y-2 max-h-96 overflow-y-auto">
+//             {currentVideos.map((video, index) => (
+//               <div key={video.id} className="bg-gray-50 p-4 rounded-lg flex justify-between items-start">
+//                 <div className="flex-1">
+//                   <p className="font-semibold">{index + 1}. {video.title}</p>
+//                   <p className="text-sm text-gray-600">{video.youtube_url}</p>
+//                   <div className="flex gap-2 mt-1">
+//                     {video.duration && <span className="text-xs bg-gray-200 px-2 py-1 rounded">{video.duration}</span>}
+//                     <span className={`text-xs px-2 py-1 rounded ${video.type === 'free' ? 'bg-green-500 text-white' : 'bg-orange-500 text-white'}`}>
+//                       {video.type === 'free' ? 'FREE' : `₹${video.price}`}
+//                     </span>
+//                   </div>
+//                 </div>
+//                 <div className="flex gap-2">
+//                   <button type="button" onClick={() => handleEditVideo(index)} className="text-blue-600 hover:text-blue-800">
+//                     <Edit2 className="w-4 h-4" />
+//                   </button>
+//                   <button type="button" onClick={() => handleDeleteVideo(index)} className="text-red-600 hover:text-red-800">
+//                     <Trash2 className="w-4 h-4" />
+//                   </button>
+//                 </div>
+//               </div>
+//             ))}
+//           </div>
+//         </div>
+
 //         <div className="flex gap-4 mt-6">
 //           <button type="submit" className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700">
 //             {editingId ? 'Update Masterclass' : 'Add Masterclass'}
@@ -280,6 +375,101 @@
 //           )}
 //         </div>
 //       </form>
+
+//       {/* Video Modal */}
+//       {showVideoModal && (
+//         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+//           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+//             <div className="flex justify-between items-center mb-4">
+//               <h3 className="text-xl font-bold">{editingVideoIndex !== null ? 'Edit Video' : 'Add Video'}</h3>
+//               <button onClick={() => {
+//                 setShowVideoModal(false);
+//                 setEditingVideoIndex(null);
+//                 setVideoFormData({
+//                   id: '',
+//                   title: '',
+//                   youtube_url: '',
+//                   duration: '',
+//                   order: 0,
+//                   type: 'free',
+//                   price: 0,
+//                   description: '',
+//                 });
+//               }} className="text-gray-500 hover:text-gray-700">
+//                 <X className="w-6 h-6" />
+//               </button>
+//             </div>
+
+//             <div className="space-y-4">
+//               <input
+//                 type="text"
+//                 placeholder="Video Title *"
+//                 value={videoFormData.title}
+//                 onChange={(e) => setVideoFormData({ ...videoFormData, title: e.target.value })}
+//                 className="w-full border p-3 rounded-lg"
+//               />
+
+//               <input
+//                 type="text"
+//                 placeholder="YouTube URL *"
+//                 value={videoFormData.youtube_url}
+//                 onChange={(e) => setVideoFormData({ ...videoFormData, youtube_url: e.target.value })}
+//                 className="w-full border p-3 rounded-lg"
+//               />
+
+//               <input
+//                 type="text"
+//                 placeholder="Duration (e.g., 45 min)"
+//                 value={videoFormData.duration}
+//                 onChange={(e) => setVideoFormData({ ...videoFormData, duration: e.target.value })}
+//                 className="w-full border p-3 rounded-lg"
+//               />
+
+//               <textarea
+//                 placeholder="Video Description"
+//                 value={videoFormData.description}
+//                 onChange={(e) => setVideoFormData({ ...videoFormData, description: e.target.value })}
+//                 className="w-full border p-3 rounded-lg"
+//                 rows={3}
+//               />
+
+//               <div className="grid grid-cols-2 gap-4">
+//                 <select
+//                   value={videoFormData.type}
+//                   onChange={(e) => setVideoFormData({ ...videoFormData, type: e.target.value as 'free' | 'paid' })}
+//                   className="border p-3 rounded-lg"
+//                 >
+//                   <option value="free">Free</option>
+//                   <option value="paid">Paid</option>
+//                 </select>
+
+//                 {videoFormData.type === 'paid' && (
+//                   <input
+//                     type="text"
+//                     inputMode="numeric"
+//                     pattern="[0-9]*"
+//                     placeholder="Price *"
+//                     value={videoFormData.price}
+//                     onChange={(e) => {
+//                       const val = e.target.value.replace(/[^0-9]/g, "");
+//                       setVideoFormData({ ...videoFormData, price: Number(val) });
+//                     }}
+//                     className="border p-3 rounded-lg"
+//                   />
+
+//                 )}
+//               </div>
+
+//               <button
+//                 onClick={handleAddVideo}
+//                 className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700"
+//               >
+//                 {editingVideoIndex !== null ? 'Update Video' : 'Add Video'}
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+//       )}
 
 //       {/* Filter Buttons */}
 //       <div className="flex justify-center mb-6 gap-3 flex-wrap">
@@ -317,14 +507,17 @@
 //               <p className="text-sm text-gray-800">
 //                 {cls.speaker_name} • {cls.speaker_designation || '—'}
 //               </p>
-//               <p className="text-gray-900 mt-2 font-medium">💰 {cls.price} INR</p>
-//               {cls.duration && <p className="text-sm text-gray-700 mt-1">⏱️ {cls.duration}</p>}
+//               <p className="text-gray-900 mt-2 font-medium">💰 Starting from ₹{cls.starting_price}</p>
+//               <p className="text-sm text-gray-700 mt-1 flex items-center gap-1">
+//                 <Video className="w-4 h-4" /> {cls.videos?.length || 0} videos
+//               </p>
+//               {cls.total_duration && <p className="text-sm text-gray-700 mt-1">⏱️ {cls.total_duration}</p>}
 //               {cls.scheduled_date && (
 //                 <p className="text-sm text-gray-700 mt-1">
 //                   📅 {new Date(cls.scheduled_date).toLocaleString()}
 //                 </p>
 //               )}
-//               <p className="text-xs text-gray-600 mt-1">Created: {cls.created_at}</p>
+//               <p className="text-xs text-gray-600 mt-1">Created: {new Date(cls.created_at).toLocaleDateString()}</p>
 
 //               <div className="mt-3 bg-gray-100 p-3 rounded-lg border border-gray-200">
 //                 <h3 className="font-semibold text-sm mb-1 text-gray-800">
@@ -354,7 +547,6 @@
 //   );
 // }
 
-
 // app/admin/masterclass/page.tsx
 'use client';
 
@@ -371,7 +563,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { Masterclass, MasterclassVideo } from '@/types/masterclass';
-import { Plus, Trash2, Edit2, Video, X } from 'lucide-react';
+import { Plus, Trash2, Edit2, Video, X, AlertCircle } from 'lucide-react';
 
 export default function AdminMasterclasses() {
   const router = useRouter();
@@ -456,6 +648,10 @@ export default function AdminMasterclasses() {
       return alert('Video title and URL are required');
     }
 
+    if (videoFormData.type === 'paid' && videoFormData.price <= 0) {
+      return alert('Price must be greater than 0 for paid videos');
+    }
+
     const newVideo: MasterclassVideo = {
       ...videoFormData,
       id: `video_${Date.now()}`,
@@ -496,19 +692,67 @@ export default function AdminMasterclasses() {
     }
   };
 
+  const validateForm = () => {
+    if (!formData.title.trim()) {
+      alert('Title is required');
+      return false;
+    }
+    if (!formData.speaker_name.trim()) {
+      alert('Speaker name is required');
+      return false;
+    }
+    if (currentVideos.length === 0) {
+      alert('Add at least one video');
+      return false;
+    }
+
+    // Validate upcoming masterclass
+    if (formData.type === 'upcoming') {
+      if (!formData.scheduled_date) {
+        alert('Scheduled date is required for upcoming masterclasses');
+        return false;
+      }
+      const scheduledDate = new Date(formData.scheduled_date);
+      if (scheduledDate <= new Date()) {
+        alert('Scheduled date must be in the future');
+        return false;
+      }
+    }
+
+    // Auto-calculate starting price from videos
+    const paidVideos = currentVideos.filter(v => v.type === 'paid');
+    if (paidVideos.length > 0) {
+      const minPrice = Math.min(...paidVideos.map(v => v.price));
+      if (Number(formData.starting_price) !== minPrice) {
+        const shouldContinue = confirm(
+          `Starting price should match the minimum video price (₹${minPrice}). Update automatically?`
+        );
+        if (shouldContinue) {
+          setFormData({ ...formData, starting_price: String(minPrice) });
+        }
+      }
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.title.trim()) return alert('Title is required');
-    if (!formData.speaker_name.trim()) return alert('Speaker name is required');
-    if (currentVideos.length === 0) return alert('Add at least one video');
+    if (!validateForm()) return;
 
     try {
+      // Auto-calculate starting price
+      const paidVideos = currentVideos.filter(v => v.type === 'paid');
+      const calculatedPrice = paidVideos.length > 0 
+        ? Math.min(...paidVideos.map(v => v.price))
+        : 0;
+
       const dataToSave = {
         title: formData.title,
         speaker_name: formData.speaker_name,
         speaker_designation: formData.speaker_designation,
-        starting_price: Number(formData.starting_price),
+        starting_price: calculatedPrice,
         type: formData.type,
         description: formData.description,
         total_duration: formData.total_duration,
@@ -605,6 +849,22 @@ export default function AdminMasterclasses() {
     }
   };
 
+  // Calculate pricing info from videos
+  const calculatePricingInfo = () => {
+    const freeVideos = currentVideos.filter(v => v.type === 'free');
+    const paidVideos = currentVideos.filter(v => v.type === 'paid');
+    const minPrice = paidVideos.length > 0 ? Math.min(...paidVideos.map(v => v.price)) : 0;
+    
+    return {
+      freeCount: freeVideos.length,
+      paidCount: paidVideos.length,
+      minPrice,
+      isFree: paidVideos.length === 0,
+    };
+  };
+
+  const pricingInfo = calculatePricingInfo();
+
   return (
     <div className="min-h-screen bg-gray-100 py-12 px-6 text-gray-800">
       <h1 className="text-3xl font-bold text-center mb-8 text-gray-900">
@@ -631,10 +891,6 @@ export default function AdminMasterclasses() {
 
           <input type="text" placeholder="Speaker Designation" value={formData.speaker_designation}
             onChange={(e) => setFormData({ ...formData, speaker_designation: e.target.value })}
-            className="border p-3 rounded-lg text-gray-900" />
-
-          <input type="number" placeholder="Starting Price" value={formData.starting_price}
-            onChange={(e) => setFormData({ ...formData, starting_price: e.target.value })}
             className="border p-3 rounded-lg text-gray-900" />
 
           <select
@@ -664,9 +920,13 @@ export default function AdminMasterclasses() {
             className="border p-3 rounded-lg text-gray-900" />
 
           {formData.type === 'upcoming' && (
-            <input type="datetime-local" value={formData.scheduled_date}
+            <input 
+              type="datetime-local" 
+              value={formData.scheduled_date}
               onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-              className="border p-3 rounded-lg text-gray-900" />
+              className="border p-3 rounded-lg text-gray-900"
+              required
+            />
           )}
         </div>
 
@@ -677,6 +937,28 @@ export default function AdminMasterclasses() {
           className="border p-3 rounded-lg text-gray-900 w-full mt-4"
           rows={3}
         />
+
+        {/* Pricing Info Banner */}
+        {currentVideos.length > 0 && (
+          <div className={`mt-4 p-4 rounded-lg ${pricingInfo.isFree ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'} border`}>
+            <div className="flex items-start gap-2">
+              <AlertCircle className={`w-5 h-5 mt-0.5 ${pricingInfo.isFree ? 'text-green-600' : 'text-orange-600'}`} />
+              <div>
+                <p className="font-semibold text-gray-900">Pricing Summary</p>
+                <p className="text-sm text-gray-700">
+                  {pricingInfo.freeCount} free video{pricingInfo.freeCount !== 1 ? 's' : ''}, {' '}
+                  {pricingInfo.paidCount} paid video{pricingInfo.paidCount !== 1 ? 's' : ''}
+                  {pricingInfo.paidCount > 0 && ` • Starting at ₹${pricingInfo.minPrice}`}
+                </p>
+                {formData.type === 'upcoming' && (
+                  <p className="text-sm text-blue-600 mt-1">
+                    {pricingInfo.isFree ? '✅ Free registration' : `💳 Registration fee: ₹${pricingInfo.minPrice}`}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Videos Section */}
         <div className="mt-6 border-t pt-6">
@@ -696,7 +978,7 @@ export default function AdminMasterclasses() {
               <div key={video.id} className="bg-gray-50 p-4 rounded-lg flex justify-between items-start">
                 <div className="flex-1">
                   <p className="font-semibold">{index + 1}. {video.title}</p>
-                  <p className="text-sm text-gray-600">{video.youtube_url}</p>
+                  <p className="text-sm text-gray-600 truncate">{video.youtube_url}</p>
                   <div className="flex gap-2 mt-1">
                     {video.duration && <span className="text-xs bg-gray-200 px-2 py-1 rounded">{video.duration}</span>}
                     <span className={`text-xs px-2 py-1 rounded ${video.type === 'free' ? 'bg-green-500 text-white' : 'bg-orange-500 text-white'}`}>
@@ -793,7 +1075,14 @@ export default function AdminMasterclasses() {
               <div className="grid grid-cols-2 gap-4">
                 <select
                   value={videoFormData.type}
-                  onChange={(e) => setVideoFormData({ ...videoFormData, type: e.target.value as 'free' | 'paid' })}
+                  onChange={(e) => {
+                    const newType = e.target.value as 'free' | 'paid';
+                    setVideoFormData({ 
+                      ...videoFormData, 
+                      type: newType,
+                      price: newType === 'free' ? 0 : videoFormData.price
+                    });
+                  }}
                   className="border p-3 rounded-lg"
                 >
                   <option value="free">Free</option>
@@ -802,18 +1091,14 @@ export default function AdminMasterclasses() {
 
                 {videoFormData.type === 'paid' && (
                   <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    placeholder="Price *"
-                    value={videoFormData.price}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, "");
-                      setVideoFormData({ ...videoFormData, price: Number(val) });
-                    }}
+                    type="number"
+                    placeholder="Price (₹) *"
+                    value={videoFormData.price || ''}
+                    onChange={(e) => setVideoFormData({ ...videoFormData, price: Number(e.target.value) })}
+                    min="1"
                     className="border p-3 rounded-lg"
+                    required
                   />
-
                 )}
               </div>
 
@@ -864,7 +1149,9 @@ export default function AdminMasterclasses() {
               <p className="text-sm text-gray-800">
                 {cls.speaker_name} • {cls.speaker_designation || '—'}
               </p>
-              <p className="text-gray-900 mt-2 font-medium">💰 Starting from ₹{cls.starting_price}</p>
+              <p className="text-gray-900 mt-2 font-medium">
+                {cls.starting_price === 0 ? '🎁 FREE' : `💰 Starting from ₹${cls.starting_price}`}
+              </p>
               <p className="text-sm text-gray-700 mt-1 flex items-center gap-1">
                 <Video className="w-4 h-4" /> {cls.videos?.length || 0} videos
               </p>
@@ -878,13 +1165,13 @@ export default function AdminMasterclasses() {
 
               <div className="mt-3 bg-gray-100 p-3 rounded-lg border border-gray-200">
                 <h3 className="font-semibold text-sm mb-1 text-gray-800">
-                  👥 Enrolled Users ({cls.joined_users?.length || 0})
+                  👥 {cls.type === 'upcoming' ? 'Registered' : 'Enrolled'} Users ({cls.joined_users?.length || 0})
                 </h3>
                 <button
                   onClick={() => router.push(`/admin/enrolled/${cls.id}`)}
                   className="text-blue-600 hover:underline text-sm font-semibold"
                 >
-                  View Enrolled Users →
+                  View {cls.type === 'upcoming' ? 'Registered' : 'Enrolled'} Users →
                 </button>
               </div>
 

@@ -186,202 +186,506 @@
 //   }
 // }
 
-import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+// import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+// import { db } from "@/lib/firebase";
+// import { Transaction, UserProfile } from "@/types/masterclass";
+
+// /** ============================================================
+//  *  ✅ Ensure user document exists based on NEW UserProfile model
+//  * ============================================================ */
+// export async function ensureUserDocument(user: any): Promise<void> {
+//   if (!user?.uid) throw new Error("User not authenticated");
+
+//   const userRef = doc(db, "user_profiles", user.uid);
+//   const userSnap = await getDoc(userRef);
+
+//   if (!userSnap.exists()) {
+//     const userData: UserProfile = {
+//       id: user.uid,
+//       email: user.email || "",
+//       full_name: user.displayName || "",
+//       phone: user.phoneNumber || "",
+//       avatar_url: user.photoURL || "",
+//       bio: "",
+//       linkedin: "",
+//       purchasedClasses: [],
+//       purchasedVideos: [],
+//       transactions: [],
+//       selectedCheckpoints: [],
+//       created_at: new Date().toISOString(),
+//     };
+
+//     await setDoc(userRef, userData);
+//     console.log("✅ User document created:", user.uid);
+//   }
+// }
+
+// /** ============================================================
+//  *  ✅ Add purchased class
+//  * ============================================================ */
+// export async function addPurchasedClass(
+//   userId: string,
+//   classId: string,
+//   userEmail?: string,
+//   userName?: string
+// ): Promise<void> {
+//   const userRef = doc(db, "user_profiles", userId);
+
+//   try {
+//     await updateDoc(userRef, {
+//       purchasedClasses: arrayUnion(classId),
+//     });
+//     console.log("✅ Added purchased class:", classId);
+//   } catch (error: any) {
+//     if (error.code === "not-found") {
+//       const newUser: UserProfile = {
+//         id: userId,
+//         email: userEmail || "",
+//         full_name: userName || "",
+//         purchasedClasses: [classId],
+//         purchasedVideos: [],
+//         transactions: [],
+//         selectedCheckpoints: [],
+//         created_at: new Date().toISOString(),
+//       };
+//       await setDoc(userRef, newUser);
+//       console.log("✅ Created new user doc with purchased class");
+//     } else {
+//       console.error("❌ addPurchasedClass error:", error);
+//     }
+//   }
+// }
+
+// /** ============================================================
+//  *  ✅ Add purchased video
+//  * ============================================================ */
+// export async function addPurchasedVideo(
+//   userId: string,
+//   videoId: string
+// ): Promise<void> {
+//   const userRef = doc(db, "user_profiles", userId);
+
+//   try {
+//     await updateDoc(userRef, {
+//       purchasedVideos: arrayUnion(videoId),
+//     });
+
+//     console.log("🎬 Added purchased video:", videoId);
+//   } catch (error: any) {
+//     console.error("❌ Error adding purchased video:", error);
+//   }
+// }
+
+// /** ============================================================
+//  *  ✅ Get purchased classes
+//  * ============================================================ */
+// export async function getUserPurchasedClasses(
+//   userId: string
+// ): Promise<string[]> {
+//   try {
+//     const snap = await getDoc(doc(db, "user_profiles", userId));
+//     return snap.exists() ? snap.data().purchasedClasses || [] : [];
+//   } catch (error) {
+//     console.error("❌ Error fetching purchased classes:", error);
+//     return [];
+//   }
+// }
+
+// /** ============================================================
+//  *  ✅ Add Transaction (Prevents Duplicates)
+//  * ============================================================ */
+// export async function addTransactionRecord(
+//   userId: string,
+//   transaction: Transaction
+// ): Promise<void> {
+//   const userRef = doc(db, "user_profiles", userId);
+//   const snap = await getDoc(userRef);
+
+//   try {
+//     if (snap.exists()) {
+//       const data = snap.data();
+//       const transactions: Transaction[] = data.transactions || [];
+
+//       const already = transactions.find(
+//         (t) => t.orderId === transaction.orderId
+//       );
+
+//       if (already) {
+//         console.warn("⚠️ Transaction already exists:", transaction.orderId);
+//         return;
+//       }
+
+//       await updateDoc(userRef, {
+//         transactions: [...transactions, transaction],
+//       });
+
+//       console.log("✅ Stored new transaction");
+
+//     } else {
+//       // Create fresh user doc structure
+//       const newUser: UserProfile = {
+//         id: userId,
+//         email: "",
+//         full_name: "",
+//         purchasedClasses: [],
+//         purchasedVideos: [],
+//         selectedCheckpoints: [],
+//         transactions: [transaction],
+//         created_at: new Date().toISOString(),
+//       };
+
+//       await setDoc(userRef, newUser);
+//       console.log("✅ Created user doc with 1st transaction");
+//     }
+//   } catch (error) {
+//     console.error("❌ addTransactionRecord error:", error);
+//   }
+// }
+
+// /** ============================================================
+//  *  ✅ Update transaction status (method preserved)
+//  * ============================================================ */
+// export async function updateTransactionStatus(
+//   userId: string,
+//   orderId: string,
+//   updates: Partial<Transaction>
+// ): Promise<void> {
+//   const userRef = doc(db, "user_profiles", userId);
+//   const snap = await getDoc(userRef);
+
+//   if (!snap.exists()) return;
+
+//   const data = snap.data();
+//   const updated = data.transactions.map((txn: Transaction) =>
+//     txn.orderId === orderId
+//       ? {
+//           ...txn,
+//           ...updates,
+//           method: txn.method, // preserve
+//           timestamp: new Date().toISOString(),
+//         }
+//       : txn
+//   );
+
+//   await updateDoc(userRef, { transactions: updated });
+//   console.log("🔄 Transaction updated:", orderId);
+// }
+
+// /** ============================================================
+//  *  ✅ Get all transactions
+//  * ============================================================ */
+// export async function getUserTransactions(
+//   userId: string
+// ): Promise<Transaction[]> {
+//   try {
+//     const snap = await getDoc(doc(db, "user_profiles", userId));
+//     return snap.exists() ? snap.data().transactions || [] : [];
+//   } catch (error) {
+//     console.error("❌ Error fetching transactions:", error);
+//     return [];
+//   }
+// }
+
+// utils/userUtils.ts
+import { doc, getDoc, updateDoc, arrayUnion, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Transaction, UserProfile } from "@/types/masterclass";
+import { Transaction } from "@/types/masterclass";
 
-/** ============================================================
- *  ✅ Ensure user document exists based on NEW UserProfile model
- * ============================================================ */
-export async function ensureUserDocument(user: any): Promise<void> {
-  if (!user?.uid) throw new Error("User not authenticated");
-
-  const userRef = doc(db, "user_profiles", user.uid);
-  const userSnap = await getDoc(userRef);
-
-  if (!userSnap.exists()) {
-    const userData: UserProfile = {
-      id: user.uid,
-      email: user.email || "",
-      full_name: user.displayName || "",
-      phone: user.phoneNumber || "",
-      avatar_url: user.photoURL || "",
-      bio: "",
-      linkedin: "",
-      purchasedClasses: [],
-      purchasedVideos: [],
-      transactions: [],
-      selectedCheckpoints: [],
-      created_at: new Date().toISOString(),
-    };
-
-    await setDoc(userRef, userData);
-    console.log("✅ User document created:", user.uid);
-  }
-}
-
-/** ============================================================
- *  ✅ Add purchased class
- * ============================================================ */
-export async function addPurchasedClass(
-  userId: string,
-  classId: string,
-  userEmail?: string,
-  userName?: string
-): Promise<void> {
-  const userRef = doc(db, "user_profiles", userId);
-
-  try {
-    await updateDoc(userRef, {
-      purchasedClasses: arrayUnion(classId),
-    });
-    console.log("✅ Added purchased class:", classId);
-  } catch (error: any) {
-    if (error.code === "not-found") {
-      const newUser: UserProfile = {
-        id: userId,
-        email: userEmail || "",
-        full_name: userName || "",
-        purchasedClasses: [classId],
-        purchasedVideos: [],
-        transactions: [],
-        selectedCheckpoints: [],
-        created_at: new Date().toISOString(),
-      };
-      await setDoc(userRef, newUser);
-      console.log("✅ Created new user doc with purchased class");
-    } else {
-      console.error("❌ addPurchasedClass error:", error);
-    }
-  }
-}
-
-/** ============================================================
- *  ✅ Add purchased video
- * ============================================================ */
-export async function addPurchasedVideo(
-  userId: string,
-  videoId: string
-): Promise<void> {
-  const userRef = doc(db, "user_profiles", userId);
-
-  try {
-    await updateDoc(userRef, {
-      purchasedVideos: arrayUnion(videoId),
-    });
-
-    console.log("🎬 Added purchased video:", videoId);
-  } catch (error: any) {
-    console.error("❌ Error adding purchased video:", error);
-  }
-}
-
-/** ============================================================
- *  ✅ Get purchased classes
- * ============================================================ */
-export async function getUserPurchasedClasses(
-  userId: string
-): Promise<string[]> {
-  try {
-    const snap = await getDoc(doc(db, "user_profiles", userId));
-    return snap.exists() ? snap.data().purchasedClasses || [] : [];
-  } catch (error) {
-    console.error("❌ Error fetching purchased classes:", error);
-    return [];
-  }
-}
-
-/** ============================================================
- *  ✅ Add Transaction (Prevents Duplicates)
- * ============================================================ */
+/**
+ * ✅ UPDATED: Add transaction record with new fields
+ */
 export async function addTransactionRecord(
   userId: string,
-  transaction: Transaction
-): Promise<void> {
-  const userRef = doc(db, "user_profiles", userId);
-  const snap = await getDoc(userRef);
-
+  transaction: Partial<Transaction>
+) {
   try {
-    if (snap.exists()) {
-      const data = snap.data();
-      const transactions: Transaction[] = data.transactions || [];
+    const userRef = doc(db, "user_profiles", userId);
+    const userSnap = await getDoc(userRef);
 
-      const already = transactions.find(
-        (t) => t.orderId === transaction.orderId
+    const newTransaction: Transaction = {
+      orderId: transaction.orderId || `txn_${Date.now()}`,
+      paymentId: transaction.paymentId,
+      masterclassId: transaction.masterclassId || "",
+      videoId: transaction.videoId,
+      masterclassTitle: transaction.masterclassTitle || "Unknown",
+      videoTitle: transaction.videoTitle,
+      amount: transaction.amount || 0,
+      status: transaction.status || "pending",
+      method: transaction.method || "razorpay",
+      type: transaction.type, // ✅ NEW: Transaction type
+      failureReason: transaction.failureReason,
+      timestamp: transaction.timestamp || new Date().toISOString(),
+    };
+
+    if (userSnap.exists()) {
+      const currentTransactions = userSnap.data().transactions || [];
+      
+      // ✅ Check for duplicate to prevent double recording
+      const duplicate = currentTransactions.find(
+        (txn: Transaction) => txn.orderId === newTransaction.orderId
       );
-
-      if (already) {
-        console.warn("⚠️ Transaction already exists:", transaction.orderId);
-        return;
+      
+      if (!duplicate) {
+        await updateDoc(userRef, {
+          transactions: arrayUnion(newTransaction),
+        });
+        console.log("✅ Transaction added:", newTransaction.orderId);
+      } else {
+        console.log("ℹ️ Transaction already exists:", newTransaction.orderId);
       }
-
-      await updateDoc(userRef, {
-        transactions: [...transactions, transaction],
-      });
-
-      console.log("✅ Stored new transaction");
-
     } else {
-      // Create fresh user doc structure
-      const newUser: UserProfile = {
+      // Create user profile if doesn't exist
+      await setDoc(userRef, {
         id: userId,
-        email: "",
-        full_name: "",
+        transactions: [newTransaction],
         purchasedClasses: [],
         purchasedVideos: [],
-        selectedCheckpoints: [],
-        transactions: [transaction],
         created_at: new Date().toISOString(),
-      };
-
-      await setDoc(userRef, newUser);
-      console.log("✅ Created user doc with 1st transaction");
+      });
+      console.log("✅ User profile created with transaction");
     }
   } catch (error) {
-    console.error("❌ addTransactionRecord error:", error);
+    console.error("❌ Error adding transaction:", error);
+    throw error;
   }
 }
 
-/** ============================================================
- *  ✅ Update transaction status (method preserved)
- * ============================================================ */
+/**
+ * ✅ UPDATED: Update transaction status with more details
+ */
 export async function updateTransactionStatus(
   userId: string,
   orderId: string,
   updates: Partial<Transaction>
-): Promise<void> {
-  const userRef = doc(db, "user_profiles", userId);
-  const snap = await getDoc(userRef);
+) {
+  try {
+    const userRef = doc(db, "user_profiles", userId);
+    const userSnap = await getDoc(userRef);
 
-  if (!snap.exists()) return;
+    if (!userSnap.exists()) {
+      throw new Error("User not found");
+    }
 
-  const data = snap.data();
-  const updated = data.transactions.map((txn: Transaction) =>
-    txn.orderId === orderId
-      ? {
+    const userData = userSnap.data();
+    const transactions = userData.transactions || [];
+
+    const updatedTransactions = transactions.map((txn: Transaction) => {
+      if (txn.orderId === orderId) {
+        return {
           ...txn,
           ...updates,
-          method: txn.method, // preserve
-          timestamp: new Date().toISOString(),
-        }
-      : txn
-  );
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return txn;
+    });
 
-  await updateDoc(userRef, { transactions: updated });
-  console.log("🔄 Transaction updated:", orderId);
+    await updateDoc(userRef, { transactions: updatedTransactions });
+    console.log(`✅ Transaction ${orderId} updated`);
+  } catch (error) {
+    console.error("❌ Error updating transaction:", error);
+    throw error;
+  }
 }
 
-/** ============================================================
- *  ✅ Get all transactions
- * ============================================================ */
-export async function getUserTransactions(
-  userId: string
-): Promise<Transaction[]> {
+/**
+ * Add masterclass to user's purchased list
+ */
+export async function addPurchasedClass(userId: string, masterclassTitle: string) {
   try {
-    const snap = await getDoc(doc(db, "user_profiles", userId));
-    return snap.exists() ? snap.data().transactions || [] : [];
+    const userRef = doc(db, "user_profiles", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      await updateDoc(userRef, {
+        purchasedClasses: arrayUnion(masterclassTitle),
+      });
+    } else {
+      await setDoc(userRef, {
+        id: userId,
+        purchasedClasses: [masterclassTitle],
+        transactions: [],
+        purchasedVideos: [],
+        created_at: new Date().toISOString(),
+      });
+    }
+    console.log("✅ Masterclass added to purchased list");
+  } catch (error) {
+    console.error("❌ Error adding purchased class:", error);
+    throw error;
+  }
+}
+
+/**
+ * ✅ NEW: Add individual video to user's purchased videos
+ */
+export async function addPurchasedVideo(userId: string, videoId: string) {
+  try {
+    const userRef = doc(db, "user_profiles", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      await updateDoc(userRef, {
+        purchasedVideos: arrayUnion(videoId),
+      });
+    } else {
+      await setDoc(userRef, {
+        id: userId,
+        purchasedVideos: [videoId],
+        purchasedClasses: [],
+        transactions: [],
+        created_at: new Date().toISOString(),
+      });
+    }
+    console.log("✅ Video added to purchased list");
+  } catch (error) {
+    console.error("❌ Error adding purchased video:", error);
+    throw error;
+  }
+}
+
+/**
+ * ✅ NEW: Check if user has access to specific video
+ */
+export async function hasVideoAccess(
+  userId: string,
+  masterclassId: string,
+  videoId: string
+): Promise<boolean> {
+  try {
+    // Check if user has full masterclass access
+    const masterclassRef = doc(db, "MasterClasses", masterclassId);
+    const masterclassSnap = await getDoc(masterclassRef);
+    
+    if (masterclassSnap.exists()) {
+      const joinedUsers = masterclassSnap.data().joined_users || [];
+      if (joinedUsers.includes(userId)) {
+        return true; // Full access
+      }
+    }
+
+    // Check if user purchased individual video
+    const userRef = doc(db, "user_profiles", userId);
+    const userSnap = await getDoc(userRef);
+    
+    if (userSnap.exists()) {
+      const purchasedVideos = userSnap.data().purchasedVideos || [];
+      return purchasedVideos.includes(videoId);
+    }
+
+    return false;
+  } catch (error) {
+    console.error("❌ Error checking video access:", error);
+    return false;
+  }
+}
+
+/**
+ * ✅ NEW: Get user's transaction history
+ */
+export async function getUserTransactions(userId: string): Promise<Transaction[]> {
+  try {
+    const userRef = doc(db, "user_profiles", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      const transactions = userSnap.data().transactions || [];
+      // Sort by timestamp (newest first)
+      return transactions.sort((a: Transaction, b: Transaction) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+    }
+
+    return [];
   } catch (error) {
     console.error("❌ Error fetching transactions:", error);
     return [];
+  }
+}
+
+/**
+ * ✅ NEW: Get transaction by order ID
+ */
+export async function getTransactionByOrderId(
+  userId: string,
+  orderId: string
+): Promise<Transaction | null> {
+  try {
+    const userRef = doc(db, "user_profiles", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      const transactions = userSnap.data().transactions || [];
+      return transactions.find((txn: Transaction) => txn.orderId === orderId) || null;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("❌ Error fetching transaction:", error);
+    return null;
+  }
+}
+
+/**
+ * ✅ NEW: Check if user is registered for upcoming masterclass
+ */
+export async function isUserRegistered(
+  userId: string,
+  masterclassId: string
+): Promise<boolean> {
+  try {
+    const masterclassRef = doc(db, "MasterClasses", masterclassId);
+    const masterclassSnap = await getDoc(masterclassRef);
+
+    if (masterclassSnap.exists()) {
+      const joinedUsers = masterclassSnap.data().joined_users || [];
+      return joinedUsers.includes(userId);
+    }
+
+    return false;
+  } catch (error) {
+    console.error("❌ Error checking registration:", error);
+    return false;
+  }
+}
+
+/**
+ * ✅ NEW: Get user's purchased content summary
+ */
+export async function getUserPurchaseSummary(userId: string) {
+  try {
+    const userRef = doc(db, "user_profiles", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      return {
+        totalSpent: 0,
+        purchasedClasses: [],
+        purchasedVideos: [],
+        transactionCount: 0,
+        successfulPayments: 0,
+        failedPayments: 0,
+      };
+    }
+
+    const userData = userSnap.data();
+    const transactions: Transaction[] = userData.transactions || [];
+
+    const summary = {
+      totalSpent: transactions
+        .filter((txn) => txn.status === "success")
+        .reduce((sum, txn) => sum + txn.amount, 0),
+      purchasedClasses: userData.purchasedClasses || [],
+      purchasedVideos: userData.purchasedVideos || [],
+      transactionCount: transactions.length,
+      successfulPayments: transactions.filter((txn) => txn.status === "success").length,
+      failedPayments: transactions.filter((txn) => txn.status === "failed").length,
+      recentTransactions: transactions.slice(0, 5), // Last 5 transactions
+    };
+
+    return summary;
+  } catch (error) {
+    console.error("❌ Error getting purchase summary:", error);
+    throw error;
   }
 }

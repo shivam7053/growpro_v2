@@ -1,83 +1,14 @@
-// // types/masterclass.ts
-// // ✅ SINGLE SOURCE OF TRUTH FOR ALL TYPES
-
-// export interface Masterclass {
-//   id: string;
-//   title: string;
-//   speaker_name: string;
-//   speaker_designation: string;
-//   youtube_url: string;
-//   created_at: string;
-//   price: number;
-//   joined_users: string[];
-//   type: "free" | "paid" | "featured" | "upcoming";
-//   description?: string;
-//   duration?: string;
-//   thumbnail_url?: string;
-//   scheduled_date?: string; // ISO timestamp for upcoming classes
-// }
-
-// export type FilterType = "all" | "free" | "paid" | "featured" | "enrolled" | "upcoming";
-
-// export interface PaymentDetails {
-//   amount: number;
-//   currency: string;
-//   masterclassId: string;
-//   userId: string;
-//   email?: string;
-//   phone?: string;
-// }
-
-// export interface PaymentResponse {
-//   success: boolean;
-//   transactionId?: string;
-//   orderId?: string;
-//   error?: string;
-// }
-
-// export interface Transaction {
-//   orderId: string;
-//   paymentId?: string;
-//   masterclassId: string;
-//   masterclassTitle: string;
-//   amount: number;
-//   status: "pending" | "success" | "failed";
-//   method: "razorpay" | "dummy";
-//   failureReason?: string;
-//   timestamp: string;
-// }
-
-// export interface UserProfile {
-//   id: string;
-//   email: string;
-//   full_name: string;
-//   phone?: string;
-//   avatar_url?: string;
-//   bio?: string;
-//   linkedin?: string;
-//   purchasedClasses: string[];
-//   transactions?: Transaction[];
-//   created_at: string;
-//   selectedCheckpoints?: {
-//     category: string;
-//     checkpoints: string[];
-//   }[];
-// }
-
-
-// export type UserDocument = UserProfile;
-
 // types/masterclass.ts
-// ✅ RESTRUCTURED FOR PARENT-CHILD VIDEO ARCHITECTURE
+// ✅ UPDATED WITH NEW TRANSACTION FIELDS
 
 export interface MasterclassVideo {
   id: string;
   title: string;
   youtube_url: string;
   duration?: string;
-  order: number; // For sorting videos
+  order: number;
   type: "free" | "paid";
-  price: number; // 0 for free videos
+  price: number;
   description?: string;
 }
 
@@ -89,16 +20,10 @@ export interface Masterclass {
   thumbnail_url?: string;
   description?: string;
   type: "free" | "paid" | "featured" | "upcoming";
-  scheduled_date?: string; // For upcoming classes
+  scheduled_date?: string;
   created_at: string;
-  
-  // Videos associated with this masterclass
   videos: MasterclassVideo[];
-  
-  // Users who have access to this masterclass
   joined_users: string[];
-  
-  // Pricing info (can be min price of videos or bundle price)
   starting_price: number;
   total_duration?: string;
 }
@@ -109,10 +34,11 @@ export interface PaymentDetails {
   amount: number;
   currency: string;
   masterclassId: string;
-  videoId?: string; // For individual video purchases
+  videoId?: string;
   userId: string;
   email?: string;
   phone?: string;
+  type?: TransactionType; // ✅ NEW
 }
 
 export interface PaymentResponse {
@@ -120,20 +46,31 @@ export interface PaymentResponse {
   transactionId?: string;
   orderId?: string;
   error?: string;
+  type?: TransactionType; // ✅ NEW
 }
+
+// ✅ NEW: Transaction types
+export type TransactionType = 
+  | "purchase"              // Regular masterclass purchase
+  | "upcoming_registration" // Paid registration for upcoming
+  | "video_purchase"        // Individual video purchase
+  | "free_registration";    // Free upcoming registration
 
 export interface Transaction {
   orderId: string;
   paymentId?: string;
   masterclassId: string;
-  videoId?: string; // For individual video purchases
+  videoId?: string; // ✅ For individual video purchases
   masterclassTitle: string;
-  videoTitle?: string;
+  videoTitle?: string; // ✅ For individual video purchases
   amount: number;
   status: "pending" | "success" | "failed";
   method: "razorpay" | "dummy";
+  type?: TransactionType; // ✅ NEW: Transaction type
   failureReason?: string;
+  errorCode?: string; // ✅ NEW: Razorpay error code
   timestamp: string;
+  updatedAt?: string; // ✅ NEW: Last update timestamp
 }
 
 export interface UserProfile {
@@ -144,8 +81,8 @@ export interface UserProfile {
   avatar_url?: string;
   bio?: string;
   linkedin?: string;
-  purchasedClasses: string[]; // masterclass IDs
-  purchasedVideos: string[]; // individual video IDs
+  purchasedClasses: string[];
+  purchasedVideos: string[]; // ✅ Individual video IDs
   transactions?: Transaction[];
   created_at: string;
   selectedCheckpoints?: {
@@ -155,3 +92,46 @@ export interface UserProfile {
 }
 
 export type UserDocument = UserProfile;
+
+// ✅ NEW: Email notification types
+export interface EmailNotification {
+  type: "registration" | "reminder_24h" | "reminder_30min";
+  email: string;
+  masterclassId: string;
+  masterclassTitle: string;
+  speakerName: string;
+  scheduledDate: string;
+  userId: string;
+}
+
+// ✅ NEW: Payment error types
+export interface PaymentError {
+  code: string;
+  description: string;
+  reason?: string;
+  source?: string;
+  step?: string;
+  metadata?: Record<string, any>;
+}
+
+// ✅ NEW: Upcoming masterclass status
+export type UpcomingStatus = 
+  | "scheduled"    // Event scheduled, accepting registrations
+  | "starting"     // Starting within 30 minutes
+  | "live"         // Currently live
+  | "completed"    // Event finished
+  | "cancelled";   // Event cancelled
+
+// ✅ NEW: Registration details
+export interface Registration {
+  userId: string;
+  userEmail: string;
+  userName: string;
+  registeredAt: string;
+  paymentStatus: "free" | "paid";
+  amount?: number;
+  transactionId?: string;
+  attended?: boolean; // Track if user attended
+  rating?: number; // Post-event rating
+  feedback?: string; // Post-event feedback
+}
