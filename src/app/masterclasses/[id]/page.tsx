@@ -676,14 +676,10 @@ export default function MasterclassDetailPage() {
             setShowPaymentModal(false);
             setPurchasingVideo(null);
           }}
-          masterclass={{
-            ...masterclass,
-            price: purchasingVideo.price,
-            title: `${masterclass.title} - ${purchasingVideo.title}`,
-          } as any}
+          masterclass={masterclass}
+          video={purchasingVideo}
           user={user}
           onPaymentSuccess={handlePaymentSuccess}
-          videoId={purchasingVideo.id}
         />
       )}
     </div>
