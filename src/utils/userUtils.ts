@@ -386,10 +386,326 @@
 //   }
 // }
 
-// utils/userUtils.ts
+// // utils/userUtils.ts
+// import { doc, getDoc, updateDoc, arrayUnion, setDoc } from "firebase/firestore";
+// import { db } from "@/lib/firebase";
+// import { Transaction } from "@/types/masterclass";
+
+// /**
+//  * ✅ UPDATED: Add transaction record with new fields
+//  */
+// export async function addTransactionRecord(
+//   userId: string,
+//   transaction: Partial<Transaction>
+// ) {
+//   try {
+//     const userRef = doc(db, "user_profiles", userId);
+//     const userSnap = await getDoc(userRef);
+
+//     const newTransaction: Transaction = {
+//       orderId: transaction.orderId || `txn_${Date.now()}`,
+//       paymentId: transaction.paymentId,
+//       masterclassId: transaction.masterclassId || "",
+//       videoId: transaction.videoId,
+//       masterclassTitle: transaction.masterclassTitle || "Unknown",
+//       videoTitle: transaction.videoTitle,
+//       amount: transaction.amount || 0,
+//       status: transaction.status || "pending",
+//       method: transaction.method || "razorpay",
+//       type: transaction.type, // ✅ NEW: Transaction type
+//       failureReason: transaction.failureReason,
+//       timestamp: transaction.timestamp || new Date().toISOString(),
+//     };
+
+//     if (userSnap.exists()) {
+//       const currentTransactions = userSnap.data().transactions || [];
+      
+//       // ✅ Check for duplicate to prevent double recording
+//       const duplicate = currentTransactions.find(
+//         (txn: Transaction) => txn.orderId === newTransaction.orderId
+//       );
+      
+//       if (!duplicate) {
+//         await updateDoc(userRef, {
+//           transactions: arrayUnion(newTransaction),
+//         });
+//         console.log("✅ Transaction added:", newTransaction.orderId);
+//       } else {
+//         console.log("ℹ️ Transaction already exists:", newTransaction.orderId);
+//       }
+//     } else {
+//       // Create user profile if doesn't exist
+//       await setDoc(userRef, {
+//         id: userId,
+//         transactions: [newTransaction],
+//         purchasedClasses: [],
+//         purchasedVideos: [],
+//         created_at: new Date().toISOString(),
+//       });
+//       console.log("✅ User profile created with transaction");
+//     }
+//   } catch (error) {
+//     console.error("❌ Error adding transaction:", error);
+//     throw error;
+//   }
+// }
+
+// /**
+//  * ✅ UPDATED: Update transaction status with more details
+//  */
+// export async function updateTransactionStatus(
+//   userId: string,
+//   orderId: string,
+//   updates: Partial<Transaction>
+// ) {
+//   try {
+//     const userRef = doc(db, "user_profiles", userId);
+//     const userSnap = await getDoc(userRef);
+
+//     if (!userSnap.exists()) {
+//       throw new Error("User not found");
+//     }
+
+//     const userData = userSnap.data();
+//     const transactions = userData.transactions || [];
+
+//     const updatedTransactions = transactions.map((txn: Transaction) => {
+//       if (txn.orderId === orderId) {
+//         return {
+//           ...txn,
+//           ...updates,
+//           updatedAt: new Date().toISOString(),
+//         };
+//       }
+//       return txn;
+//     });
+
+//     await updateDoc(userRef, { transactions: updatedTransactions });
+//     console.log(`✅ Transaction ${orderId} updated`);
+//   } catch (error) {
+//     console.error("❌ Error updating transaction:", error);
+//     throw error;
+//   }
+// }
+
+// /**
+//  * Add masterclass to user's purchased list
+//  */
+// export async function addPurchasedClass(userId: string, masterclassTitle: string) {
+//   try {
+//     const userRef = doc(db, "user_profiles", userId);
+//     const userSnap = await getDoc(userRef);
+
+//     if (userSnap.exists()) {
+//       await updateDoc(userRef, {
+//         purchasedClasses: arrayUnion(masterclassTitle),
+//       });
+//     } else {
+//       await setDoc(userRef, {
+//         id: userId,
+//         purchasedClasses: [masterclassTitle],
+//         transactions: [],
+//         purchasedVideos: [],
+//         created_at: new Date().toISOString(),
+//       });
+//     }
+//     console.log("✅ Masterclass added to purchased list");
+//   } catch (error) {
+//     console.error("❌ Error adding purchased class:", error);
+//     throw error;
+//   }
+// }
+
+// /**
+//  * ✅ NEW: Add individual video to user's purchased videos
+//  */
+// export async function addPurchasedVideo(userId: string, videoId: string) {
+//   try {
+//     const userRef = doc(db, "user_profiles", userId);
+//     const userSnap = await getDoc(userRef);
+
+//     if (userSnap.exists()) {
+//       await updateDoc(userRef, {
+//         purchasedVideos: arrayUnion(videoId),
+//       });
+//     } else {
+//       await setDoc(userRef, {
+//         id: userId,
+//         purchasedVideos: [videoId],
+//         purchasedClasses: [],
+//         transactions: [],
+//         created_at: new Date().toISOString(),
+//       });
+//     }
+//     console.log("✅ Video added to purchased list");
+//   } catch (error) {
+//     console.error("❌ Error adding purchased video:", error);
+//     throw error;
+//   }
+// }
+
+// /**
+//  * ✅ NEW: Check if user has access to specific video
+//  */
+// export async function hasVideoAccess(
+//   userId: string,
+//   masterclassId: string,
+//   videoId: string
+// ): Promise<boolean> {
+//   try {
+//     // Check if user has full masterclass access
+//     const masterclassRef = doc(db, "MasterClasses", masterclassId);
+//     const masterclassSnap = await getDoc(masterclassRef);
+    
+//     if (masterclassSnap.exists()) {
+//       const joinedUsers = masterclassSnap.data().joined_users || [];
+//       if (joinedUsers.includes(userId)) {
+//         return true; // Full access
+//       }
+//     }
+
+//     // Check if user purchased individual video
+//     const userRef = doc(db, "user_profiles", userId);
+//     const userSnap = await getDoc(userRef);
+    
+//     if (userSnap.exists()) {
+//       const purchasedVideos = userSnap.data().purchasedVideos || [];
+//       return purchasedVideos.includes(videoId);
+//     }
+
+//     return false;
+//   } catch (error) {
+//     console.error("❌ Error checking video access:", error);
+//     return false;
+//   }
+// }
+
+// /**
+//  * ✅ NEW: Get user's transaction history
+//  */
+// export async function getUserTransactions(userId: string): Promise<Transaction[]> {
+//   try {
+//     const userRef = doc(db, "user_profiles", userId);
+//     const userSnap = await getDoc(userRef);
+
+//     if (userSnap.exists()) {
+//       const transactions = userSnap.data().transactions || [];
+//       // Sort by timestamp (newest first)
+//       return transactions.sort((a: Transaction, b: Transaction) => 
+//         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+//       );
+//     }
+
+//     return [];
+//   } catch (error) {
+//     console.error("❌ Error fetching transactions:", error);
+//     return [];
+//   }
+// }
+
+// /**
+//  * ✅ NEW: Get transaction by order ID
+//  */
+// export async function getTransactionByOrderId(
+//   userId: string,
+//   orderId: string
+// ): Promise<Transaction | null> {
+//   try {
+//     const userRef = doc(db, "user_profiles", userId);
+//     const userSnap = await getDoc(userRef);
+
+//     if (userSnap.exists()) {
+//       const transactions = userSnap.data().transactions || [];
+//       return transactions.find((txn: Transaction) => txn.orderId === orderId) || null;
+//     }
+
+//     return null;
+//   } catch (error) {
+//     console.error("❌ Error fetching transaction:", error);
+//     return null;
+//   }
+// }
+
+// /**
+//  * ✅ NEW: Check if user is registered for upcoming masterclass
+//  */
+// export async function isUserRegistered(
+//   userId: string,
+//   masterclassId: string
+// ): Promise<boolean> {
+//   try {
+//     const masterclassRef = doc(db, "MasterClasses", masterclassId);
+//     const masterclassSnap = await getDoc(masterclassRef);
+
+//     if (masterclassSnap.exists()) {
+//       const joinedUsers = masterclassSnap.data().joined_users || [];
+//       return joinedUsers.includes(userId);
+//     }
+
+//     return false;
+//   } catch (error) {
+//     console.error("❌ Error checking registration:", error);
+//     return false;
+//   }
+// }
+
+// /**
+//  * ✅ NEW: Get user's purchased content summary
+//  */
+// export async function getUserPurchaseSummary(userId: string) {
+//   try {
+//     const userRef = doc(db, "user_profiles", userId);
+//     const userSnap = await getDoc(userRef);
+
+//     if (!userSnap.exists()) {
+//       return {
+//         totalSpent: 0,
+//         purchasedClasses: [],
+//         purchasedVideos: [],
+//         transactionCount: 0,
+//         successfulPayments: 0,
+//         failedPayments: 0,
+//       };
+//     }
+
+//     const userData = userSnap.data();
+//     const transactions: Transaction[] = userData.transactions || [];
+
+//     const summary = {
+//       totalSpent: transactions
+//         .filter((txn) => txn.status === "success")
+//         .reduce((sum, txn) => sum + txn.amount, 0),
+//       purchasedClasses: userData.purchasedClasses || [],
+//       purchasedVideos: userData.purchasedVideos || [],
+//       transactionCount: transactions.length,
+//       successfulPayments: transactions.filter((txn) => txn.status === "success").length,
+//       failedPayments: transactions.filter((txn) => txn.status === "failed").length,
+//       recentTransactions: transactions.slice(0, 5), // Last 5 transactions
+//     };
+
+//     return summary;
+//   } catch (error) {
+//     console.error("❌ Error getting purchase summary:", error);
+//     throw error;
+//   }
+// }
+
 import { doc, getDoc, updateDoc, arrayUnion, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Transaction } from "@/types/masterclass";
+
+/**
+ * Helper: convert undefined fields to null inside a transaction object
+ */
+function sanitizeTransactionInput(tx: Partial<Transaction>): Partial<Transaction> {
+  const out: Partial<Transaction> = {};
+  for (const key of Object.keys(tx)) {
+    // @ts-ignore
+    const val = tx[key as keyof Partial<Transaction>];
+    out[key as keyof Partial<Transaction>] = val === undefined ? null : val;
+  }
+  return out;
+}
 
 /**
  * ✅ UPDATED: Add transaction record with new fields
@@ -402,30 +718,34 @@ export async function addTransactionRecord(
     const userRef = doc(db, "user_profiles", userId);
     const userSnap = await getDoc(userRef);
 
+    // Convert undefined -> null for safety
+    const safeTxInput = sanitizeTransactionInput(transaction);
+
     const newTransaction: Transaction = {
-      orderId: transaction.orderId || `txn_${Date.now()}`,
-      paymentId: transaction.paymentId,
-      masterclassId: transaction.masterclassId || "",
-      videoId: transaction.videoId,
-      masterclassTitle: transaction.masterclassTitle || "Unknown",
-      videoTitle: transaction.videoTitle,
-      amount: transaction.amount || 0,
-      status: transaction.status || "pending",
-      method: transaction.method || "razorpay",
-      type: transaction.type, // ✅ NEW: Transaction type
-      failureReason: transaction.failureReason,
-      timestamp: transaction.timestamp || new Date().toISOString(),
+      orderId: (safeTxInput.orderId as string) || `txn_${Date.now()}`,
+      paymentId: (safeTxInput.paymentId as string) ?? null,
+      masterclassId: (safeTxInput.masterclassId as string) ?? "",
+      videoId: (safeTxInput.videoId as string) ?? null,
+      masterclassTitle: (safeTxInput.masterclassTitle as string) ?? "Unknown",
+      videoTitle: (safeTxInput.videoTitle as string) ?? null,
+      amount: (safeTxInput.amount as number) ?? 0,
+      status: (safeTxInput.status as any) ?? "pending",
+      method: (safeTxInput.method as any) ?? "razorpay",
+      type: (safeTxInput.type as any) ?? null,
+      failureReason: (safeTxInput.failureReason as string) ?? null,
+      timestamp: (safeTxInput.timestamp as string) ?? new Date().toISOString(),
     };
 
     if (userSnap.exists()) {
       const currentTransactions = userSnap.data().transactions || [];
-      
+
       // ✅ Check for duplicate to prevent double recording
       const duplicate = currentTransactions.find(
         (txn: Transaction) => txn.orderId === newTransaction.orderId
       );
-      
+
       if (!duplicate) {
+        // arrayUnion accepts objects that don't contain undefined (we ensured nulls)
         await updateDoc(userRef, {
           transactions: arrayUnion(newTransaction),
         });
@@ -434,7 +754,7 @@ export async function addTransactionRecord(
         console.log("ℹ️ Transaction already exists:", newTransaction.orderId);
       }
     } else {
-      // Create user profile if doesn't exist
+      // Create user profile if doesn't exist, ensuring no undefineds
       await setDoc(userRef, {
         id: userId,
         transactions: [newTransaction],
@@ -471,9 +791,11 @@ export async function updateTransactionStatus(
 
     const updatedTransactions = transactions.map((txn: Transaction) => {
       if (txn.orderId === orderId) {
+        // sanitize updates: convert undefined -> null
+        const safeUpdates = sanitizeTransactionInput(updates);
         return {
           ...txn,
-          ...updates,
+          ...safeUpdates,
           updatedAt: new Date().toISOString(),
         };
       }
@@ -489,10 +811,15 @@ export async function updateTransactionStatus(
 }
 
 /**
- * Add masterclass to user's purchased list
+ * Add masterclass to user's purchased list (guarded)
  */
-export async function addPurchasedClass(userId: string, masterclassTitle: string) {
+export async function addPurchasedClass(userId: string, masterclassTitle: string | null) {
   try {
+    if (!masterclassTitle) {
+      console.log("⚠️ addPurchasedClass called with empty title — skipping");
+      return;
+    }
+
     const userRef = doc(db, "user_profiles", userId);
     const userSnap = await getDoc(userRef);
 
@@ -517,10 +844,15 @@ export async function addPurchasedClass(userId: string, masterclassTitle: string
 }
 
 /**
- * ✅ NEW: Add individual video to user's purchased videos
+ * ✅ NEW: Add individual video to user's purchased videos (guarded)
  */
-export async function addPurchasedVideo(userId: string, videoId: string) {
+export async function addPurchasedVideo(userId: string, videoId: string | null) {
   try {
+    if (!videoId) {
+      console.log("⚠️ addPurchasedVideo called with empty videoId — skipping");
+      return;
+    }
+
     const userRef = doc(db, "user_profiles", userId);
     const userSnap = await getDoc(userRef);
 
@@ -556,7 +888,7 @@ export async function hasVideoAccess(
     // Check if user has full masterclass access
     const masterclassRef = doc(db, "MasterClasses", masterclassId);
     const masterclassSnap = await getDoc(masterclassRef);
-    
+
     if (masterclassSnap.exists()) {
       const joinedUsers = masterclassSnap.data().joined_users || [];
       if (joinedUsers.includes(userId)) {
@@ -567,7 +899,7 @@ export async function hasVideoAccess(
     // Check if user purchased individual video
     const userRef = doc(db, "user_profiles", userId);
     const userSnap = await getDoc(userRef);
-    
+
     if (userSnap.exists()) {
       const purchasedVideos = userSnap.data().purchasedVideos || [];
       return purchasedVideos.includes(videoId);
@@ -591,7 +923,7 @@ export async function getUserTransactions(userId: string): Promise<Transaction[]
     if (userSnap.exists()) {
       const transactions = userSnap.data().transactions || [];
       // Sort by timestamp (newest first)
-      return transactions.sort((a: Transaction, b: Transaction) => 
+      return transactions.sort((a: Transaction, b: Transaction) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
     }
