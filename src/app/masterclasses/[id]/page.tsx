@@ -131,12 +131,12 @@ export default function MasterclassDetailPage() {
   
   const userHasVideoAccess = (video: MasterclassVideo) => {
     if (!user?.uid) return video.type === "free";
-    if (userHasAccess) return true; // Full access to masterclass
+    if (userHasAccess) return true;
     if (video.type === "free") return true;
     return userPurchasedVideos.includes(video.id);
   };
 
-  // ✅ Handle free registration for upcoming
+  // Handle free registration for upcoming
   const handleFreeUpcomingRegistration = async () => {
     if (!user?.uid) return toast.error("Please login to register");
     if (userHasAccess) return toast("Already registered!", { icon: "ℹ️" });
@@ -160,21 +160,24 @@ export default function MasterclassDetailPage() {
       });
 
       // Send registration email
-      await fetch("/api/send-registration-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: user.email,
-          masterclassTitle: masterclass!.title,
-          speakerName: masterclass!.speaker_name,
-          scheduledDate: masterclass!.scheduled_date,
-          masterclassId: masterclassId,
-        }),
-      });
+      try {
+        await fetch("/api/send-registration-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user.email,
+            masterclassTitle: masterclass!.title,
+            speakerName: masterclass!.speaker_name,
+            scheduledDate: masterclass!.scheduled_date,
+            masterclassId: masterclassId,
+          }),
+        });
+      } catch (emailError) {
+        console.error("Email error:", emailError);
+      }
 
       toast.success("Registered successfully! Check your email.");
       
-      // Refresh masterclass data
       const docRef = doc(db, "MasterClasses", masterclassId);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
@@ -189,14 +192,13 @@ export default function MasterclassDetailPage() {
     }
   };
 
-  // ✅ Handle paid registration for upcoming
+  // Handle paid registration for upcoming
   const handlePaidUpcomingRegistration = async () => {
     if (!user?.uid) return toast.error("Please login to register");
     if (userHasAccess) return toast("Already registered!", { icon: "ℹ️" });
 
     setProcessing(true);
     try {
-      // Create payment order
       const orderResponse = await fetch("/api/payment/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -214,7 +216,6 @@ export default function MasterclassDetailPage() {
         throw new Error(orderData.error || "Failed to create order");
       }
 
-      // Initialize Razorpay
       const razorpay = new (window as any).Razorpay({
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: orderData.amount,
@@ -223,7 +224,6 @@ export default function MasterclassDetailPage() {
         description: masterclass!.title,
         order_id: orderData.orderId,
         handler: async function (response: any) {
-          // Verify payment
           const verifyResponse = await fetch("/api/payment/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -244,7 +244,6 @@ export default function MasterclassDetailPage() {
           if (verifyData.success) {
             toast.success("Registration successful! Check your email.");
             
-            // Refresh data
             const docRef = doc(db, "MasterClasses", masterclassId);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
@@ -300,7 +299,6 @@ export default function MasterclassDetailPage() {
     }
   };
 
-  // Handle free video enrollment
   const handleEnrollFree = async (video: MasterclassVideo) => {
     if (!user?.uid) return toast.error("Please login to enroll");
     if (userHasVideoAccess(video)) return toast("Already enrolled!", { icon: "ℹ️" });
@@ -326,7 +324,6 @@ export default function MasterclassDetailPage() {
 
       toast.success("Enrolled successfully!");
       
-      // Refresh data
       const docRef = doc(db, "MasterClasses", masterclassId);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
@@ -350,7 +347,6 @@ export default function MasterclassDetailPage() {
     if (!user?.uid || !purchasingVideo) return;
 
     try {
-      // Update user's purchased videos list
       const userRef = doc(db, "user_profiles", user.uid);
       await updateDoc(userRef, {
         purchasedVideos: arrayUnion(purchasingVideo.id),
@@ -360,7 +356,6 @@ export default function MasterclassDetailPage() {
       setShowPaymentModal(false);
       setPurchasingVideo(null);
 
-      // Refresh user's purchased videos
       const userDocRef = doc(db, "user_profiles", user.uid);
       const userDocSnap = await getDoc(userDocRef);
       if (userDocSnap.exists()) {
@@ -397,7 +392,6 @@ export default function MasterclassDetailPage() {
     );
   }
 
-  // ✅ Check if this is an upcoming event that hasn't started
   const isUpcomingNotStarted = isUpcoming && masterclass.scheduled_date && 
     new Date(masterclass.scheduled_date) > new Date();
 
@@ -407,7 +401,6 @@ export default function MasterclassDetailPage() {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
         <Link
           href="/masterclasses"
           className="inline-flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white font-medium transition mb-6"
@@ -416,7 +409,6 @@ export default function MasterclassDetailPage() {
           Back to Masterclasses
         </Link>
 
-        {/* ✅ Upcoming Event Notice */}
         {isUpcomingNotStarted && (
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 mb-6">
             <div className="flex items-start gap-3">
@@ -465,10 +457,8 @@ export default function MasterclassDetailPage() {
         )}
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Video Player Section */}
           <div className="lg:col-span-2">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-              {/* Video Player */}
               <div className="relative aspect-video bg-gray-900">
                 {isUpcomingNotStarted ? (
                   <div className="flex flex-col items-center justify-center h-full p-8 text-center">
@@ -503,7 +493,6 @@ export default function MasterclassDetailPage() {
                 )}
               </div>
 
-              {/* Video Info */}
               {selectedVideo && !isUpcomingNotStarted && (
                 <div className="p-6">
                   <h2 className="text-2xl font-bold mb-2">{selectedVideo.title}</h2>
@@ -532,7 +521,6 @@ export default function MasterclassDetailPage() {
                     </div>
                   </div>
 
-                  {/* Enroll Button */}
                   {selectedVideo && !canWatchSelected && (
                     <div className="mt-4">
                       {selectedVideo.type === "free" ? (
@@ -558,7 +546,6 @@ export default function MasterclassDetailPage() {
               )}
             </div>
 
-            {/* Masterclass Info */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mt-6">
               <h1 className="text-3xl font-bold mb-4">{masterclass.title}</h1>
               
@@ -613,7 +600,6 @@ export default function MasterclassDetailPage() {
             </div>
           </div>
 
-          {/* Video List Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sticky top-8">
               <h3 className="text-xl font-bold mb-4">Course Content</h3>
@@ -632,8 +618,8 @@ export default function MasterclassDetailPage() {
                   return (
                     <button
                       key={video.id}
-                      onClick={() => setSelectedVideo(video)}
-                      disabled={isUpcomingNotStarted}
+                      onClick={() => !isUpcomingNotStarted && setSelectedVideo(video)}
+                      disabled={!!isUpcomingNotStarted}
                       className={`w-full text-left p-4 rounded-lg transition ${
                         isSelected
                           ? "bg-indigo-100 dark:bg-indigo-900 border-2 border-indigo-500"
@@ -683,7 +669,6 @@ export default function MasterclassDetailPage() {
         </div>
       </div>
 
-      {/* Payment Modal */}
       {purchasingVideo && (
         <PaymentModal
           isOpen={showPaymentModal}
