@@ -695,20 +695,30 @@ import { db } from "@/lib/firebase";
 import { Transaction } from "@/types/masterclass";
 
 /**
- * Helper: convert undefined fields to null inside a transaction object
+ * ===================================================
+ *  SAFE SANITIZER
+ *  Removes undefined values (Firestore-safe)
+ *  DOES NOT add null anywhere.
+ * ===================================================
  */
-function sanitizeTransactionInput(tx: Partial<Transaction>): Partial<Transaction> {
-  const out: Partial<Transaction> = {};
-  for (const key of Object.keys(tx)) {
-    // @ts-ignore
-    const val = tx[key as keyof Partial<Transaction>];
-    out[key as keyof Partial<Transaction>] = val === undefined ? null : val;
+function sanitizeTransactionInput<T extends object>(obj: Partial<T>): Partial<T> {
+  const out: Partial<T> = {};
+
+  for (const key of Object.keys(obj)) {
+    const val = obj[key as keyof T];
+
+    if (val !== undefined) {
+      out[key as keyof T] = val;
+    }
   }
+
   return out;
 }
 
 /**
- * ✅ UPDATED: Add transaction record with new fields
+ * ===================================================
+ * ADD TRANSACTION
+ * ===================================================
  */
 export async function addTransactionRecord(
   userId: string,
@@ -718,34 +728,33 @@ export async function addTransactionRecord(
     const userRef = doc(db, "user_profiles", userId);
     const userSnap = await getDoc(userRef);
 
-    // Convert undefined -> null for safety
-    const safeTxInput = sanitizeTransactionInput(transaction);
+    const safeTxInput = sanitizeTransactionInput<Transaction>(transaction);
 
     const newTransaction: Transaction = {
-      orderId: (safeTxInput.orderId as string) || `txn_${Date.now()}`,
-      paymentId: (safeTxInput.paymentId as string) ?? null,
-      masterclassId: (safeTxInput.masterclassId as string) ?? "",
-      videoId: (safeTxInput.videoId as string) ?? null,
-      masterclassTitle: (safeTxInput.masterclassTitle as string) ?? "Unknown",
-      videoTitle: (safeTxInput.videoTitle as string) ?? null,
-      amount: (safeTxInput.amount as number) ?? 0,
-      status: (safeTxInput.status as any) ?? "pending",
-      method: (safeTxInput.method as any) ?? "razorpay",
-      type: (safeTxInput.type as any) ?? null,
-      failureReason: (safeTxInput.failureReason as string) ?? null,
-      timestamp: (safeTxInput.timestamp as string) ?? new Date().toISOString(),
+      orderId: safeTxInput.orderId || `txn_${Date.now()}`,
+      paymentId: safeTxInput.paymentId,
+      masterclassId: safeTxInput.masterclassId ?? "",
+      videoId: safeTxInput.videoId,
+      masterclassTitle: safeTxInput.masterclassTitle ?? "Unknown",
+      videoTitle: safeTxInput.videoTitle,
+      amount: safeTxInput.amount ?? 0,
+      status: safeTxInput.status ?? "pending",
+      method: safeTxInput.method ?? "razorpay",
+      type: safeTxInput.type,
+      failureReason: safeTxInput.failureReason,
+      errorCode: safeTxInput.errorCode,
+      timestamp: safeTxInput.timestamp ?? new Date().toISOString(),
+      updatedAt: safeTxInput.updatedAt,
     };
 
     if (userSnap.exists()) {
       const currentTransactions = userSnap.data().transactions || [];
 
-      // ✅ Check for duplicate to prevent double recording
       const duplicate = currentTransactions.find(
         (txn: Transaction) => txn.orderId === newTransaction.orderId
       );
 
       if (!duplicate) {
-        // arrayUnion accepts objects that don't contain undefined (we ensured nulls)
         await updateDoc(userRef, {
           transactions: arrayUnion(newTransaction),
         });
@@ -754,7 +763,6 @@ export async function addTransactionRecord(
         console.log("ℹ️ Transaction already exists:", newTransaction.orderId);
       }
     } else {
-      // Create user profile if doesn't exist, ensuring no undefineds
       await setDoc(userRef, {
         id: userId,
         transactions: [newTransaction],
@@ -771,7 +779,9 @@ export async function addTransactionRecord(
 }
 
 /**
- * ✅ UPDATED: Update transaction status with more details
+ * ===================================================
+ * UPDATE TRANSACTION STATUS
+ * ===================================================
  */
 export async function updateTransactionStatus(
   userId: string,
@@ -782,17 +792,15 @@ export async function updateTransactionStatus(
     const userRef = doc(db, "user_profiles", userId);
     const userSnap = await getDoc(userRef);
 
-    if (!userSnap.exists()) {
-      throw new Error("User not found");
-    }
+    if (!userSnap.exists()) throw new Error("User not found");
 
     const userData = userSnap.data();
     const transactions = userData.transactions || [];
 
+    const safeUpdates = sanitizeTransactionInput(updates);
+
     const updatedTransactions = transactions.map((txn: Transaction) => {
       if (txn.orderId === orderId) {
-        // sanitize updates: convert undefined -> null
-        const safeUpdates = sanitizeTransactionInput(updates);
         return {
           ...txn,
           ...safeUpdates,
@@ -803,6 +811,7 @@ export async function updateTransactionStatus(
     });
 
     await updateDoc(userRef, { transactions: updatedTransactions });
+
     console.log(`✅ Transaction ${orderId} updated`);
   } catch (error) {
     console.error("❌ Error updating transaction:", error);
@@ -811,19 +820,18 @@ export async function updateTransactionStatus(
 }
 
 /**
- * Add masterclass to user's purchased list (guarded)
+ * ===================================================
+ * ADD PURCHASED CLASS
+ * ===================================================
  */
 export async function addPurchasedClass(userId: string, masterclassTitle: string | null) {
   try {
-    if (!masterclassTitle) {
-      console.log("⚠️ addPurchasedClass called with empty title — skipping");
-      return;
-    }
+    if (!masterclassTitle) return;
 
     const userRef = doc(db, "user_profiles", userId);
-    const userSnap = await getDoc(userRef);
+    const snap = await getDoc(userRef);
 
-    if (userSnap.exists()) {
+    if (snap.exists()) {
       await updateDoc(userRef, {
         purchasedClasses: arrayUnion(masterclassTitle),
       });
@@ -831,32 +839,32 @@ export async function addPurchasedClass(userId: string, masterclassTitle: string
       await setDoc(userRef, {
         id: userId,
         purchasedClasses: [masterclassTitle],
-        transactions: [],
         purchasedVideos: [],
+        transactions: [],
         created_at: new Date().toISOString(),
       });
     }
+
     console.log("✅ Masterclass added to purchased list");
-  } catch (error) {
-    console.error("❌ Error adding purchased class:", error);
-    throw error;
+  } catch (e) {
+    console.error("❌ Error adding purchased class:", e);
+    throw e;
   }
 }
 
 /**
- * ✅ NEW: Add individual video to user's purchased videos (guarded)
+ * ===================================================
+ * ADD PURCHASED VIDEO
+ * ===================================================
  */
 export async function addPurchasedVideo(userId: string, videoId: string | null) {
   try {
-    if (!videoId) {
-      console.log("⚠️ addPurchasedVideo called with empty videoId — skipping");
-      return;
-    }
+    if (!videoId) return;
 
     const userRef = doc(db, "user_profiles", userId);
-    const userSnap = await getDoc(userRef);
+    const snap = await getDoc(userRef);
 
-    if (userSnap.exists()) {
+    if (snap.exists()) {
       await updateDoc(userRef, {
         purchasedVideos: arrayUnion(videoId),
       });
@@ -869,15 +877,18 @@ export async function addPurchasedVideo(userId: string, videoId: string | null) 
         created_at: new Date().toISOString(),
       });
     }
+
     console.log("✅ Video added to purchased list");
-  } catch (error) {
-    console.error("❌ Error adding purchased video:", error);
-    throw error;
+  } catch (e) {
+    console.error("❌ Error adding purchased video:", e);
+    throw e;
   }
 }
 
 /**
- * ✅ NEW: Check if user has access to specific video
+ * ===================================================
+ * CHECK VIDEO ACCESS
+ * ===================================================
  */
 export async function hasVideoAccess(
   userId: string,
@@ -885,24 +896,19 @@ export async function hasVideoAccess(
   videoId: string
 ): Promise<boolean> {
   try {
-    // Check if user has full masterclass access
     const masterclassRef = doc(db, "MasterClasses", masterclassId);
-    const masterclassSnap = await getDoc(masterclassRef);
+    const mcSnap = await getDoc(masterclassRef);
 
-    if (masterclassSnap.exists()) {
-      const joinedUsers = masterclassSnap.data().joined_users || [];
-      if (joinedUsers.includes(userId)) {
-        return true; // Full access
-      }
+    if (mcSnap.exists()) {
+      const joinedUsers = mcSnap.data().joined_users || [];
+      if (joinedUsers.includes(userId)) return true;
     }
 
-    // Check if user purchased individual video
     const userRef = doc(db, "user_profiles", userId);
     const userSnap = await getDoc(userRef);
 
     if (userSnap.exists()) {
-      const purchasedVideos = userSnap.data().purchasedVideos || [];
-      return purchasedVideos.includes(videoId);
+      return (userSnap.data().purchasedVideos || []).includes(videoId);
     }
 
     return false;
@@ -913,83 +919,85 @@ export async function hasVideoAccess(
 }
 
 /**
- * ✅ NEW: Get user's transaction history
+ * ===================================================
+ * GET USER TRANSACTIONS
+ * ===================================================
  */
-export async function getUserTransactions(userId: string): Promise<Transaction[]> {
+export async function getUserTransactions(userId: string) {
   try {
     const userRef = doc(db, "user_profiles", userId);
-    const userSnap = await getDoc(userRef);
+    const snap = await getDoc(userRef);
 
-    if (userSnap.exists()) {
-      const transactions = userSnap.data().transactions || [];
-      // Sort by timestamp (newest first)
-      return transactions.sort((a: Transaction, b: Transaction) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-    }
+    if (!snap.exists()) return [];
 
-    return [];
-  } catch (error) {
-    console.error("❌ Error fetching transactions:", error);
+    const transactions: Transaction[] = snap.data().transactions || [];
+
+    return transactions.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  } catch (e) {
+    console.error("❌ Error fetching transactions:", e);
     return [];
   }
 }
 
 /**
- * ✅ NEW: Get transaction by order ID
+ * ===================================================
+ * GET TRANSACTION BY ORDER ID
+ * ===================================================
  */
 export async function getTransactionByOrderId(
   userId: string,
   orderId: string
-): Promise<Transaction | null> {
+) {
   try {
     const userRef = doc(db, "user_profiles", userId);
-    const userSnap = await getDoc(userRef);
+    const snap = await getDoc(userRef);
 
-    if (userSnap.exists()) {
-      const transactions = userSnap.data().transactions || [];
-      return transactions.find((txn: Transaction) => txn.orderId === orderId) || null;
-    }
+    if (!snap.exists()) return null;
 
-    return null;
-  } catch (error) {
-    console.error("❌ Error fetching transaction:", error);
+    return (snap.data().transactions || []).find(
+      (txn: Transaction) => txn.orderId === orderId
+    ) || null;
+  } catch (e) {
+    console.error("❌ Error fetching transaction:", e);
     return null;
   }
 }
 
 /**
- * ✅ NEW: Check if user is registered for upcoming masterclass
+ * ===================================================
+ * CHECK UPCOMING MASTERCLASS REGISTRATION
+ * ===================================================
  */
 export async function isUserRegistered(
   userId: string,
   masterclassId: string
 ): Promise<boolean> {
   try {
-    const masterclassRef = doc(db, "MasterClasses", masterclassId);
-    const masterclassSnap = await getDoc(masterclassRef);
+    const mcRef = doc(db, "MasterClasses", masterclassId);
+    const snap = await getDoc(mcRef);
 
-    if (masterclassSnap.exists()) {
-      const joinedUsers = masterclassSnap.data().joined_users || [];
-      return joinedUsers.includes(userId);
-    }
+    if (!snap.exists()) return false;
 
-    return false;
-  } catch (error) {
-    console.error("❌ Error checking registration:", error);
+    return (snap.data().joined_users || []).includes(userId);
+  } catch (e) {
+    console.error("❌ Error checking registration:", e);
     return false;
   }
 }
 
 /**
- * ✅ NEW: Get user's purchased content summary
+ * ===================================================
+ * USER PURCHASE SUMMARY
+ * ===================================================
  */
 export async function getUserPurchaseSummary(userId: string) {
   try {
     const userRef = doc(db, "user_profiles", userId);
-    const userSnap = await getDoc(userRef);
+    const snap = await getDoc(userRef);
 
-    if (!userSnap.exists()) {
+    if (!snap.exists()) {
       return {
         totalSpent: 0,
         purchasedClasses: [],
@@ -997,27 +1005,26 @@ export async function getUserPurchaseSummary(userId: string) {
         transactionCount: 0,
         successfulPayments: 0,
         failedPayments: 0,
+        recentTransactions: [],
       };
     }
 
-    const userData = userSnap.data();
-    const transactions: Transaction[] = userData.transactions || [];
+    const data = snap.data();
+    const transactions: Transaction[] = data.transactions || [];
 
-    const summary = {
+    return {
       totalSpent: transactions
-        .filter((txn) => txn.status === "success")
-        .reduce((sum, txn) => sum + txn.amount, 0),
-      purchasedClasses: userData.purchasedClasses || [],
-      purchasedVideos: userData.purchasedVideos || [],
+        .filter((t) => t.status === "success")
+        .reduce((sum, t) => sum + t.amount, 0),
+      purchasedClasses: data.purchasedClasses || [],
+      purchasedVideos: data.purchasedVideos || [],
       transactionCount: transactions.length,
-      successfulPayments: transactions.filter((txn) => txn.status === "success").length,
-      failedPayments: transactions.filter((txn) => txn.status === "failed").length,
-      recentTransactions: transactions.slice(0, 5), // Last 5 transactions
+      successfulPayments: transactions.filter((t) => t.status === "success").length,
+      failedPayments: transactions.filter((t) => t.status === "failed").length,
+      recentTransactions: transactions.slice(0, 5),
     };
-
-    return summary;
-  } catch (error) {
-    console.error("❌ Error getting purchase summary:", error);
-    throw error;
+  } catch (e) {
+    console.error("❌ Error getting summary:", e);
+    throw e;
   }
 }
