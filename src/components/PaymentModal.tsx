@@ -1,152 +1,181 @@
-// components/PaymentModal.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { X, CreditCard, Shield, CheckCircle, AlertCircle } from "lucide-react";
 import { PaymentService } from "@/services/paymentService";
-import { Masterclass, MasterclassVideo, TransactionType, PaymentDetails } from "@/types/masterclass";
+import {
+  Masterclass,
+  MasterclassVideo,
+  TransactionType,
+  PaymentDetails,
+} from "@/types/masterclass";
 import toast from "react-hot-toast";
+import { loadRazorpay } from "@/utils/loadRazorpay";
 
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   masterclass: Masterclass;
-  video?: MasterclassVideo; // ✅ Optional: for individual video purchase
+  video?: MasterclassVideo;
   user: any;
-  onPaymentSuccess: (paymentData?: any) => void;
-  videoId?: string; // ✅ Alternative way to pass video ID
+  /** Make optional */
+  onPaymentSuccess?: (paymentData?: any) => void;
+  videoId?: string | null;
 }
 
 export default function PaymentModal({
   isOpen,
   onClose,
   masterclass,
-  video, // ✅ Individual video being purchased
+  video,
   user,
   onPaymentSuccess,
-  videoId: propVideoId, // ✅ Support both ways of passing video ID
+  videoId: propVideoId,
 }: PaymentModalProps) {
   const [processing, setProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"dummy" | "razorpay">("dummy");
-  const [error, setError] = useState<string>("");
+  const [paymentMethod, setPaymentMethod] = useState<"dummy" | "razorpay" | null>(null);
+  const [error, setError] = useState("");
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
 
-  // ✅ Determine what's being purchased
-  const videoIdToUse = video?.id || propVideoId;
+  const videoIdToUse = video?.id || propVideoId || null;
+
   const isVideoPurchase = !!videoIdToUse;
-  const isUpcomingRegistration = masterclass.type === "upcoming";
-  
-  // ✅ Get purchase details
-  const purchaseTitle = isVideoPurchase 
-    ? `${masterclass.title} - ${video?.title || 'Video'}`
-    : masterclass.title;
-  
-  const purchaseAmount = isVideoPurchase 
-    ? (video?.price || 0)
-    : masterclass.starting_price;
+  const isUpcoming = masterclass.type === "upcoming";
 
-  // ✅ Determine transaction type
-  const getTransactionType = () => {
-    if (isUpcomingRegistration && purchaseAmount === 0) return "free_registration";
-    if (isUpcomingRegistration && purchaseAmount > 0) return "upcoming_registration";
+  const purchaseTitle = isVideoPurchase
+    ? `${masterclass.title} - ${video?.title || "Video"}`
+    : masterclass.title;
+
+  const purchaseAmount = isVideoPurchase
+    ? video?.price || 0
+    : masterclass.starting_price || 0;
+
+  const getTransactionType = (): TransactionType => {
+    if (isUpcoming && !isVideoPurchase && purchaseAmount === 0) return "free_registration";
+    if (isUpcoming && !isVideoPurchase && purchaseAmount > 0) return "upcoming_registration";
     if (isVideoPurchase) return "video_purchase";
     return "purchase";
   };
 
   const transactionType = getTransactionType();
 
+  /** Load Razorpay script */
+  useEffect(() => {
+    if (isOpen && purchaseAmount > 0) {
+      loadRazorpay().then((loaded) => setRazorpayLoaded(!!loaded));
+    }
+  }, [isOpen, purchaseAmount]);
+
+  /** Reset on open */
   useEffect(() => {
     if (isOpen) {
       setProcessing(false);
       setError("");
+      setPaymentMethod(purchaseAmount === 0 ? "dummy" : null);
     }
-  }, [isOpen]);
+  }, [isOpen, purchaseAmount]);
 
   if (!isOpen) return null;
 
+  /** MAIN PAYMENT HANDLER */
   const handlePayment = async () => {
     if (!user?.uid) {
       toast.error("Please login to continue");
       return;
     }
 
+    if (purchaseAmount > 0 && !paymentMethod) {
+      setError("Please select a payment method");
+      toast.error("Please select a payment method");
+      return;
+    }
+
     setProcessing(true);
     setError("");
 
-    try {
-      const paymentDetails: PaymentDetails = {
-        amount: purchaseAmount,
-        currency: "INR",
-        masterclassId: masterclass.id,
-        videoId: videoIdToUse, // ✅ Include video ID if purchasing individual video
-        userId: user.uid,
-        email: user.email,
-        phone: user.phone,
-        type: transactionType as TransactionType, // ✅ Add transaction type
-      };
+    const paymentDetails: PaymentDetails = {
+      amount: purchaseAmount,
+      currency: "INR",
+      masterclassId: masterclass.id,
+      videoId: videoIdToUse || null,
+      userId: user.uid,
+      email: user.email || null,
+      phone: user.phone || null,
+      type: transactionType,
+    };
 
-      // ✅ DUMMY PAYMENT: Handle completely with backend verification
-      if (paymentMethod === "dummy") {
-        const dummyOrderId = `dummy_order_${Date.now()}`;
-        const dummyPaymentId = `dummy_pay_${Date.now()}`;
-        
-        try {
-          const verified = await PaymentService.verifyPayment({
-            razorpay_order_id: dummyOrderId,
-            razorpay_payment_id: dummyPaymentId,
-            razorpay_signature: "dummy_signature",
+    /** -------------------------
+     *    DUMMY PAYMENT
+     * ------------------------- */
+    if (paymentMethod === "dummy") {
+      const dummyOrderId = `dummy_${Date.now()}`;
+      const dummyPaymentId = `dummy_pay_${Date.now()}`;
+
+      try {
+        const verified = await PaymentService.verifyPayment({
+          razorpay_order_id: dummyOrderId,
+          razorpay_payment_id: dummyPaymentId,
+          razorpay_signature: "dummy_signature",
+          masterclassId: masterclass.id,
+          videoId: videoIdToUse,
+          userId: user.uid,
+          masterclassTitle: masterclass.title,
+          videoTitle: video?.title || null,
+          amount: purchaseAmount,
+          method: "dummy",
+          type: transactionType,
+        });
+
+        if (!verified) throw new Error("Payment verification failed");
+
+        toast.success(
+          transactionType === "free_registration"
+            ? "Registered successfully!"
+            : transactionType === "upcoming_registration"
+            ? "Registration completed!"
+            : transactionType === "video_purchase"
+            ? "Video unlocked!"
+            : "Payment successful!"
+        );
+
+        /** SAFE CALLBACK */
+        if (typeof onPaymentSuccess === "function") {
+          onPaymentSuccess({
+            orderId: dummyOrderId,
+            paymentId: dummyPaymentId,
             masterclassId: masterclass.id,
-            videoId: videoIdToUse, // ✅ Pass video ID for individual purchase
-            userId: user.uid,
-            masterclassTitle: masterclass.title,
-            videoTitle: video?.title, // ✅ Pass video title
+            videoId: videoIdToUse,
             amount: purchaseAmount,
             method: "dummy",
-            type: transactionType, // ✅ Pass transaction type
+            type: transactionType,
+            timestamp: new Date().toISOString(),
           });
-          
-          if (verified) {
-            const paymentData = {
-              orderId: dummyOrderId,
-              paymentId: dummyPaymentId,
-              masterclassId: masterclass.id,
-              videoId: videoIdToUse,
-              amount: purchaseAmount,
-              method: "dummy",
-              type: transactionType,
-              timestamp: new Date().toISOString(),
-            };
-            
-            // ✅ Different success messages based on type
-            if (isUpcomingRegistration) {
-              toast.success("Registered successfully! Check your email.");
-            } else if (isVideoPurchase) {
-              toast.success("Video purchased successfully!");
-            } else {
-              toast.success("Payment successful!");
-            }
-            
-            onPaymentSuccess(paymentData);
-            setTimeout(onClose, 600);
-          } else {
-            setError("Payment verification failed");
-            toast.error("Payment failed");
-          }
-        } catch (error: any) {
-          console.error("❌ Dummy payment error:", error);
-          setError(error.message || "Dummy payment failed");
-          toast.error("Payment failed");
         }
-        
-        setProcessing(false);
+
+        setTimeout(onClose, 500);
+      } catch (err: any) {
+        setError(err.message || "Dummy payment failed");
+        toast.error(err.message || "Payment failed");
+      }
+
+      setProcessing(false);
+      return;
+    }
+
+    /** -------------------------
+     *     RAZORPAY PAYMENT
+     * ------------------------- */
+    if (paymentMethod === "razorpay") {
+      if (!razorpayLoaded) {
+        setError("Failed to load Razorpay. Please refresh.");
         return;
       }
 
-      // 🔵 RAZORPAY PAYMENT: Use full flow with backend
-      let razorpayOrderId: string | null = null;
-
       await PaymentService.processRazorpayPayment(
         paymentDetails,
-        purchaseTitle, // ✅ Use dynamic title
+        purchaseTitle,
+
+        /** SUCCESS CALLBACK */
         async (response) => {
           try {
             const verified = await PaymentService.verifyPayment({
@@ -154,16 +183,26 @@ export default function PaymentModal({
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               masterclassId: masterclass.id,
-              videoId: videoIdToUse, // ✅ Pass video ID
+              videoId: videoIdToUse,
               userId: user.uid,
               masterclassTitle: masterclass.title,
-              videoTitle: video?.title, // ✅ Pass video title
+              videoTitle: video?.title || null,
               amount: purchaseAmount,
-              type: transactionType, // ✅ Pass transaction type
+              method: "razorpay",
+              type: transactionType,
             });
 
-            if (verified) {
-              const paymentData = {
+            if (!verified) throw new Error("Payment verification failed");
+
+            toast.success(
+              transactionType === "video_purchase"
+                ? "Video unlocked!"
+                : "Payment successful!"
+            );
+
+            /** SAFE CALLBACK */
+            if (typeof onPaymentSuccess === "function") {
+              onPaymentSuccess({
                 orderId: response.razorpay_order_id,
                 paymentId: response.razorpay_payment_id,
                 masterclassId: masterclass.id,
@@ -172,251 +211,204 @@ export default function PaymentModal({
                 method: "razorpay",
                 type: transactionType,
                 timestamp: new Date().toISOString(),
-              };
-              
-              // ✅ Different success messages based on type
-              if (isUpcomingRegistration) {
-                toast.success("Registered successfully! Check your email.");
-              } else if (isVideoPurchase) {
-                toast.success("Video purchased successfully!");
-              } else {
-                toast.success("Payment successful!");
-              }
-              
-              onPaymentSuccess(paymentData);
-              setTimeout(onClose, 600);
-            } else {
-              setError("Payment verification failed");
-              toast.error("Payment verification failed");
+              });
             }
-          } catch (verifyError: any) {
-            console.error("❌ Verification error:", verifyError);
-            setError(verifyError.message || "Payment verification failed");
+
+            setTimeout(onClose, 600);
+          } catch (verifyErr: any) {
+            setError(verifyErr.message || "Verification failed");
             toast.error("Payment verification failed");
           } finally {
             setProcessing(false);
           }
         },
-        async (error, orderId) => {
-          console.error("❌ Razorpay payment error:", error);
-          const errorMessage = error?.error || error?.message || "Payment failed or cancelled";
-          setError(errorMessage);
-          toast.error(errorMessage);
-          
-          if (orderId) {
-            try {
-              await PaymentService.markTransactionAsFailed(
-                user.uid,
-                orderId,
-                errorMessage
-              );
-              console.log("✅ Transaction marked as failed");
-            } catch (markError) {
-              console.error("❌ Failed to mark transaction as failed:", markError);
-            }
-          }
-          
+
+        /** ERROR CALLBACK */
+        async (error) => {
+          const msg = error?.error?.description || "Payment cancelled";
+          setError(msg);
+          toast.error(msg);
           setProcessing(false);
-        },
-        (orderId) => {
-          razorpayOrderId = orderId;
         }
       );
-
-      setTimeout(() => setProcessing(false), 8000);
-    } catch (error: any) {
-      console.error("❌ Payment error:", error);
-      setError(error.message || "Payment failed. Please try again.");
-      toast.error(error.message || "Payment failed. Please try again.");
-      setProcessing(false);
     }
   };
 
   const handleClose = () => {
-    if (processing) setProcessing(false);
-    setError("");
+    if (processing) {
+      toast.error("Please wait…");
+      return;
+    }
     onClose();
   };
 
-  // ✅ Get appropriate labels based on purchase type
   const getHeaderText = () => {
-    if (isUpcomingRegistration) return "Complete Registration";
-    if (isVideoPurchase) return "Purchase Video";
-    return "Complete Your Purchase";
+    switch (transactionType) {
+      case "free_registration":
+        return "Free Registration";
+      case "upcoming_registration":
+        return "Register Now";
+      case "video_purchase":
+        return "Purchase Video";
+      default:
+        return "Complete Purchase";
+    }
   };
 
   const getPurchaseTypeLabel = () => {
-    if (isUpcomingRegistration && purchaseAmount === 0) return "Free Registration";
-    if (isUpcomingRegistration) return "Paid Registration";
-    if (isVideoPurchase) return "Individual Video";
-    return "Full Masterclass";
+    switch (transactionType) {
+      case "free_registration":
+        return "Free Registration";
+      case "upcoming_registration":
+        return "Paid Registration";
+      case "video_purchase":
+        return "Individual Video";
+      default:
+        return "Full Masterclass";
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-        {/* Header */}
+        {/* HEADER */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white relative">
           <button
             onClick={handleClose}
             disabled={processing}
-            className="absolute top-4 right-4 hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="absolute top-4 right-4 hover:bg-white hover:bg-opacity-20 rounded-full p-2"
           >
             <X className="w-5 h-5" />
           </button>
+
           <h2 className="text-2xl font-bold mb-2">{getHeaderText()}</h2>
           <p className="text-blue-100 text-sm">
-            {isUpcomingRegistration 
-              ? "Secure your spot for this upcoming event"
-              : "Secure payment powered by Razorpay"
-            }
+            {purchaseAmount === 0
+              ? "This is a free registration"
+              : "Secure payment powered by Razorpay"}
           </p>
         </div>
 
-        {/* Content */}
+        {/* BODY */}
         <div className="p-6 space-y-6">
-          {/* Purchase Info */}
+          {/* PURCHASE INFO */}
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <div className="mb-2">
-              <span className="inline-block bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 text-xs font-semibold px-2 py-1 rounded mb-2">
-                {getPurchaseTypeLabel()}
-              </span>
-              <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2">
-                {isVideoPurchase ? video?.title : masterclass.title}
-              </h3>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              {isVideoPurchase 
-                ? `Part of: ${masterclass.title}`
-                : `By ${masterclass.speaker_name}`
-              }
-            </p>
-            {isVideoPurchase && video?.duration && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Duration: {video.duration}
+            <span className="inline-block bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 text-xs font-semibold px-2 py-1 rounded mb-2">
+              {getPurchaseTypeLabel()}
+            </span>
+
+            <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2">
+              {isVideoPurchase ? video?.title : masterclass.title}
+            </h3>
+
+            {video && (
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Part of: {masterclass.title}
               </p>
             )}
-            {isUpcomingRegistration && masterclass.scheduled_date && (
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 font-medium">
-                📅 Scheduled: {new Date(masterclass.scheduled_date).toLocaleString()}
+
+            {isUpcoming && masterclass.scheduled_date && (
+              <p className="text-xs mt-2 text-blue-600 dark:text-blue-400 font-medium">
+                📅 Scheduled:{" "}
+                {new Date(masterclass.scheduled_date).toLocaleString()}
               </p>
             )}
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 flex justify-between items-center">
-              <span className="text-gray-600 dark:text-gray-300">
-                {purchaseAmount === 0 ? "Registration" : "Total Amount"}
-              </span>
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">
+
+            <div className="mt-4 pt-4 border-t flex justify-between">
+              <span className="text-gray-600 dark:text-gray-300">Total Amount</span>
+              <span className="text-2xl font-bold">
                 {purchaseAmount === 0 ? "FREE" : `₹${purchaseAmount}`}
               </span>
             </div>
           </div>
 
-          {/* Error Display */}
+          {/* ERROR BOX */}
           {error && (
-            <div className="bg-red-50 dark:bg-red-900 dark:bg-opacity-20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="bg-red-50 dark:bg-red-900 border border-red-300 dark:border-red-800 p-4 rounded-lg flex gap-3">
+              <AlertCircle className="text-red-600 w-5 h-5" />
               <div className="flex-1">
-                <p className="text-sm font-semibold text-red-800 dark:text-red-300">
-                  Payment Error
-                </p>
-                <p className="text-xs text-red-700 dark:text-red-400 mt-1">{error}</p>
+                <p className="font-semibold text-red-700 dark:text-red-300">Payment Error</p>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">{error}</p>
               </div>
-              <button
-                onClick={() => setError("")}
-                className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
-              >
-                <X className="w-4 h-4" />
+              <button onClick={() => setError("")}>
+                <X className="w-4 h-4 text-red-600" />
               </button>
             </div>
           )}
 
-          {/* Payment Method - Only show if amount > 0 */}
+          {/* PAYMENT METHODS */}
           {purchaseAmount > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Select Payment Method
-              </label>
+              <label className="text-sm font-medium mb-3 block">Payment Method *</label>
+
               <div className="space-y-2">
-                {["dummy", "razorpay"].map((method) => (
-                  <button
-                    key={method}
-                    onClick={() => setPaymentMethod(method as "dummy" | "razorpay")}
-                    disabled={processing}
-                    className={`w-full p-4 rounded-lg border-2 transition flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed ${
-                      paymentMethod === method
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-900 dark:bg-opacity-20"
-                        : "border-gray-200 dark:border-gray-600 hover:border-gray-300"
-                    }`}
-                  >
-                    {method === "dummy" ? (
-                      <CreditCard className="w-5 h-5" />
-                    ) : (
-                      <Shield className="w-5 h-5" />
-                    )}
-                    <div className="text-left flex-1">
-                      <div className="font-semibold text-gray-900 dark:text-white">
-                        {method === "dummy" ? "Dummy Payment (Test Mode)" : "Razorpay (Live Mode)"}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {method === "dummy"
-                          ? "For testing purposes only"
-                          : "UPI, Cards, Netbanking & more"}
-                      </div>
-                    </div>
-                    {paymentMethod === method && (
-                      <CheckCircle className="w-5 h-5 text-blue-600" />
-                    )}
-                  </button>
-                ))}
+                {/* Dummy */}
+                <button
+                  onClick={() => setPaymentMethod("dummy")}
+                  disabled={processing}
+                  className={`w-full p-4 rounded-lg border-2 flex items-center gap-3 ${
+                    paymentMethod === "dummy"
+                      ? "border-blue-600 bg-blue-50 dark:bg-blue-900"
+                      : "border-gray-300 dark:border-gray-600"
+                  }`}
+                >
+                  <CreditCard className="w-5 h-5" />
+                  <div className="flex-1 text-left">
+                    <p className="font-semibold">Dummy Payment</p>
+                    <p className="text-xs text-gray-500">For testing only</p>
+                  </div>
+                  {paymentMethod === "dummy" && <CheckCircle className="text-blue-600" />}
+                </button>
+
+                {/* Razorpay */}
+                <button
+                  onClick={() => setPaymentMethod("razorpay")}
+                  disabled={processing || !razorpayLoaded}
+                  className={`w-full p-4 rounded-lg border-2 flex items-center gap-3 ${
+                    paymentMethod === "razorpay"
+                      ? "border-blue-600 bg-blue-50 dark:bg-blue-900"
+                      : "border-gray-300 dark:border-gray-600"
+                  }`}
+                >
+                  <Shield className="w-5 h-5" />
+                  <div className="flex-1 text-left">
+                    <p className="font-semibold">Razorpay</p>
+                    <p className="text-xs text-gray-500">
+                      {razorpayLoaded ? "Pay via UPI / Cards" : "Loading..."}
+                    </p>
+                  </div>
+                  {paymentMethod === "razorpay" && (
+                    <CheckCircle className="text-blue-600" />
+                  )}
+                </button>
               </div>
             </div>
           )}
 
-          {/* Security Info */}
-          <div className="flex items-start gap-3 bg-green-50 dark:bg-green-900 dark:bg-opacity-20 p-4 rounded-lg">
-            <Shield className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-green-800 dark:text-green-300">
-              <p className="font-semibold mb-1">
-                {purchaseAmount === 0 ? "Secure Registration" : "Secure Payment"}
-              </p>
-              <p className="text-xs">
-                {purchaseAmount === 0 
-                  ? "Your information is safe and you'll receive email confirmation."
-                  : "Your payment information is encrypted and secure."
-                }
-              </p>
-            </div>
-          </div>
-
-          {/* Buttons */}
+          {/* ACTION BUTTONS */}
           <div className="flex gap-3">
             <button
               onClick={handleClose}
               disabled={processing}
-              className="flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3 border rounded-lg font-semibold"
             >
               Cancel
             </button>
+
             <button
               onClick={handlePayment}
-              disabled={processing}
-              className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              disabled={processing || (purchaseAmount > 0 && !paymentMethod)}
+              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2"
             >
               {processing ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <div className="animate-spin w-5 h-5 border-b-2 border-white rounded-full"></div>
                   Processing...
                 </>
+              ) : purchaseAmount === 0 ? (
+                "Register"
               ) : (
-                <>
-                  <CreditCard className="w-5 h-5" />
-                  {purchaseAmount === 0 
-                    ? "Complete Registration" 
-                    : isUpcomingRegistration 
-                    ? `Register for ₹${purchaseAmount}`
-                    : `Pay ₹${purchaseAmount}`
-                  }
-                </>
+                `Pay ₹${purchaseAmount}`
               )}
             </button>
           </div>
