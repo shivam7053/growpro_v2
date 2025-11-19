@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from "react";
 import { X, CreditCard, Shield, CheckCircle, AlertCircle } from "lucide-react";
 import { PaymentService } from "@/services/paymentService";
-import { Masterclass, MasterclassVideo } from "@/types/masterclass";
+import { Masterclass, MasterclassVideo, TransactionType } from "@/types/masterclass";
 import toast from "react-hot-toast";
 
 interface PaymentModalProps {
@@ -73,7 +73,7 @@ export default function PaymentModal({
     setError("");
 
     try {
-      const paymentDetails = {
+      const paymentDetails: PaymentDetails = {
         amount: purchaseAmount,
         currency: "INR",
         masterclassId: masterclass.id,
@@ -81,7 +81,7 @@ export default function PaymentModal({
         userId: user.uid,
         email: user.email,
         phone: user.phone,
-        type: transactionType, // ✅ Add transaction type
+        type: transactionType as TransactionType, // ✅ Add transaction type
       };
 
       // ✅ DUMMY PAYMENT: Handle completely with backend verification
