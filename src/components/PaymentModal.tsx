@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from "react";
 import { X, CreditCard, Shield, CheckCircle, AlertCircle } from "lucide-react";
 import { PaymentService } from "@/services/paymentService";
-import { Masterclass, MasterclassVideo, TransactionType } from "@/types/masterclass";
+import { Masterclass, MasterclassVideo, TransactionType, PaymentDetails } from "@/types/masterclass";
 import toast from "react-hot-toast";
 
 interface PaymentModalProps {
