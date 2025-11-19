@@ -38,6 +38,7 @@ export default function MasterclassDetailPage() {
   const [purchasingVideo, setPurchasingVideo] = useState<MasterclassVideo | null>(null);
   const [userPurchasedVideos, setUserPurchasedVideos] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
+  const [paymentModalType, setPaymentModalType] = useState<"video" | "upcoming">("video");
 
   const masterclassId = params.id as string;
 
@@ -136,6 +137,36 @@ export default function MasterclassDetailPage() {
     return userPurchasedVideos.includes(video.id);
   };
 
+  // Refresh masterclass data after purchase
+  const refreshMasterclassData = async () => {
+    if (!masterclassId) return;
+    
+    try {
+      const docRef = doc(db, "MasterClasses", masterclassId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setMasterclass(prev => prev ? { 
+          ...prev, 
+          joined_users: data.joined_users || [] 
+        } : null);
+      }
+
+      // Refresh user purchased videos
+      if (user?.uid) {
+        const userDocRef = doc(db, "user_profiles", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          setUserPurchasedVideos(userData.purchasedVideos || []);
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    }
+  };
+
   // Handle free registration for upcoming
   const handleFreeUpcomingRegistration = async () => {
     if (!user?.uid) return toast.error("Please login to register");
@@ -159,31 +190,8 @@ export default function MasterclassDetailPage() {
         timestamp: new Date().toISOString(),
       });
 
-      // Send registration email
-      try {
-        await fetch("/api/send-registration-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: user.email,
-            masterclassTitle: masterclass!.title,
-            speakerName: masterclass!.speaker_name,
-            scheduledDate: masterclass!.scheduled_date,
-            masterclassId: masterclassId,
-          }),
-        });
-      } catch (emailError) {
-        console.error("Email error:", emailError);
-      }
-
       toast.success("Registered successfully! Check your email.");
-      
-      const docRef = doc(db, "MasterClasses", masterclassId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setMasterclass(prev => prev ? { ...prev, joined_users: data.joined_users || [] } : null);
-      }
+      await refreshMasterclassData();
     } catch (err) {
       console.error("Registration error:", err);
       toast.error("Error processing registration");
@@ -192,111 +200,13 @@ export default function MasterclassDetailPage() {
     }
   };
 
-  // Handle paid registration for upcoming
-  const handlePaidUpcomingRegistration = async () => {
+  // Handle paid registration for upcoming - USE PAYMENT MODAL
+  const handlePaidUpcomingRegistration = () => {
     if (!user?.uid) return toast.error("Please login to register");
     if (userHasAccess) return toast("Already registered!", { icon: "ℹ️" });
-
-    setProcessing(true);
-    try {
-      const orderResponse = await fetch("/api/payment/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: masterclass!.starting_price,
-          masterclassId: masterclassId,
-          userId: user.uid,
-          type: "upcoming_registration",
-        }),
-      });
-
-      const orderData = await orderResponse.json();
-      
-      if (!orderData.success) {
-        throw new Error(orderData.error || "Failed to create order");
-      }
-
-      const razorpay = new (window as any).Razorpay({
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: orderData.amount,
-        currency: "INR",
-        name: "Masterclass Registration",
-        description: masterclass!.title,
-        order_id: orderData.orderId,
-        handler: async function (response: any) {
-          const verifyResponse = await fetch("/api/payment/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              masterclassId: masterclassId,
-              userId: user.uid,
-              type: "upcoming_registration",
-              amount: masterclass!.starting_price,
-              masterclassTitle: masterclass!.title,
-            }),
-          });
-
-          const verifyData = await verifyResponse.json();
-
-          if (verifyData.success) {
-            toast.success("Registration successful! Check your email.");
-            
-            const docRef = doc(db, "MasterClasses", masterclassId);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-              const data = docSnap.data();
-              setMasterclass(prev => prev ? { ...prev, joined_users: data.joined_users || [] } : null);
-            }
-          } else {
-            toast.error("Payment verification failed");
-          }
-        },
-        modal: {
-          ondismiss: async function() {
-            await fetch("/api/payment/mark-failed", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userId: user.uid,
-                orderId: orderData.orderId,
-                failureReason: "Payment modal dismissed by user",
-              }),
-            });
-            toast.error("Payment cancelled");
-          },
-        },
-        prefill: {
-          name: user.displayName || user.email,
-          email: user.email,
-          contact: (user as any).phone || user.phoneNumber || "",
-        },
-        theme: { color: "#3B82F6" },
-      });
-
-      razorpay.on('payment.failed', async function (response: any) {
-        await fetch("/api/payment/mark-failed", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.uid,
-            orderId: orderData.orderId,
-            failureReason: response.error.description,
-            errorCode: response.error.code,
-          }),
-        });
-        toast.error(`Payment failed: ${response.error.description}`);
-      });
-
-      razorpay.open();
-    } catch (err) {
-      console.error("Payment error:", err);
-      toast.error("Error initiating payment");
-    } finally {
-      setProcessing(false);
-    }
+    
+    setPaymentModalType("upcoming");
+    setShowPaymentModal(true);
   };
 
   const handleEnrollFree = async (video: MasterclassVideo) => {
@@ -323,13 +233,7 @@ export default function MasterclassDetailPage() {
       });
 
       toast.success("Enrolled successfully!");
-      
-      const docRef = doc(db, "MasterClasses", masterclassId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setMasterclass(prev => prev ? { ...prev, joined_users: data.joined_users || [] } : null);
-      }
+      await refreshMasterclassData();
     } catch (err) {
       console.error("Enrollment error:", err);
       toast.error("Error processing enrollment");
@@ -339,33 +243,17 @@ export default function MasterclassDetailPage() {
   const handleEnrollPaid = (video: MasterclassVideo) => {
     if (!user?.uid) return toast.error("Please login to enroll");
     if (userHasVideoAccess(video)) return toast("Already enrolled!", { icon: "ℹ️" });
+    
     setPurchasingVideo(video);
+    setPaymentModalType("video");
     setShowPaymentModal(true);
   };
 
-  const handlePaymentSuccess = async (paymentResponse?: any) => {
-    if (!user?.uid || !purchasingVideo) return;
-
-    try {
-      const userRef = doc(db, "user_profiles", user.uid);
-      await updateDoc(userRef, {
-        purchasedVideos: arrayUnion(purchasingVideo.id),
-      });
-
-      toast.success("Purchase successful!");
-      setShowPaymentModal(false);
-      setPurchasingVideo(null);
-
-      const userDocRef = doc(db, "user_profiles", user.uid);
-      const userDocSnap = await getDoc(userDocRef);
-      if (userDocSnap.exists()) {
-        const userData = userDocSnap.data();
-        setUserPurchasedVideos(userData.purchasedVideos || []);
-      }
-    } catch (err) {
-      console.error("Payment success handling error:", err);
-      toast.error("Error updating enrollment");
-    }
+  const handlePaymentSuccess = async () => {
+    toast.success("Purchase successful!");
+    setShowPaymentModal(false);
+    setPurchasingVideo(null);
+    await refreshMasterclassData();
   };
 
   if (loading) {
@@ -669,7 +557,8 @@ export default function MasterclassDetailPage() {
         </div>
       </div>
 
-      {purchasingVideo && (
+      {/* PAYMENT MODAL - handles both video purchases and upcoming registrations */}
+      {showPaymentModal && masterclass && (
         <PaymentModal
           isOpen={showPaymentModal}
           onClose={() => {
@@ -677,9 +566,11 @@ export default function MasterclassDetailPage() {
             setPurchasingVideo(null);
           }}
           masterclass={masterclass}
-          video={purchasingVideo}
+          video={paymentModalType === "video" ? purchasingVideo : undefined}
           user={user}
-          onPaymentSuccess={handlePaymentSuccess}
+          purchaseType={paymentModalType === "upcoming" ? "upcoming_registration" : "video"}
+          amount={paymentModalType === "upcoming" ? masterclass.starting_price : purchasingVideo?.price}
+          onPurchaseSuccess={handlePaymentSuccess}
         />
       )}
     </div>
