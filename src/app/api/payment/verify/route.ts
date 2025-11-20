@@ -1,45 +1,87 @@
+// app/api/payment/verify/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { doc, updateDoc, arrayUnion, setDoc, getDoc } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   addPurchasedClass,
   addPurchasedVideo,
   addTransactionRecord,
+  updateTransactionStatus,
 } from "@/utils/userUtils";
 
-/* ---------------------------------------------------------
-   Helper: Convert undefined → null before storing in Firestore
-   (keeps Firestore safe; storage expects nulls for missing)
---------------------------------------------------------- */
-function sanitizeTx(tx: any) {
-  const out: any = {};
-  for (const key of Object.keys(tx || {})) {
-    const val = tx[key];
-    out[key] = val === undefined ? null : val;
-  }
-  return out;
-}
+// 🔥 Base URL Fix
+const BASE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  process.env.BASE_URL ||
+  "http://localhost:3000";
+
+console.log("BASE_URL:", BASE_URL);
+
 
 /* ---------------------------------------------------------
-   Send Registration Email (For upcoming masterclass)
+   Helper: Send Registration Email
 --------------------------------------------------------- */
-async function sendRegistrationEmail(email: string, masterclass: any) {
+async function sendRegistrationEmail(
+  email: string,
+  userName: string,
+  masterclass: any,
+  masterclassId: string
+) {
   try {
-    await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/send-registration-email`, {
+    await fetch(`${BASE_URL}/api/send-registration-email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email,
-        masterclassId: masterclass.id,
+        userName,
         masterclassTitle: masterclass.title,
         speakerName: masterclass.speaker_name,
         scheduledDate: masterclass.scheduled_date,
+        masterclassId,
       }),
     });
-    console.log("📧 Registration email sent");
+    console.log("✅ Registration email sent");
   } catch (err) {
-    console.error("⚠️ Failed to send registration email:", err);
+    console.error("❌ Registration email error:", err);
+  }
+}
+
+/* ---------------------------------------------------------
+   Helper: Send Purchase Confirmation Email
+--------------------------------------------------------- */
+async function sendPurchaseConfirmationEmail(
+  email: string,
+  userName: string,
+  orderId: string,
+  paymentId: string,
+  masterclassId: string,
+  masterclassTitle: string,
+  videoId: string | null,
+  videoTitle: string | null,
+  amount: number,
+  purchaseType: "video" | "upcoming_registration" | "masterclass"
+) {
+  try {
+    await fetch(`${BASE_URL}/api/send-purchase-confirmation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        userName,
+        masterclassTitle,
+        videoTitle,
+        amount,
+        orderId,
+        paymentId,
+        masterclassId,
+        videoId,
+        purchaseType,
+      }),
+    });
+    console.log("✅ Purchase confirmation email sent");
+  } catch (err) {
+    console.error("❌ Purchase confirmation email error:", err);
   }
 }
 
@@ -59,6 +101,7 @@ export async function POST(req: NextRequest) {
       videoId,
       userId,
       masterclassTitle,
+      videoTitle,
       amount,
       method = "razorpay",
       type = "purchase",
@@ -70,23 +113,27 @@ export async function POST(req: NextRequest) {
     if (razorpay_order_id?.startsWith("dummy_")) {
       console.log("🧩 Dummy payment detected");
 
+      // Get user data
       const userRef = doc(db, "user_profiles", userId);
-      const snap = await getDoc(userRef);
-      const existing = snap.exists() ? snap.data().transactions || [] : [];
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.exists() ? userSnap.data() : null;
+      const userEmail = userData?.email;
+      const userName = userData?.name || userData?.displayName || "";
+
+      const existing = userSnap.exists() ? userData?.transactions || [] : [];
 
       const alreadyExists = existing.some(
         (t: any) => t.orderId === razorpay_order_id
       );
 
       if (!alreadyExists) {
-        // Use undefined for optional fields — userUtils will convert for storage.
         await addTransactionRecord(userId, {
           orderId: razorpay_order_id,
           paymentId: razorpay_payment_id ?? `dummy_${Date.now()}`,
           masterclassId: masterclassId ?? undefined,
           videoId: videoId ?? undefined,
           masterclassTitle: masterclassTitle ?? "Dummy Masterclass",
-          videoTitle: undefined,
+          videoTitle: videoTitle ?? undefined,
           amount: amount ?? 0,
           status: "success",
           type,
@@ -95,17 +142,67 @@ export async function POST(req: NextRequest) {
         });
         console.log("✅ Dummy transaction recorded");
       } else {
-        console.log("ℹ️ Dummy transaction already exists — skipping creation");
+        console.log("ℹ️ Dummy transaction already exists");
       }
 
-      /* Enroll user or give access */
+      // Grant access
       if (videoId) {
         await addPurchasedVideo(userId, videoId);
         console.log("✅ User granted video access (dummy)");
-      } else if (masterclassTitle || masterclassId) {
-        // prefer masterclassTitle if provided, else fallback handled inside util
-        await addPurchasedClass(userId, masterclassTitle ?? null);
-        console.log("✅ User enrolled in masterclass (dummy)");
+      } else if (masterclassId) {
+        const mcRef = doc(db, "MasterClasses", masterclassId);
+        const mcSnap = await getDoc(mcRef);
+        
+        if (mcSnap.exists()) {
+          const mcData = mcSnap.data();
+          const already = (mcData.joined_users || []).includes(userId);
+          
+          if (!already) {
+            await updateDoc(mcRef, { joined_users: arrayUnion(userId) });
+            console.log("✅ User added to masterclass (dummy)");
+          }
+          
+          await addPurchasedClass(userId, mcData.title ?? null);
+        }
+      }
+
+      // Send emails (only for paid purchases)
+      if (amount > 0 && userEmail) {
+        const mcRef = doc(db, "MasterClasses", masterclassId);
+        const mcSnap = await getDoc(mcRef);
+        const mcData = mcSnap.exists() ? mcSnap.data() : null;
+
+        // Determine purchase type
+        const isUpcoming = mcData?.type === "upcoming";
+        const purchaseType = videoId 
+          ? "video" 
+          : isUpcoming 
+            ? "upcoming_registration" 
+            : "masterclass";
+
+        // Send purchase confirmation
+        await sendPurchaseConfirmationEmail(
+          userEmail,
+          userName,
+          razorpay_order_id,
+          razorpay_payment_id,
+          masterclassId,
+          masterclassTitle || mcData?.title || "Unknown",
+          videoId,
+          videoTitle ?? null,
+          amount,
+          purchaseType
+        );
+
+        // Send registration email for upcoming events
+        if (isUpcoming && !videoId) {
+          await sendRegistrationEmail(
+            userEmail,
+            userName,
+            mcData,
+            masterclassId
+          );
+        }
       }
 
       return NextResponse.json({
@@ -143,24 +240,11 @@ export async function POST(req: NextRequest) {
     if (generatedSignature !== razorpay_signature) {
       console.error("❌ Invalid Razorpay signature");
 
-      const userRef = doc(db, "user_profiles", userId);
-      const snap = await getDoc(userRef);
-
-      if (snap.exists()) {
-        const txs = snap.data().transactions || [];
-        const updated = txs.map((t: any) =>
-          t.orderId === razorpay_order_id
-            ? sanitizeTx({
-                ...t,
-                status: "failed",
-                failureReason: "Invalid payment signature",
-                updatedAt: new Date().toISOString(),
-              })
-            : sanitizeTx(t)
-        );
-
-        await updateDoc(userRef, { transactions: updated });
-      }
+      await updateTransactionStatus(userId, razorpay_order_id, {
+        status: "failed",
+        failureReason: "Invalid payment signature",
+        updatedAt: new Date().toISOString(),
+      });
 
       return NextResponse.json(
         { success: false, error: "Invalid Razorpay signature" },
@@ -168,11 +252,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("✅ Signature OK");
+    console.log("✅ Signature verified");
 
     /* ---------------------------------------------------------
-       4. Fetch masterclass data
+       4. Get user and masterclass data
     --------------------------------------------------------- */
+    const userRef = doc(db, "user_profiles", userId);
+    const userSnap = await getDoc(userRef);
+    const userData = userSnap.exists() ? userSnap.data() : null;
+    const userEmail = userData?.email;
+    const userName = userData?.name || userData?.displayName || "";
+
     const mcRef = doc(db, "MasterClasses", masterclassId);
     const mcSnap = await getDoc(mcRef);
 
@@ -183,78 +273,82 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const mc = mcSnap.data();
-    let selectedVideoTitle: string | undefined = undefined;
+    const mcData = mcSnap.data();
+    let selectedVideoTitle: string | undefined = videoTitle;
 
     /* ---------------------------------------------------------
        5. Video purchase OR Full class enrollment
     --------------------------------------------------------- */
     if (videoId) {
-      const video = mc.videos?.find((v: any) => v.id === videoId);
-      if (video) selectedVideoTitle = video.title;
-
-      await addPurchasedVideo(userId, videoId);
-      console.log("🎬 Video added to user access");
-    } else {
-      const already = (mc.joined_users || []).includes(userId);
-      if (!already) {
-        await updateDoc(mcRef, { joined_users: arrayUnion(userId) });
-        console.log("✅ User added to masterclass joined_users");
-      } else {
-        console.log("ℹ️ User already in joined_users");
+      // Video purchase
+      const video = mcData.videos?.find((v: any) => v.id === videoId);
+      if (video && !selectedVideoTitle) {
+        selectedVideoTitle = video.title;
       }
 
-      await addPurchasedClass(userId, mc.title ?? null);
-      console.log("🎓 Full masterclass access added");
-    }
-
-    /* ---------------------------------------------------------
-       6. Update transaction → success
-    --------------------------------------------------------- */
-    const userRef = doc(db, "user_profiles", userId);
-    const snap = await getDoc(userRef);
-
-    if (snap.exists()) {
-      const txs = snap.data().transactions || [];
-      const updated = txs.map((t: any) =>
-        t.orderId === razorpay_order_id
-          ? sanitizeTx({
-              ...t,
-              paymentId: razorpay_payment_id ?? undefined,
-              status: "success",
-              type: type ?? undefined,
-              videoTitle: selectedVideoTitle ?? undefined,
-              updatedAt: new Date().toISOString(),
-            })
-          : sanitizeTx(t)
-      );
-
-      await updateDoc(userRef, { transactions: updated });
-      console.log("✅ Transaction updated to success");
+      await addPurchasedVideo(userId, videoId);
+      console.log("🎬 Video access granted");
     } else {
-      // If user doc missing (unlikely), create a safe transaction record
-      await addTransactionRecord(userId, {
-        orderId: razorpay_order_id,
-        paymentId: razorpay_payment_id ?? undefined,
-        masterclassId,
-        videoId: videoId ?? undefined,
-        masterclassTitle: masterclassTitle ?? mc.title ?? "Unknown",
-        videoTitle: selectedVideoTitle ?? undefined,
-        amount: amount ?? 0,
-        status: "success",
-        type,
-        method,
-        timestamp: new Date().toISOString(),
-      });
-      console.log("✅ User doc missing — created transaction record");
+      // Full masterclass purchase
+      const already = (mcData.joined_users || []).includes(userId);
+      
+      if (!already) {
+        await updateDoc(mcRef, { joined_users: arrayUnion(userId) });
+        console.log("✅ User added to masterclass");
+      }
+
+      await addPurchasedClass(userId, mcData.title ?? null);
+      console.log("🎓 Full masterclass access granted");
     }
 
     /* ---------------------------------------------------------
-       7. Email for upcoming masterclass
+       6. Update transaction to success
     --------------------------------------------------------- */
-    if (type === "upcoming_registration" && mc.type === "upcoming") {
-      const email = snap.data()?.email;
-      if (email) await sendRegistrationEmail(email, { ...mc, id: masterclassId });
+    await updateTransactionStatus(userId, razorpay_order_id, {
+      paymentId: razorpay_payment_id,
+      status: "success",
+      type: type ?? undefined,
+      videoTitle: selectedVideoTitle ?? undefined,
+      updatedAt: new Date().toISOString(),
+    });
+    console.log("✅ Transaction updated to success");
+
+    /* ---------------------------------------------------------
+       7. Send emails
+    --------------------------------------------------------- */
+    if (userEmail) {
+      const isUpcoming = mcData.type === "upcoming";
+      const purchaseType = videoId 
+        ? "video" 
+        : isUpcoming 
+          ? "upcoming_registration" 
+          : "masterclass";
+
+      // Always send purchase confirmation for paid purchases
+      if (amount > 0) {
+        await sendPurchaseConfirmationEmail(
+          userEmail,
+          userName,
+          razorpay_order_id,
+          razorpay_payment_id,
+          masterclassId,
+          masterclassTitle || mcData.title,
+          videoId,
+          selectedVideoTitle ?? null, 
+          amount,
+          purchaseType
+        );
+      }
+
+      // Send registration email for upcoming events (full purchase only)
+      if (isUpcoming && !videoId) {
+        await sendRegistrationEmail(
+          userEmail,
+          userName,
+          mcData,
+          masterclassId
+        );
+      }
     }
 
     return NextResponse.json({
@@ -266,7 +360,7 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error("❌ Payment verify error:", err);
     return NextResponse.json(
-      { success: false, error: err.message, stack: err.stack },
+      { success: false, error: err.message },
       { status: 500 }
     );
   }

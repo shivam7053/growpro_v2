@@ -38,8 +38,14 @@ export interface PaymentDetails {
   userId: string;
   email?: string;
   phone?: string;
-  type?: TransactionType; // ✅ NEW
+
+  // Required by PaymentService
+  masterclassTitle: string;      // ⭐ Needed for email + DB + verify API
+  videoTitle?: string;           // ⭐ Needed for video purchases
+
+  type?: TransactionType;        // Existing
 }
+
 
 export interface PaymentResponse {
   success: boolean;
@@ -65,7 +71,7 @@ export interface Transaction {
   videoTitle?: string; // ✅ For individual video purchases
   amount: number;
   status: "pending" | "success" | "failed";
-  method: "razorpay" | "dummy";
+  method: "razorpay" | "dummy" | "free";
   type?: TransactionType; // ✅ NEW: Transaction type
   failureReason?: string;
   errorCode?: string; // ✅ NEW: Razorpay error code

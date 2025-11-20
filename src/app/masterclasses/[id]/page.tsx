@@ -39,6 +39,9 @@ export default function MasterclassDetailPage() {
   const [userPurchasedVideos, setUserPurchasedVideos] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
   const [paymentModalType, setPaymentModalType] = useState<"video" | "upcoming">("video");
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+  // console.log("BASE URL:", process.env.NEXT_PUBLIC_BASE_URL);
+
 
   const masterclassId = params.id as string;
 
@@ -107,7 +110,6 @@ export default function MasterclassDetailPage() {
         if (mc.videos.length > 0) {
           const userHasFullAccess = user?.uid && mc.joined_users?.includes(user.uid);
           
-          // Find first accessible video
           const firstAccessible = mc.videos.find(v => 
             v.type === "free" || 
             userHasFullAccess || 
@@ -185,10 +187,30 @@ export default function MasterclassDetailPage() {
         masterclassTitle: masterclass!.title,
         amount: 0,
         status: "success",
-        method: "dummy",
+        method: "free",
         type: "free_registration",
         timestamp: new Date().toISOString(),
       });
+
+      // Send registration confirmation email
+      try {
+        await fetch(`${BASE_URL}/api/send-registration-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user.email,
+            userName: user.displayName || user.email?.split('@')[0],
+            masterclassTitle: masterclass!.title,
+            speakerName: masterclass!.speaker_name,
+            scheduledDate: masterclass!.scheduled_date,
+            masterclassId: masterclassId,
+          }),
+        });
+        console.log("✅ Registration email sent");
+      } catch (emailError) {
+        console.error("❌ Email error:", emailError);
+        // Don't fail registration if email fails
+      }
 
       toast.success("Registered successfully! Check your email.");
       await refreshMasterclassData();
@@ -200,7 +222,7 @@ export default function MasterclassDetailPage() {
     }
   };
 
-  // Handle paid registration for upcoming - USE PAYMENT MODAL
+  // Handle paid registration - opens payment modal
   const handlePaidUpcomingRegistration = () => {
     if (!user?.uid) return toast.error("Please login to register");
     if (userHasAccess) return toast("Already registered!", { icon: "ℹ️" });
@@ -227,12 +249,34 @@ export default function MasterclassDetailPage() {
         videoTitle: video.title,
         amount: 0,
         status: "success",
-        method: "dummy",
+        method: "free",
         type: "purchase",
         timestamp: new Date().toISOString(),
       });
 
-      toast.success("Enrolled successfully!");
+      // Send purchase confirmation email
+      try {
+        await fetch(`${BASE_URL}/api/send-purchase-confirmation`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user.email,
+            userName: user.displayName || user.email?.split('@')[0],
+            masterclassTitle: masterclass!.title,
+            videoTitle: video.title,
+            amount: 0,
+            orderId: "free_video_" + Date.now(),
+            masterclassId: masterclassId,
+            videoId: video.id,
+            purchaseType: "video",
+          }),
+        });
+        console.log("✅ Purchase confirmation email sent");
+      } catch (emailError) {
+        console.error("❌ Email error:", emailError);
+      }
+
+      toast.success("Enrolled successfully! Check your email.");
       await refreshMasterclassData();
     } catch (err) {
       console.error("Enrollment error:", err);
@@ -250,7 +294,7 @@ export default function MasterclassDetailPage() {
   };
 
   const handlePaymentSuccess = async () => {
-    toast.success("Purchase successful!");
+    toast.success("Purchase successful! Check your email for confirmation.");
     setShowPaymentModal(false);
     setPurchasingVideo(null);
     await refreshMasterclassData();
@@ -336,7 +380,7 @@ export default function MasterclassDetailPage() {
                 {userHasAccess && (
                   <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
                     <CheckCircle className="w-5 h-5" />
-                    <span className="font-semibold">You're registered! We'll send you the join link.</span>
+                    <span className="font-semibold">You're registered! We'll send you reminder emails.</span>
                   </div>
                 )}
               </div>
@@ -557,7 +601,7 @@ export default function MasterclassDetailPage() {
         </div>
       </div>
 
-      {/* PAYMENT MODAL - handles both video purchases and upcoming registrations */}
+      {/* PAYMENT MODAL */}
       {showPaymentModal && masterclass && (
         <PaymentModal
           isOpen={showPaymentModal}
@@ -566,7 +610,8 @@ export default function MasterclassDetailPage() {
             setPurchasingVideo(null);
           }}
           masterclass={masterclass}
-          video={paymentModalType === "video" ? purchasingVideo : undefined}
+          video={paymentModalType === "video" ? purchasingVideo || undefined : undefined}
+
           user={user}
           purchaseType={paymentModalType === "upcoming" ? "upcoming_registration" : "video"}
           amount={paymentModalType === "upcoming" ? masterclass.starting_price : purchasingVideo?.price}
