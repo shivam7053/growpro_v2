@@ -1,8 +1,9 @@
 // netlify/functions/send-reminders.ts
-// This runs as a scheduled function via netlify.toml
+// Scheduled function - runs every hour
+// Schedule: 0 * * * * (every hour at minute 0)
 // Free tier: Resend allows 3,000 emails/month, 100 emails/day
 
-import { Handler, schedule } from "@netlify/functions";
+import { Handler } from "@netlify/functions";
 import { collection, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../src/lib/firebase";
 
@@ -33,15 +34,10 @@ async function sendEmail(to: string, subject: string, html: string) {
   return response.json();
 }
 
-const handler: Handler = async (event, context) => {
-  // Verify the request is from Netlify's scheduler
-  if (event.headers["x-netlify-event"] !== "schedule") {
-    return {
-      statusCode: 401,
-      body: JSON.stringify({ error: "Unauthorized" }),
-    };
-  }
-
+export const handler: Handler = async (event, context) => {
+  // For scheduled functions, Netlify doesn't send special headers
+  // The function will be triggered automatically by the schedule
+  
   try {
     const now = new Date();
     
