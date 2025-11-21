@@ -3,7 +3,7 @@
 // Schedule: 0 * * * * (every hour at minute 0)
 // Free tier: Resend allows 3,000 emails/month, 100 emails/day
 
-import { Handler } from "@netlify/functions";
+import { Handler,schedule } from "@netlify/functions";
 import { collection, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../src/lib/firebase";
 
@@ -34,7 +34,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   return response.json();
 }
 
-export const handler: Handler = async (event, context) => {
+const mainHandler: Handler = async (event, context) => {
   // For scheduled functions, Netlify doesn't send special headers
   // The function will be triggered automatically by the schedule
   
@@ -470,4 +470,4 @@ async function send2HourReminder(
 }
 
 // Schedule to run every hour
-export const handler = schedule("0 * * * *", handler);
+export const handler = schedule("0 * * * *", mainHandler);
