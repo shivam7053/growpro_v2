@@ -15,11 +15,29 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# Initialize Firebase Admin
-firebase_config = json.loads(os.getenv('FIREBASE_SERVICE_ACCOUNT'))
-cred = credentials.Certificate(firebase_config)
-firebase_admin.initialize_app(cred)
-db = firestore.client()
+# Email configuration
+EMAIL_USER = os.getenv('EMAIL_USER')
+EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
+NEXT_PUBLIC_BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL')
+CRON_SECRET = os.getenv('CRON_SECRET')
+
+# Initialize Firebase Admin with lazy loading
+db = None
+
+def get_db():
+    """Lazy load Firestore client"""
+    global db
+    if db is None:
+        try:
+            if not firebase_admin._apps:
+                firebase_config = json.loads(os.getenv('FIREBASE_SERVICE_ACCOUNT'))
+                cred = credentials.Certificate(firebase_config)
+                firebase_admin.initialize_app(cred)
+            db = firestore.client()
+        except Exception as e:
+            print(f"Error initializing Firebase: {str(e)}")
+            raise
+    return db
 
 # Email configuration
 EMAIL_USER = os.getenv('EMAIL_USER')
@@ -50,7 +68,11 @@ def send_email(to_email, subject, html_content):
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
-    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
+    return jsonify({
+        "status": "healthy", 
+        "timestamp": datetime.now().isoformat(),
+        "service": "email-service"
+    })
 
 @app.route('/api/cron/send-reminders', methods=['GET'])
 def send_reminders():
@@ -61,6 +83,7 @@ def send_reminders():
         return jsonify({"error": "Unauthorized"}), 401
     
     try:
+        db = get_db()  # Lazy load database
         now = datetime.now()
         
         # Define time windows for reminders
