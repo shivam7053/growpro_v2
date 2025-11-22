@@ -46,24 +46,45 @@ NEXT_PUBLIC_BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL')
 CRON_SECRET = os.getenv('CRON_SECRET')
 
 def send_email(to_email, subject, html_content):
-    """Send email using SMTP"""
-    try:
-        msg = MIMEMultipart('alternative')
-        msg['From'] = f'"GrowPro" <{EMAIL_USER}>'
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        
-        html_part = MIMEText(html_content, 'html')
-        msg.attach(html_part)
-        
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(EMAIL_USER, EMAIL_PASSWORD)
-            server.send_message(msg)
-        
-        return True
-    except Exception as e:
-        print(f"Error sending email: {str(e)}")
-        return False
+    """Send email using SMTP with retry logic"""
+    max_retries = 3
+    retry_delay = 2
+    
+    for attempt in range(max_retries):
+        try:
+            msg = MIMEMultipart('alternative')
+            msg['From'] = f'"GrowPro" <{EMAIL_USER}>'
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            
+            html_part = MIMEText(html_content, 'html')
+            msg.attach(html_part)
+            
+            # Try SMTP_SSL first (port 465)
+            try:
+                with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=30) as server:
+                    server.login(EMAIL_USER, EMAIL_PASSWORD)
+                    server.send_message(msg)
+                return True
+            except Exception as ssl_error:
+                print(f"SMTP_SSL failed: {ssl_error}, trying STARTTLS...")
+                # Fallback to STARTTLS (port 587)
+                with smtplib.SMTP('smtp.gmail.com', 587, timeout=30) as server:
+                    server.starttls()
+                    server.login(EMAIL_USER, EMAIL_PASSWORD)
+                    server.send_message(msg)
+                return True
+                
+        except Exception as e:
+            print(f"Error sending email (attempt {attempt + 1}/{max_retries}): {str(e)}")
+            if attempt < max_retries - 1:
+                import time
+                time.sleep(retry_delay)
+            else:
+                print(f"Failed to send email after {max_retries} attempts")
+                return False
+    
+    return False
 
 @app.route('/health', methods=['GET'])
 def health_check():
