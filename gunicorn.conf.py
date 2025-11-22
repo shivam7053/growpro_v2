@@ -9,7 +9,8 @@ backlog = 2048
 workers = 2  # Reduced from default for better resource usage
 worker_class = 'sync'
 worker_connections = 1000
-timeout = 120  # Increased timeout to allow for Firebase initialization
+timeout = 300  # 5 minutes - enough for cron jobs processing multiple emails
+graceful_timeout = 30
 keepalive = 5
 
 # Restart workers after this many requests to prevent memory leaks
