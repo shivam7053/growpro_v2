@@ -1,32 +1,34 @@
 // types/masterclass.ts
 // ✅ UPDATED WITH NEW TRANSACTION FIELDS
 
-export interface MasterclassVideo {
-  id: string;
-  title: string;
-  youtube_url: string;
-  duration?: string;
-  order: number;
-  type: "free" | "paid";
-  price: number;
-  description?: string;
-}
+// export interface MasterclassVideo {
+//   id: string;
+//   title: string;
+//   youtube_url: string;
+//   duration?: string;
+//   order: number;
+//   type: "free" | "paid";
+//   price: number;
+//   description?: string;
+// }
 
-export interface Masterclass {
-  id: string;
-  title: string;
-  speaker_name: string;
-  speaker_designation: string;
-  thumbnail_url?: string;
-  description?: string;
-  type: "free" | "paid" | "featured" | "upcoming";
-  scheduled_date?: string;
-  created_at: string;
-  videos: MasterclassVideo[];
-  joined_users: string[];
-  starting_price: number;
-  total_duration?: string;
-}
+// export interface Masterclass {
+//   id: string;
+//   title: string;
+//   speaker_name: string;
+//   speaker_designation: string;
+//   thumbnail_url?: string;
+//   description?: string;
+//   type: "free" | "paid" | "featured" | "upcoming";
+//   scheduled_date?: string;
+//   created_at: string;
+//   videos: MasterclassVideo[];
+//   joined_users: string[];
+//   starting_price: number;
+//   total_duration?: string;
+// }
+
+// types/masterclass.ts
 
 export type FilterType = "all" | "free" | "paid" | "featured" | "enrolled" | "upcoming";
 
@@ -140,4 +142,45 @@ export interface Registration {
   attended?: boolean; // Track if user attended
   rating?: number; // Post-event rating
   feedback?: string; // Post-event feedback
+}
+
+export interface MasterclassVideo {
+  id: string;
+  title: string;
+  youtube_url: string;
+  duration?: string;
+  order: number;
+  type: "free" | "paid";
+  price: number;
+  description?: string;
+}
+
+// ⭐ ADD: Masterclass can be from YouTube OR Zoom
+export type MasterclassSource = "youtube" | "zoom";
+
+export interface Masterclass {
+  id: string;
+  title: string;
+  speaker_name: string;
+  speaker_designation: string;
+  thumbnail_url?: string;
+  description?: string;
+  type: "free" | "paid" | "featured" | "upcoming";
+
+  // ⭐ ADDED: YouTube or Zoom
+  masterclass_source?: MasterclassSource;
+
+  // ⭐ ADDED: Zoom info (only used when masterclass_source = "zoom")
+  zoom_link?: string;
+  zoom_meeting_id?: string;
+  zoom_passcode?: string;
+  zoom_start_time?: string;
+  zoom_end_time?: string;
+
+  scheduled_date?: string;
+  created_at: string;
+  videos: MasterclassVideo[]; // unchanged
+  joined_users: string[];
+  starting_price: number;
+  total_duration?: string;
 }

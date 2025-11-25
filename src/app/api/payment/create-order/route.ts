@@ -1,3 +1,5 @@
+//app/api/payment/create-order/route
+
 import { NextRequest, NextResponse } from "next/server";
 import Razorpay from "razorpay";
 import { addTransactionRecord } from "@/utils/userUtils";
@@ -146,6 +148,7 @@ export async function POST(req: NextRequest) {
     });
 
     console.log("✅ Pending transaction saved");
+    console.log("🔍 Returning key:", process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ? "✅ Present" : "❌ MISSING");
 
     return NextResponse.json({
       success: true,

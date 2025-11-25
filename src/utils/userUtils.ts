@@ -1,261 +1,335 @@
-
 // src/utils/userUtils.ts
-import { doc, getDoc, updateDoc, arrayUnion, setDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  runTransaction,
+  FirestoreError,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Transaction } from "@/types/masterclass";
 
 /**
- * OPTION B: Full-mode sanitizer
- * For storing in Firestore we must store every Transaction field (if missing -> null)
- * This function builds a plain object (Record<string, any>) suitable for writing.
- * NOTE: We return a plain object (not typed Transaction) to allow null values
- * for optional fields while keeping TS checks for in-memory Transaction usage.
+ * Sanitizes a partial transaction for Firestore storage.
+ * Converts undefined to null for optional fields.
+ * Provides defaults for required fields.
  */
-function buildFullTxForStorage(tx: Partial<Transaction>): Record<string, any> {
-  // List all Transaction keys in exact shape (order matters not important)
-  const keys = [
-    "orderId",
-    "paymentId",
-    "masterclassId",
-    "videoId",
-    "masterclassTitle",
-    "videoTitle",
-    "amount",
-    "status",
-    "method",
-    "type",
-    "failureReason",
-    "errorCode",
-    "timestamp",
-    "updatedAt",
-  ] as const;
+function sanitizeTransaction(tx: Partial<Transaction>): Record<string, any> {
+  const now = new Date().toISOString();
 
-  const out: Record<string, any> = {};
-
-  // Ensure default values for required fields when missing
-  out.orderId = tx.orderId ?? `txn_${Date.now()}`;
-  out.masterclassId = tx.masterclassId ?? "";
-  out.masterclassTitle = tx.masterclassTitle ?? "Unknown";
-  out.amount = tx.amount ?? 0;
-  out.status = tx.status ?? "pending";
-  out.method = tx.method ?? "razorpay";
-  out.timestamp = tx.timestamp ?? new Date().toISOString();
-  out.updatedAt = tx.updatedAt ?? null;
-
-  // Optional fields: map undefined -> null or keep provided value
-  out.paymentId = tx.paymentId === undefined ? null : tx.paymentId;
-  out.videoId = tx.videoId === undefined ? null : tx.videoId;
-  out.videoTitle = tx.videoTitle === undefined ? null : tx.videoTitle;
-  out.type = tx.type === undefined ? null : tx.type;
-  out.failureReason = tx.failureReason === undefined ? null : tx.failureReason;
-  out.errorCode = tx.errorCode === undefined ? null : tx.errorCode;
-
-  return out;
-}
-
-/**
- * Helper to build an in-memory Transaction object (typed) from partial input.
- * This keeps internal logic typed, while storage uses buildFullTxForStorage().
- */
-function buildInMemoryTransaction(tx: Partial<Transaction>): Transaction {
   return {
+    // Required fields with defaults
     orderId: tx.orderId ?? `txn_${Date.now()}`,
-    paymentId: tx.paymentId,
     masterclassId: tx.masterclassId ?? "",
-    videoId: tx.videoId,
     masterclassTitle: tx.masterclassTitle ?? "Unknown",
-    videoTitle: tx.videoTitle,
     amount: tx.amount ?? 0,
     status: tx.status ?? "pending",
     method: tx.method ?? "razorpay",
-    type: tx.type,
-    failureReason: tx.failureReason,
-    errorCode: tx.errorCode,
-    timestamp: tx.timestamp ?? new Date().toISOString(),
-    updatedAt: tx.updatedAt,
+    timestamp: tx.timestamp ?? now,
+
+    // Optional fields (undefined -> null)
+    paymentId: tx.paymentId ?? null,
+    videoId: tx.videoId ?? null,
+    videoTitle: tx.videoTitle ?? null,
+    type: tx.type ?? null,
+    failureReason: tx.failureReason ?? null,
+    errorCode: tx.errorCode ?? null,
+    updatedAt: tx.updatedAt ?? null,
   };
 }
 
+/**
+ * Converts stored transaction (with nulls) back to typed Transaction
+ */
+function deserializeTransaction(raw: any): Transaction {
+  return {
+    orderId: raw.orderId ?? `txn_${Date.now()}`,
+    paymentId: raw.paymentId ?? undefined,
+    masterclassId: raw.masterclassId ?? "",
+    videoId: raw.videoId ?? undefined,
+    masterclassTitle: raw.masterclassTitle ?? "Unknown",
+    videoTitle: raw.videoTitle ?? undefined,
+    amount: raw.amount ?? 0,
+    status: raw.status ?? "pending",
+    method: raw.method ?? "razorpay",
+    type: raw.type ?? undefined,
+    failureReason: raw.failureReason ?? undefined,
+    errorCode: raw.errorCode ?? undefined,
+    timestamp: raw.timestamp ?? new Date().toISOString(),
+    updatedAt: raw.updatedAt ?? undefined,
+  };
+}
+
+/**
+ * Handle Firestore errors with retry logic
+ */
+async function retryOperation<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3
+): Promise<T> {
+  let lastError: Error;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (err: any) {
+      lastError = err;
+
+      // Don't retry on permission or not-found errors
+      if (
+        err.code === "permission-denied" ||
+        err.code === "not-found" ||
+        err.code === "unauthenticated"
+      ) {
+        throw err;
+      }
+
+      // Retry on aborted, deadline-exceeded, or unavailable
+      if (
+        attempt < maxRetries &&
+        (err.code === "aborted" ||
+          err.code === "deadline-exceeded" ||
+          err.code === "unavailable")
+      ) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.warn(
+          `⚠️ Firestore operation failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
+      throw err;
+    }
+  }
+
+  throw lastError!;
+}
+
 /* -----------------------------------------------------
-   ADD TRANSACTION
-   - Stores a full object (all keys present; missing values -> null)
-   - Prevents duplicates by orderId
+   ADD TRANSACTION (ATOMIC)
+   Uses Firestore transaction to prevent race conditions
 ----------------------------------------------------- */
 export async function addTransactionRecord(
   userId: string,
   transaction: Partial<Transaction>
-) {
-  try {
-    const userRef = doc(db, "user_profiles", userId);
-    const snap = await getDoc(userRef);
-
-    // Build typed in-memory txn for logic & duplicate checks
-    const inMemTx = buildInMemoryTransaction(transaction);
-
-    // Build storage-friendly txn object (nulls for missing values)
-    const storageTx = buildFullTxForStorage(inMemTx);
-
-    if (snap.exists()) {
-      const data = snap.data();
-      const existing: any[] = data.transactions || [];
-
-      const isDuplicate = existing.some((t: any) => t.orderId === storageTx.orderId);
-
-      if (!isDuplicate) {
-        await updateDoc(userRef, {
-          transactions: arrayUnion(storageTx),
-        });
-        console.log("✅ Transaction added:", storageTx.orderId);
-      } else {
-        console.log("ℹ️ Transaction already exists:", storageTx.orderId);
-      }
-    } else {
-      // Create user doc with full transaction saved
-      await setDoc(userRef, {
-        id: userId,
-        transactions: [storageTx],
-        purchasedClasses: [],
-        purchasedVideos: [],
-        created_at: new Date().toISOString(),
-      });
-      console.log("✅ User profile created with transaction");
-    }
-  } catch (err) {
-    console.error("❌ Error adding transaction:", err);
-    throw err;
+): Promise<void> {
+  if (!userId) {
+    throw new Error("userId is required");
   }
+
+  const sanitized = sanitizeTransaction(transaction);
+
+  await retryOperation(async () => {
+    const userRef = doc(db, "user_profiles", userId);
+
+    await runTransaction(db, async (firestoreTransaction) => {
+      const snap = await firestoreTransaction.get(userRef);
+
+      if (snap.exists()) {
+        const data = snap.data();
+        const existing: any[] = data.transactions || [];
+
+        // Check for duplicates
+        const isDuplicate = existing.some(
+          (t: any) => t.orderId === sanitized.orderId
+        );
+
+        if (isDuplicate) {
+          console.log("ℹ️ Transaction already exists:", sanitized.orderId);
+          return; // Exit early, don't update
+        }
+
+        // Add to array
+        firestoreTransaction.update(userRef, {
+          transactions: [...existing, sanitized],
+        });
+
+        console.log("✅ Transaction added:", sanitized.orderId);
+      } else {
+        // Create new user profile
+        firestoreTransaction.set(userRef, {
+          id: userId,
+          transactions: [sanitized],
+          purchasedClasses: [],
+          purchasedVideos: [],
+          created_at: new Date().toISOString(),
+        });
+
+        console.log("✅ User profile created with transaction");
+      }
+    });
+  });
 }
 
 /* -----------------------------------------------------
-   UPDATE TRANSACTION STATUS
-   - updates is Partial<Transaction>
-   - we convert any missing optional fields -> null for stored object keys,
-     and then merge into existing transaction objects (in-memory),
-     and then update the full transactions array (keeping other tx fields intact)
+   UPDATE TRANSACTION STATUS (ATOMIC)
 ----------------------------------------------------- */
 export async function updateTransactionStatus(
   userId: string,
   orderId: string,
   updates: Partial<Transaction>
-) {
-  try {
-    const ref = doc(db, "user_profiles", userId);
-    const snap = await getDoc(ref);
-
-    if (!snap.exists()) throw new Error("User not found");
-
-    const data = snap.data();
-    const transactions: any[] = data.transactions || [];
-
-    // Build storage-friendly updates (undefined -> null)
-    const storageUpdates = buildFullTxForStorage({
-      // include only provided update keys; buildFullTxForStorage will set defaults for required fields,
-      // but we want to avoid overwriting required fields unintentionally. So build a minimal object.
-      ... (updates as Partial<Transaction>),
-      // do not overwrite orderId/masterclassId/masterclassTitle/amount/status/method/timestamp unless provided
-    });
-
-    // Instead of blindly using buildFullTxForStorage (which supplies defaults),
-    // create a sanitized updates object where we map provided keys: undefined->null, but we don't inject defaults.
-    const sanitizedUpdates: Record<string, any> = {};
-    const updateKeys = Object.keys(updates) as (keyof Transaction)[];
-    updateKeys.forEach((k) => {
-      const v = (updates as any)[k];
-      sanitizedUpdates[k as string] = v === undefined ? null : v;
-    });
-
-    // Apply updates to the matching transaction(s)
-    const updatedTxns = transactions.map((t: any) => {
-      if (t.orderId === orderId) {
-        // keep existing properties, overwrite with sanitizedUpdates, set updatedAt
-        return {
-          ...t,
-          ...sanitizedUpdates,
-          updatedAt: new Date().toISOString(),
-        };
-      }
-      return t;
-    });
-
-    await updateDoc(ref, { transactions: updatedTxns });
-    console.log(`✅ Transaction ${orderId} updated`);
-  } catch (err) {
-    console.error("❌ Error updating transaction:", err);
-    throw err;
+): Promise<void> {
+  if (!userId || !orderId) {
+    throw new Error("userId and orderId are required");
   }
+
+  await retryOperation(async () => {
+    const userRef = doc(db, "user_profiles", userId);
+
+    await runTransaction(db, async (firestoreTransaction) => {
+      const snap = await firestoreTransaction.get(userRef);
+
+      if (!snap.exists()) {
+        throw new Error("User not found");
+      }
+
+      const data = snap.data();
+      const transactions: any[] = data.transactions || [];
+
+      // Find transaction index
+      const txIndex = transactions.findIndex(
+        (t: any) => t.orderId === orderId
+      );
+
+      if (txIndex === -1) {
+        console.warn(`⚠️ Transaction ${orderId} not found for update`);
+        return; // Exit early
+      }
+
+      // Prevent updating successful transactions to failed
+      if (
+        transactions[txIndex].status === "success" &&
+        updates.status === "failed"
+      ) {
+        console.warn(
+          `⚠️ Attempted to mark successful transaction as failed: ${orderId}`
+        );
+        return;
+      }
+
+      // Sanitize updates (undefined -> null)
+      const sanitizedUpdates: Record<string, any> = {};
+      Object.keys(updates).forEach((key) => {
+        const value = (updates as any)[key];
+        sanitizedUpdates[key] = value === undefined ? null : value;
+      });
+
+      // Merge updates with existing transaction
+      const updatedTransactions = [...transactions];
+      updatedTransactions[txIndex] = {
+        ...transactions[txIndex],
+        ...sanitizedUpdates,
+        updatedAt: new Date().toISOString(),
+      };
+
+      firestoreTransaction.update(userRef, {
+        transactions: updatedTransactions,
+      });
+
+      console.log(`✅ Transaction ${orderId} updated to status: ${updates.status}`);
+    });
+  });
 }
 
 /* -----------------------------------------------------
-   ADD PURCHASED CLASS
-   (Guarded; simple string arrayUnion)
+   ADD PURCHASED CLASS (ATOMIC)
 ----------------------------------------------------- */
 export async function addPurchasedClass(
   userId: string,
   masterclassTitle: string | null
-) {
-  try {
-    if (!masterclassTitle) {
-      console.log("⚠️ addPurchasedClass called with empty title — skipping");
-      return;
-    }
-
-    const ref = doc(db, "user_profiles", userId);
-    const snap = await getDoc(ref);
-
-    if (snap.exists()) {
-      await updateDoc(ref, {
-        purchasedClasses: arrayUnion(masterclassTitle),
-      });
-    } else {
-      await setDoc(ref, {
-        id: userId,
-        purchasedClasses: [masterclassTitle],
-        purchasedVideos: [],
-        transactions: [],
-        created_at: new Date().toISOString(),
-      });
-    }
-
-    console.log("✅ Masterclass added to purchased list");
-  } catch (err) {
-    console.error("❌ Error adding purchased class:", err);
-    throw err;
+): Promise<void> {
+  if (!userId) {
+    throw new Error("userId is required");
   }
+
+  if (!masterclassTitle) {
+    console.log("⚠️ addPurchasedClass called with empty title — skipping");
+    return;
+  }
+
+  await retryOperation(async () => {
+    const userRef = doc(db, "user_profiles", userId);
+
+    await runTransaction(db, async (firestoreTransaction) => {
+      const snap = await firestoreTransaction.get(userRef);
+
+      if (snap.exists()) {
+        const data = snap.data();
+        const existing: string[] = data.purchasedClasses || [];
+
+        // Prevent duplicates
+        if (existing.includes(masterclassTitle)) {
+          console.log("ℹ️ Class already purchased:", masterclassTitle);
+          return;
+        }
+
+        firestoreTransaction.update(userRef, {
+          purchasedClasses: [...existing, masterclassTitle],
+        });
+      } else {
+        firestoreTransaction.set(userRef, {
+          id: userId,
+          purchasedClasses: [masterclassTitle],
+          purchasedVideos: [],
+          transactions: [],
+          created_at: new Date().toISOString(),
+        });
+      }
+
+      console.log("✅ Masterclass added to purchased list:", masterclassTitle);
+    });
+  });
 }
 
 /* -----------------------------------------------------
-   ADD PURCHASED VIDEO
-   (Guarded; simple string arrayUnion)
+   ADD PURCHASED VIDEO (ATOMIC)
 ----------------------------------------------------- */
-export async function addPurchasedVideo(userId: string, videoId: string | null) {
-  try {
-    if (!videoId) {
-      console.log("⚠️ addPurchasedVideo called with empty videoId — skipping");
-      return;
-    }
-
-    const ref = doc(db, "user_profiles", userId);
-    const snap = await getDoc(ref);
-
-    if (snap.exists()) {
-      await updateDoc(ref, {
-        purchasedVideos: arrayUnion(videoId),
-      });
-    } else {
-      await setDoc(ref, {
-        id: userId,
-        purchasedVideos: [videoId],
-        purchasedClasses: [],
-        transactions: [],
-        created_at: new Date().toISOString(),
-      });
-    }
-
-    console.log("✅ Video added to purchased list");
-  } catch (err) {
-    console.error("❌ Error adding purchased video:", err);
-    throw err;
+export async function addPurchasedVideo(
+  userId: string,
+  videoId: string | null
+): Promise<void> {
+  if (!userId) {
+    throw new Error("userId is required");
   }
+
+  if (!videoId) {
+    console.log("⚠️ addPurchasedVideo called with empty videoId — skipping");
+    return;
+  }
+
+  await retryOperation(async () => {
+    const userRef = doc(db, "user_profiles", userId);
+
+    await runTransaction(db, async (firestoreTransaction) => {
+      const snap = await firestoreTransaction.get(userRef);
+
+      if (snap.exists()) {
+        const data = snap.data();
+        const existing: string[] = data.purchasedVideos || [];
+
+        // Prevent duplicates
+        if (existing.includes(videoId)) {
+          console.log("ℹ️ Video already purchased:", videoId);
+          return;
+        }
+
+        firestoreTransaction.update(userRef, {
+          purchasedVideos: [...existing, videoId],
+        });
+      } else {
+        firestoreTransaction.set(userRef, {
+          id: userId,
+          purchasedVideos: [videoId],
+          purchasedClasses: [],
+          transactions: [],
+          created_at: new Date().toISOString(),
+        });
+      }
+
+      console.log("✅ Video added to purchased list:", videoId);
+    });
+  });
 }
 
 /* -----------------------------------------------------
@@ -267,14 +341,22 @@ export async function hasVideoAccess(
   videoId: string
 ): Promise<boolean> {
   try {
+    if (!userId || !masterclassId || !videoId) {
+      return false;
+    }
+
+    // Check if user has full masterclass access
     const mcRef = doc(db, "MasterClasses", masterclassId);
     const mcSnap = await getDoc(mcRef);
 
     if (mcSnap.exists()) {
       const joinedUsers: string[] = mcSnap.data().joined_users || [];
-      if (joinedUsers.includes(userId)) return true;
+      if (joinedUsers.includes(userId)) {
+        return true;
+      }
     }
 
+    // Check if user purchased individual video
     const userSnap = await getDoc(doc(db, "user_profiles", userId));
     if (userSnap.exists()) {
       const purchasedVideos: string[] = userSnap.data().purchasedVideos || [];
@@ -283,45 +365,32 @@ export async function hasVideoAccess(
 
     return false;
   } catch (err) {
-    console.error("❌ Error checking access:", err);
+    console.error("❌ Error checking video access:", err);
     return false;
   }
 }
 
 /* -----------------------------------------------------
    GET USER TRANSACTIONS
-   - returns typed Transaction[] built from stored docs
-   - converts stored (possibly null) fields into typed Transaction
 ----------------------------------------------------- */
-export async function getUserTransactions(userId: string): Promise<Transaction[]> {
+export async function getUserTransactions(
+  userId: string
+): Promise<Transaction[]> {
   try {
+    if (!userId) {
+      return [];
+    }
+
     const snap = await getDoc(doc(db, "user_profiles", userId));
-    if (!snap.exists()) return [];
+    if (!snap.exists()) {
+      return [];
+    }
 
     const raw = snap.data().transactions || [];
-    // Map raw stored transactions (may contain nulls) to typed Transaction objects
-    const mapped: Transaction[] = raw.map((r: any) => {
-      const tx: Transaction = {
-        orderId: r.orderId,
-        paymentId: r.paymentId ?? undefined,
-        masterclassId: r.masterclassId ?? "",
-        videoId: r.videoId ?? undefined,
-        masterclassTitle: r.masterclassTitle ?? "Unknown",
-        videoTitle: r.videoTitle ?? undefined,
-        amount: r.amount ?? 0,
-        status: r.status ?? "pending",
-        method: r.method ?? "razorpay",
-        type: r.type ?? undefined,
-        failureReason: r.failureReason ?? undefined,
-        errorCode: r.errorCode ?? undefined,
-        timestamp: r.timestamp ?? new Date().toISOString(),
-        updatedAt: r.updatedAt ?? undefined,
-      };
-      return tx;
-    });
+    const transactions = raw.map(deserializeTransaction);
 
-    // Sort newest first
-    return mapped.sort(
+    // Sort by timestamp (newest first)
+    return transactions.sort(
       (a: Transaction, b: Transaction) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
@@ -339,31 +408,19 @@ export async function getTransactionByOrderId(
   orderId: string
 ): Promise<Transaction | null> {
   try {
+    if (!userId || !orderId) {
+      return null;
+    }
+
     const snap = await getDoc(doc(db, "user_profiles", userId));
-    if (!snap.exists()) return null;
+    if (!snap.exists()) {
+      return null;
+    }
 
     const raw = snap.data().transactions || [];
     const found = raw.find((r: any) => r.orderId === orderId);
-    if (!found) return null;
 
-    const tx: Transaction = {
-      orderId: found.orderId,
-      paymentId: found.paymentId ?? undefined,
-      masterclassId: found.masterclassId ?? "",
-      videoId: found.videoId ?? undefined,
-      masterclassTitle: found.masterclassTitle ?? "Unknown",
-      videoTitle: found.videoTitle ?? undefined,
-      amount: found.amount ?? 0,
-      status: found.status ?? "pending",
-      method: found.method ?? "razorpay",
-      type: found.type ?? undefined,
-      failureReason: found.failureReason ?? undefined,
-      errorCode: found.errorCode ?? undefined,
-      timestamp: found.timestamp ?? new Date().toISOString(),
-      updatedAt: found.updatedAt ?? undefined,
-    };
-
-    return tx;
+    return found ? deserializeTransaction(found) : null;
   } catch (err) {
     console.error("❌ Error fetching transaction:", err);
     return null;
@@ -372,11 +429,15 @@ export async function getTransactionByOrderId(
 
 /* -----------------------------------------------------
    USER PURCHASE SUMMARY
-   - typed reducers
 ----------------------------------------------------- */
 export async function getUserPurchaseSummary(userId: string) {
   try {
+    if (!userId) {
+      throw new Error("userId is required");
+    }
+
     const snap = await getDoc(doc(db, "user_profiles", userId));
+
     if (!snap.exists()) {
       return {
         totalSpent: 0,
@@ -391,38 +452,28 @@ export async function getUserPurchaseSummary(userId: string) {
 
     const data = snap.data();
     const raw: any[] = data.transactions || [];
-
-    // Map to typed transactions
-    const tx: Transaction[] = raw.map((r: any) => ({
-      orderId: r.orderId,
-      paymentId: r.paymentId ?? undefined,
-      masterclassId: r.masterclassId ?? "",
-      videoId: r.videoId ?? undefined,
-      masterclassTitle: r.masterclassTitle ?? "Unknown",
-      videoTitle: r.videoTitle ?? undefined,
-      amount: r.amount ?? 0,
-      status: r.status ?? "pending",
-      method: r.method ?? "razorpay",
-      type: r.type ?? undefined,
-      failureReason: r.failureReason ?? undefined,
-      errorCode: r.errorCode ?? undefined,
-      timestamp: r.timestamp ?? new Date().toISOString(),
-      updatedAt: r.updatedAt ?? undefined,
-    }));
+    const transactions = raw.map(deserializeTransaction);
 
     return {
-      totalSpent: tx
-        .filter((t: Transaction) => t.status === "success")
-        .reduce((sum: number, t: Transaction) => sum + (t.amount ?? 0), 0),
+      totalSpent: transactions
+        .filter((t) => t.status === "success")
+        .reduce((sum, t) => sum + t.amount, 0),
 
       purchasedClasses: data.purchasedClasses || [],
       purchasedVideos: data.purchasedVideos || [],
 
-      transactionCount: tx.length,
-      successfulPayments: tx.filter((t: Transaction) => t.status === "success").length,
-      failedPayments: tx.filter((t: Transaction) => t.status === "failed").length,
+      transactionCount: transactions.length,
+      successfulPayments: transactions.filter((t) => t.status === "success")
+        .length,
+      failedPayments: transactions.filter((t) => t.status === "failed")
+        .length,
 
-      recentTransactions: tx.slice(0, 5),
+      recentTransactions: transactions
+        .sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
+        .slice(0, 5),
     };
   } catch (err) {
     console.error("❌ Summary error:", err);

@@ -66,14 +66,14 @@ export default function HomePage() {
       </motion.div>
 
       {/* Hero Video Section */}
-      <motion.div
+      {/* <motion.div
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
         transition={{ duration: 0.6, delay: 0.1 }}
       >
         <HeroVideoSection />
-      </motion.div>
+      </motion.div> */}
 
       {/* Featured Masterclasses Section - Shows any 4 classes */}
       <motion.div

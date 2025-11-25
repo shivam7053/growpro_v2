@@ -1,31 +1,6 @@
 // netlify/functions/send-purchase-confirmation.ts
 import { Handler } from "@netlify/functions";
-
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || "onboarding@resend.dev";
-
-async function sendEmail(to: string, subject: string, html: string) {
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-    },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: [to],
-      subject: subject,
-      html: html,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Email send failed: ${error}`);
-  }
-
-  return response.json();
-}
+import { sendEmail } from "../../src/utils/gmailHelper";
 
 export const handler: Handler = async (event, context) => {
   if (event.httpMethod !== "POST") {

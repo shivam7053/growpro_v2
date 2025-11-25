@@ -1,7 +1,7 @@
+export {};
+
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay?: any;
   }
 }
-
-export {};

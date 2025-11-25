@@ -1,5 +1,6 @@
-// masterclasses/page.tsx
+//masterclasses/page.tsx
 "use client";
+
 
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, easeOut } from "framer-motion";
@@ -20,8 +21,6 @@ export default function MasterclassesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
-  // NEW: source filter (all | youtube | zoom)
-  const [sourceFilter, setSourceFilter] = useState<"all" | "youtube" | "zoom">("all");
   const { user } = useAuth();
 
   // Pagination
@@ -74,23 +73,10 @@ export default function MasterclassesPage() {
     if (filterType === "enrolled" && !user) {
       toast("Login required to view enrolled courses.");
     }
-
-    // First apply the existing (type/search/enrolled) filters using your util
-    const basicFiltered = filterMasterclasses(masterclasses, searchQuery, filterType, user?.uid);
-
-    // Then apply the new source filter on top — this keeps previous behaviour intact
-    let finalFiltered = basicFiltered;
-    if (sourceFilter !== "all") {
-      finalFiltered = basicFiltered.filter((mc) => {
-        // defensive: support both masterclass_source and masterclass_source missing (treat missing as 'youtube')
-        const source = (mc as any).masterclass_source || (mc as any).videoSource || "youtube";
-        return source === sourceFilter;
-      });
-    }
-
-    setFilteredMasterclasses(finalFiltered);
+    const filtered = filterMasterclasses(masterclasses, searchQuery, filterType, user?.uid);
+    setFilteredMasterclasses(filtered);
     setCurrentPage(1);
-  }, [masterclasses, searchQuery, filterType, sourceFilter, user]);
+  }, [masterclasses, searchQuery, filterType, user]);
 
   const handleRefresh = () => fetchMasterclasses();
 
@@ -157,75 +143,55 @@ export default function MasterclassesPage() {
           </div>
 
           {/* Search + Filters */}
-          <div className="mb-6 flex flex-col gap-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by title, speaker, or designation..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-10 py-3 border border-gray-400 dark:border-gray-700 rounded-lg 
-                             text-gray-900 dark:text-gray-100 placeholder-gray-700 dark:placeholder-gray-400 
-                             bg-white dark:bg-gray-800 focus:ring-2 focus:ring-black dark:focus:ring-gray-300 
-                             focus:border-transparent shadow-sm transition"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xl"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-
-              <div className="flex gap-2 flex-wrap justify-start">
-                {filterButtons.map(({ type, label }) => (
-                  <button
-                    key={type}
-                    onClick={() => setFilterType(type)}
-                    className={`px-6 py-3 rounded-lg font-semibold transition ${
-                      filterType === type
-                        ? "bg-black dark:bg-white text-white dark:text-black shadow-md"
-                        : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-400 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-                {user && (
-                  <button
-                    onClick={() => setFilterType("enrolled")}
-                    className={`px-6 py-3 rounded-lg font-semibold transition ${
-                      filterType === "enrolled"
-                        ? "bg-black dark:bg-white text-white dark:text-black shadow-md"
-                        : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-400 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
-                    }`}
-                  >
-                    My Courses
-                  </button>
-                )}
-              </div>
+          <div className="mb-10 flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by title, speaker, or designation..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-12 pr-10 py-3 border border-gray-400 dark:border-gray-700 rounded-lg 
+                           text-gray-900 dark:text-gray-100 placeholder-gray-700 dark:placeholder-gray-400 
+                           bg-white dark:bg-gray-800 focus:ring-2 focus:ring-black dark:focus:ring-gray-300 
+                           focus:border-transparent shadow-sm transition"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xl"
+                >
+                  ×
+                </button>
+              )}
             </div>
 
-            {/* NEW: Source filter row (non-breaking; optional) */}
-            <div className="flex gap-2 flex-wrap items-center">
-              <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Source:</span>
-              {(["all", "youtube", "zoom"] as const).map((s) => (
+            <div className="flex gap-2 flex-wrap justify-start">
+              {filterButtons.map(({ type, label }) => (
                 <button
-                  key={s}
-                  onClick={() => setSourceFilter(s)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                    sourceFilter === s
-                      ? "bg-black dark:bg-white text-white dark:text-black shadow-sm"
-                      : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  key={type}
+                  onClick={() => setFilterType(type)}
+                  className={`px-6 py-3 rounded-lg font-semibold transition ${
+                    filterType === type
+                      ? "bg-black dark:bg-white text-white dark:text-black shadow-md"
+                      : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-400 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
                   }`}
                 >
-                  {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+                  {label}
                 </button>
               ))}
+              {user && (
+                <button
+                  onClick={() => setFilterType("enrolled")}
+                  className={`px-6 py-3 rounded-lg font-semibold transition ${
+                    filterType === "enrolled"
+                      ? "bg-black dark:bg-white text-white dark:text-black shadow-md"
+                      : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-400 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  My Courses
+                </button>
+              )}
             </div>
           </div>
 
@@ -255,7 +221,6 @@ export default function MasterclassesPage() {
                 onClick={() => {
                   setSearchQuery("");
                   setFilterType("all");
-                  setSourceFilter("all");
                 }}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 font-semibold transition"
               >
@@ -272,7 +237,6 @@ export default function MasterclassesPage() {
               >
                 {currentMasterclasses.map((mc) => (
                   <motion.div key={mc.id} variants={cardVariants}>
-                    {/* pass the full masterclass through — card should handle its own rendering */}
                     <MasterclassCard masterclass={mc} user={user} onPurchaseComplete={fetchMasterclasses} />
                   </motion.div>
                 ))}

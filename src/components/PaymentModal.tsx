@@ -1,3 +1,5 @@
+
+
 // // components/PaymentModal.tsx
 // "use client";
 
@@ -20,7 +22,7 @@
 //   video?: MasterclassVideo;
 //   user: any;
 //   onPaymentSuccess?: (paymentData?: any) => void;
-//   onPurchaseSuccess?: () => void; // Alternative callback name
+//   onPurchaseSuccess?: () => void;
 //   videoId?: string | null;
 //   purchaseType?: "video" | "upcoming_registration" | "masterclass";
 //   amount?: number;
@@ -125,23 +127,18 @@
 //       email: user.email || undefined,
 //       phone: user.phone || undefined,
 //       type: transactionType,
-
-//       // Required to match single global interface
 //       masterclassTitle: masterclass.title,
 //       videoTitle: video?.title || undefined,
-
 //     };
 
-
-//     /* -------------------------
-//      *    DUMMY PAYMENT
-//      * ------------------------- */
+//     /* DUMMY PAYMENT */
 //     if (paymentMethod === "dummy") {
 //       const dummyOrderId = `dummy_${Date.now()}`;
 //       const dummyPaymentId = `dummy_pay_${Date.now()}`;
 
 //       try {
-//         const verifyResponse = await fetch("/api/payment/verify", {
+//         // Updated endpoint for Netlify
+//         const verifyResponse = await fetch("/.netlify/functions/payment-verify", {
 //           method: "POST",
 //           headers: { "Content-Type": "application/json" },
 //           body: JSON.stringify({
@@ -165,7 +162,6 @@
 //           throw new Error(verifyData.error || "Payment verification failed");
 //         }
 
-//         // Success messages based on type
 //         const successMessage = 
 //           transactionType === "free_registration"
 //             ? "Registered successfully! Check your email."
@@ -177,7 +173,6 @@
 
 //         toast.success(successMessage);
 
-//         // Call success callbacks
 //         handleSuccessCallback({
 //           orderId: dummyOrderId,
 //           paymentId: dummyPaymentId,
@@ -200,9 +195,7 @@
 //       return;
 //     }
 
-//     /* -------------------------
-//      *     RAZORPAY PAYMENT
-//      * ------------------------- */
+//     /* RAZORPAY PAYMENT */
 //     if (paymentMethod === "razorpay") {
 //       if (!razorpayLoaded) {
 //         setError("Failed to load Razorpay. Please refresh.");
@@ -218,7 +211,8 @@
 //           // SUCCESS CALLBACK
 //           async (response) => {
 //             try {
-//               const verifyResponse = await fetch("/api/payment/verify", {
+//               // Updated endpoint for Netlify
+//               const verifyResponse = await fetch("/.netlify/functions/payment-verify", {
 //                 method: "POST",
 //                 headers: { "Content-Type": "application/json" },
 //                 body: JSON.stringify({
@@ -242,7 +236,6 @@
 //                 throw new Error(verifyData.error || "Payment verification failed");
 //               }
 
-//               // Success messages
 //               const successMessage = 
 //                 transactionType === "upcoming_registration"
 //                   ? "Registration successful! Check your email for details and reminders."
@@ -252,7 +245,6 @@
 
 //               toast.success(successMessage);
 
-//               // Call success callbacks
 //               handleSuccessCallback({
 //                 orderId: response.razorpay_order_id,
 //                 paymentId: response.razorpay_payment_id,
@@ -331,198 +323,182 @@
 //     return `Pay ₹${purchaseAmount}`;
 //   };
 
-  
-
 //   return (
-//     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-//       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-//         {/* HEADER */}
-//         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white relative">
-//           <button
-//             onClick={handleClose}
-//             disabled={processing}
-//             className="absolute top-4 right-4 hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
-//             aria-label="Close"
-//           >
-//             <X className="w-5 h-5" />
-//           </button>
+//   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2">
+//     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-sm w-full overflow-hidden">
 
-//           <h2 className="text-2xl font-bold mb-2">{getHeaderText()}</h2>
-//           <p className="text-blue-100 text-sm">
-//             {purchaseAmount === 0
-//               ? "Complete your free registration"
-//               : "Secure payment powered by Razorpay"}
-//           </p>
-//         </div>
+//       {/* HEADER */}
+//       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white relative">
+//         <button
+//           onClick={handleClose}
+//           disabled={processing}
+//           className="absolute top-3 right-3 hover:bg-white hover:bg-opacity-20 rounded-full p-1.5 transition disabled:opacity-50"
+//           aria-label="Close"
+//         >
+//           <X className="w-4 h-4" />
+//         </button>
 
-//         {/* BODY */}
-//         <div className="p-6 space-y-6">
-//           {/* PURCHASE INFO */}
-//           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-//             <span className="inline-block bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 text-xs font-semibold px-2 py-1 rounded mb-2">
-//               {getPurchaseTypeLabel()}
-//             </span>
+//         <h2 className="text-lg font-bold mb-1">{getHeaderText()}</h2>
+//         <p className="text-blue-100 text-xs">
+//           {purchaseAmount === 0
+//             ? "Complete your free registration"
+//             : "Secure payment powered by Razorpay"}
+//         </p>
+//       </div>
 
-//             <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-1">
-//               {isVideoPurchase ? video?.title : masterclass.title}
-//             </h3>
+//       {/* BODY */}
+//       <div className="p-4 space-y-4">
 
-//             {video && (
-//               <p className="text-sm text-gray-600 dark:text-gray-300">
-//                 Part of: {masterclass.title}
-//               </p>
-//             )}
+//         {/* PURCHASE INFO */}
+//         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+//           <span className="inline-block bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 text-[10px] font-semibold px-2 py-0.5 rounded mb-1">
+//             {getPurchaseTypeLabel()}
+//           </span>
 
-//             {isUpcoming && masterclass.scheduled_date && (
-//               <p className="text-xs mt-2 text-blue-600 dark:text-blue-400 font-medium">
-//                 📅 Scheduled:{" "}
-//                 {new Date(masterclass.scheduled_date).toLocaleString("en-US", {
-//                   weekday: "long",
-//                   month: "long",
-//                   day: "numeric",
-//                   hour: "2-digit",
-//                   minute: "2-digit",
-//                 })}
-//               </p>
-//             )}
+//           <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-1 text-sm">
+//             {isVideoPurchase ? video?.title : masterclass.title}
+//           </h3>
 
-//             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 flex justify-between items-center">
-//               <span className="text-gray-600 dark:text-gray-300">Total Amount</span>
-//               <span className="text-2xl font-bold text-gray-900 dark:text-white">
-//                 {purchaseAmount === 0 ? "FREE" : `₹${purchaseAmount}`}
-//               </span>
-//             </div>
-//           </div>
-
-//           {/* INFO BOX - Email notification */}
-//           {purchaseAmount > 0 && (
-//             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 rounded-lg">
-//               <div className="flex items-start gap-2">
-//                 <CheckCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-//                 <p className="text-xs text-blue-800 dark:text-blue-200">
-//                   You'll receive a confirmation email with purchase details
-//                   {transactionType === "upcoming_registration" && " and event reminders"}
-//                 </p>
-//               </div>
-//             </div>
-//           )}
-
-//           {/* ERROR BOX */}
-//           {error && (
-//             <div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 p-4 rounded-lg">
-//               <div className="flex gap-3">
-//                 <AlertCircle className="text-red-600 dark:text-red-400 w-5 h-5 flex-shrink-0" />
-//                 <div className="flex-1">
-//                   <p className="font-semibold text-red-700 dark:text-red-300 text-sm">
-//                     Payment Error
-//                   </p>
-//                   <p className="text-xs text-red-600 dark:text-red-400 mt-1">{error}</p>
-//                 </div>
-//                 <button
-//                   onClick={() => setError("")}
-//                   className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
-//                   aria-label="Dismiss error"
-//                 >
-//                   <X className="w-4 h-4" />
-//                 </button>
-//               </div>
-//             </div>
-//           )}
-
-//           {/* PAYMENT METHODS */}
-//           {purchaseAmount > 0 && (
-//             <div>
-//               <label className="text-sm font-medium mb-3 block text-gray-700 dark:text-gray-300">
-//                 Select Payment Method *
-//               </label>
-
-//               <div className="space-y-2">
-//                 {/* Dummy Payment */}
-//                 <button
-//                   type="button"
-//                   onClick={() => setPaymentMethod("dummy")}
-//                   disabled={processing}
-//                   className={`w-full p-4 rounded-lg border-2 flex items-center gap-3 transition ${
-//                     paymentMethod === "dummy"
-//                       ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
-//                       : "border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
-//                   } ${processing ? "opacity-50 cursor-not-allowed" : ""}`}
-//                 >
-//                   <CreditCard className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-//                   <div className="flex-1 text-left">
-//                     <p className="font-semibold text-gray-900 dark:text-white">Dummy Payment</p>
-//                     <p className="text-xs text-gray-500 dark:text-gray-400">For testing only</p>
-//                   </div>
-//                   {paymentMethod === "dummy" && (
-//                     <CheckCircle className="text-blue-600 w-5 h-5" />
-//                   )}
-//                 </button>
-
-//                 {/* Razorpay */}
-//                 <button
-//                   type="button"
-//                   onClick={() => setPaymentMethod("razorpay")}
-//                   disabled={processing || !razorpayLoaded}
-//                   className={`w-full p-4 rounded-lg border-2 flex items-center gap-3 transition ${
-//                     paymentMethod === "razorpay"
-//                       ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
-//                       : "border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
-//                   } ${processing || !razorpayLoaded ? "opacity-50 cursor-not-allowed" : ""}`}
-//                 >
-//                   <Shield className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-//                   <div className="flex-1 text-left">
-//                     <p className="font-semibold text-gray-900 dark:text-white">Razorpay</p>
-//                     <p className="text-xs text-gray-500 dark:text-gray-400">
-//                       {razorpayLoaded ? "UPI, Cards, NetBanking" : "Loading..."}
-//                     </p>
-//                   </div>
-//                   {paymentMethod === "razorpay" && (
-//                     <CheckCircle className="text-blue-600 w-5 h-5" />
-//                   )}
-//                 </button>
-//               </div>
-//             </div>
-//           )}
-
-//           {/* ACTION BUTTONS */}
-//           <div className="flex gap-3">
-//             <button
-//               type="button"
-//               onClick={handleClose}
-//               disabled={processing}
-//               className="flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-//             >
-//               Cancel
-//             </button>
-
-//             <button
-//               type="button"
-//               onClick={handlePayment}
-//               disabled={processing || (purchaseAmount > 0 && !paymentMethod)}
-//               className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-//             >
-//               {processing ? (
-//                 <>
-//                   <div className="animate-spin w-5 h-5 border-b-2 border-white rounded-full"></div>
-//                   Processing...
-//                 </>
-//               ) : (
-//                 getButtonText()
-//               )}
-//             </button>
-//           </div>
-
-//           {/* Additional info for upcoming events */}
-//           {transactionType === "upcoming_registration" && purchaseAmount > 0 && (
-//             <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-//               💡 You'll receive reminder emails 24 hours and 2 hours before the event
+//           {video && (
+//             <p className="text-xs text-gray-600 dark:text-gray-300">
+//               Part of: {masterclass.title}
 //             </p>
 //           )}
+
+//           {isUpcoming && masterclass.scheduled_date && (
+//             <p className="text-[11px] mt-1 text-blue-600 dark:text-blue-400 font-medium">
+//               📅{" "}
+//               {new Date(masterclass.scheduled_date).toLocaleString()}
+//             </p>
+//           )}
+
+//           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex justify-between items-center">
+//             <span className="text-gray-600 dark:text-gray-300 text-xs">Total Amount</span>
+//             <span className="text-xl font-bold text-gray-900 dark:text-white">
+//               {purchaseAmount === 0 ? "FREE" : `₹${purchaseAmount}`}
+//             </span>
+//           </div>
 //         </div>
+
+//         {/* INFO BOX */}
+//         {purchaseAmount > 0 && (
+//           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-2 rounded-md">
+//             <div className="flex items-start gap-2">
+//               <CheckCircle className="w-3.5 h-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
+//               <p className="text-[11px] text-blue-800 dark:text-blue-200">
+//                 You'll receive a confirmation email
+//                 {transactionType === "upcoming_registration" && " + event reminders"}
+//               </p>
+//             </div>
+//           </div>
+//         )}
+
+//         {/* ERROR BOX */}
+//         {error && (
+//           <div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 p-3 rounded-md">
+//             <div className="flex gap-2">
+//               <AlertCircle className="text-red-600 dark:text-red-400 w-4 h-4 flex-shrink-0" />
+//               <div className="flex-1">
+//                 <p className="font-semibold text-red-700 dark:text-red-300 text-xs">
+//                   Payment Error
+//                 </p>
+//                 <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{error}</p>
+//               </div>
+//               <button
+//                 onClick={() => setError("")}
+//                 className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
+//               >
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </div>
+//           </div>
+//         )}
+
+//         {/* PAYMENT METHODS */}
+//         {purchaseAmount > 0 && (
+//           <div>
+//             <label className="text-xs font-medium mb-2 block text-gray-700 dark:text-gray-300">
+//               Select Payment Method *
+//             </label>
+
+//             <div className="space-y-2">
+
+//               {/* Dummy */}
+//               <button
+//                 type="button"
+//                 onClick={() => setPaymentMethod("dummy")}
+//                 disabled={processing}
+//                 className={`w-full p-3 rounded-md border flex items-center gap-2 text-sm ${
+//                   paymentMethod === "dummy"
+//                     ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
+//                     : "border-gray-300 dark:border-gray-600"
+//                 } ${processing ? "opacity-50 cursor-not-allowed" : ""}`}
+//               >
+//                 <CreditCard className="w-4 h-4" />
+//                 <span className="text-xs">Dummy Payment</span>
+//                 {paymentMethod === "dummy" && <CheckCircle className="w-4 h-4 text-blue-600" />}
+//               </button>
+
+//               {/* Razorpay */}
+//               <button
+//                 type="button"
+//                 onClick={() => setPaymentMethod("razorpay")}
+//                 disabled={processing || !razorpayLoaded}
+//                 className={`w-full p-3 rounded-md border flex items-center gap-2 text-sm ${
+//                   paymentMethod === "razorpay"
+//                     ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
+//                     : "border-gray-300 dark:border-gray-600"
+//                 } ${(processing || !razorpayLoaded) ? "opacity-50 cursor-not-allowed" : ""}`}
+//               >
+//                 <Shield className="w-4 h-4" />
+//                 <span className="text-xs">Razorpay</span>
+//                 {paymentMethod === "razorpay" && <CheckCircle className="w-4 h-4 text-blue-600" />}
+//               </button>
+
+//             </div>
+//           </div>
+//         )}
+
+//         {/* ACTION BUTTONS */}
+//         <div className="flex gap-2">
+//           <button
+//             type="button"
+//             onClick={handleClose}
+//             disabled={processing}
+//             className="flex-1 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50"
+//           >
+//             Cancel
+//           </button>
+
+//           <button
+//             type="button"
+//             onClick={handlePayment}
+//             disabled={processing || (purchaseAmount > 0 && !paymentMethod)}
+//             className="flex-1 py-2 bg-blue-600 text-white rounded-md text-xs font-semibold flex items-center justify-center gap-1 hover:bg-blue-700 transition disabled:opacity-50"
+//           >
+//             {processing ? (
+//               <>
+//                 <div className="animate-spin w-4 h-4 border-b-2 border-white rounded-full"></div>
+//                 Processing...
+//               </>
+//             ) : (
+//               getButtonText()
+//             )}
+//           </button>
+//         </div>
+
+//         {/* Additional info */}
+//         {transactionType === "upcoming_registration" && purchaseAmount > 0 && (
+//           <p className="text-[10px] text-center text-gray-500 dark:text-gray-400">
+//             💡 Reminder emails will be sent before event time
+//           </p>
+//         )}
 //       </div>
 //     </div>
-//   );
+//   </div>
+// )
 // }
+
 
 // components/PaymentModal.tsx
 "use client";
@@ -573,21 +549,22 @@ export default function PaymentModal({
   const isVideoPurchase = !!videoIdToUse;
   const isUpcoming = masterclass.type === "upcoming";
 
-  // Determine purchase amount
-  const purchaseAmount = propAmount !== undefined
-    ? propAmount
-    : isVideoPurchase
+  const purchaseAmount =
+    propAmount !== undefined
+      ? propAmount
+      : isVideoPurchase
       ? video?.price || 0
       : masterclass.starting_price || 0;
 
-  // Determine transaction type
   const getTransactionType = (): TransactionType => {
     if (propPurchaseType === "upcoming_registration") return "upcoming_registration";
     if (propPurchaseType === "video") return "video_purchase";
     if (propPurchaseType === "masterclass") return "purchase";
-    
-    if (isUpcoming && !isVideoPurchase && purchaseAmount === 0) return "free_registration";
-    if (isUpcoming && !isVideoPurchase && purchaseAmount > 0) return "upcoming_registration";
+
+    if (isUpcoming && !isVideoPurchase && purchaseAmount === 0)
+      return "free_registration";
+    if (isUpcoming && !isVideoPurchase && purchaseAmount > 0)
+      return "upcoming_registration";
     if (isVideoPurchase) return "video_purchase";
     return "purchase";
   };
@@ -598,14 +575,12 @@ export default function PaymentModal({
     ? `${masterclass.title} - ${video?.title || "Video"}`
     : masterclass.title;
 
-  // Load Razorpay script
   useEffect(() => {
     if (isOpen && purchaseAmount > 0) {
       loadRazorpay().then((loaded) => setRazorpayLoaded(!!loaded));
     }
   }, [isOpen, purchaseAmount]);
 
-  // Reset on open
   useEffect(() => {
     if (isOpen) {
       setProcessing(false);
@@ -616,17 +591,25 @@ export default function PaymentModal({
 
   if (!isOpen) return null;
 
-  // Unified callback handler
-  const handleSuccessCallback = (paymentData: any) => {
-    if (typeof onPaymentSuccess === "function") {
-      onPaymentSuccess(paymentData);
-    }
-    if (typeof onPurchaseSuccess === "function") {
-      onPurchaseSuccess();
-    }
+  const safeExtractError = (data: any) => {
+    if (!data) return "Unexpected error occurred";
+
+    if (typeof data === "string") return data;
+
+    return (
+      data.error ||
+      data.message ||
+      data.details ||
+      data.reason ||
+      "Something went wrong"
+    );
   };
 
-  // MAIN PAYMENT HANDLER
+  const handleSuccessCallback = (paymentData: any) => {
+    if (onPaymentSuccess) onPaymentSuccess(paymentData);
+    if (onPurchaseSuccess) onPurchaseSuccess();
+  };
+
   const handlePayment = async () => {
     if (!user?.uid) {
       toast.error("Please login to continue");
@@ -661,41 +644,43 @@ export default function PaymentModal({
       const dummyPaymentId = `dummy_pay_${Date.now()}`;
 
       try {
-        // Updated endpoint for Netlify
-        const verifyResponse = await fetch("/.netlify/functions/payment-verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            razorpay_order_id: dummyOrderId,
-            razorpay_payment_id: dummyPaymentId,
-            razorpay_signature: "dummy_signature",
-            masterclassId: masterclass.id,
-            videoId: videoIdToUse,
-            userId: user.uid,
-            masterclassTitle: masterclass.title,
-            videoTitle: video?.title || null,
-            amount: purchaseAmount,
-            method: "dummy",
-            type: transactionType,
-          }),
-        });
+        const verifyResponse = await fetch(
+          "/.netlify/functions/payment-verify",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: dummyOrderId,
+              razorpay_payment_id: dummyPaymentId,
+              razorpay_signature: "dummy_signature",
+              masterclassId: masterclass.id,
+              videoId: videoIdToUse,
+              userId: user.uid,
+              masterclassTitle: masterclass.title,
+              videoTitle: video?.title || null,
+              amount: purchaseAmount,
+              method: "dummy",
+              type: transactionType,
+            }),
+          }
+        );
 
         const verifyData = await verifyResponse.json();
 
-        if (!verifyData.success) {
-          throw new Error(verifyData.error || "Payment verification failed");
+        if (!verifyData?.success) {
+          const msg = safeExtractError(verifyData);
+          throw new Error(msg);
         }
 
-        const successMessage = 
+        toast.success(
           transactionType === "free_registration"
-            ? "Registered successfully! Check your email."
+            ? "Registered successfully!"
             : transactionType === "upcoming_registration"
-              ? "Registration completed! Check your email for details."
-              : transactionType === "video_purchase"
-                ? "Video unlocked! Check your email for confirmation."
-                : "Purchase successful! Check your email.";
-
-        toast.success(successMessage);
+            ? "Registration completed!"
+            : transactionType === "video_purchase"
+            ? "Video unlocked!"
+            : "Purchase successful!"
+        );
 
         handleSuccessCallback({
           orderId: dummyOrderId,
@@ -710,12 +695,12 @@ export default function PaymentModal({
 
         setTimeout(onClose, 500);
       } catch (err: any) {
-        console.error("Dummy payment error:", err);
-        setError(err.message || "Dummy payment failed");
-        toast.error(err.message || "Payment failed");
+        setError(err.message);
+        toast.error(err.message);
       } finally {
         setProcessing(false);
       }
+
       return;
     }
 
@@ -732,42 +717,43 @@ export default function PaymentModal({
           paymentDetails,
           purchaseTitle,
 
-          // SUCCESS CALLBACK
+          // SUCCESS
           async (response) => {
             try {
-              // Updated endpoint for Netlify
-              const verifyResponse = await fetch("/.netlify/functions/payment-verify", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                  masterclassId: masterclass.id,
-                  videoId: videoIdToUse,
-                  userId: user.uid,
-                  masterclassTitle: masterclass.title,
-                  videoTitle: video?.title || null,
-                  amount: purchaseAmount,
-                  method: "razorpay",
-                  type: transactionType,
-                }),
-              });
+              const verifyRes = await fetch(
+                "/.netlify/functions/payment-verify",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_signature: response.razorpay_signature,
+                    masterclassId: masterclass.id,
+                    videoId: videoIdToUse,
+                    userId: user.uid,
+                    masterclassTitle: masterclass.title,
+                    videoTitle: video?.title || null,
+                    amount: purchaseAmount,
+                    method: "razorpay",
+                    type: transactionType,
+                  }),
+                }
+              );
 
-              const verifyData = await verifyResponse.json();
+              const verifyData = await verifyRes.json();
 
-              if (!verifyData.success) {
-                throw new Error(verifyData.error || "Payment verification failed");
+              if (!verifyData?.success) {
+                throw new Error(safeExtractError(verifyData));
               }
 
-              const successMessage = 
+              toast.success(
                 transactionType === "upcoming_registration"
-                  ? "Registration successful! Check your email for details and reminders."
+                  ? "Registration successful!"
                   : transactionType === "video_purchase"
-                    ? "Video unlocked! Check your email for confirmation."
-                    : "Purchase successful! Check your email.";
-
-              toast.success(successMessage);
+                  ? "Video unlocked!"
+                  : "Payment successful!"
+              );
 
               handleSuccessCallback({
                 orderId: response.razorpay_order_id,
@@ -781,25 +767,27 @@ export default function PaymentModal({
               });
 
               setTimeout(onClose, 600);
-            } catch (verifyErr: any) {
-              console.error("Payment verification error:", verifyErr);
-              setError(verifyErr.message || "Verification failed");
-              toast.error("Payment verification failed. Please contact support.");
+            } catch (err: any) {
+              const msg = safeExtractError(err);
+              setError(msg);
+              toast.error(msg);
             } finally {
               setProcessing(false);
             }
           },
 
-          // ERROR CALLBACK
-          async (error) => {
-            const msg = error?.error?.description || "Payment cancelled";
+          // FAILURE
+          (error) => {
+            const msg =
+              error?.error?.description ||
+              safeExtractError(error) ||
+              "Payment cancelled";
             setError(msg);
             toast.error(msg);
             setProcessing(false);
           }
         );
       } catch (err: any) {
-        console.error("Razorpay payment error:", err);
         setError(err.message || "Payment failed");
         toast.error(err.message || "Payment failed");
         setProcessing(false);
@@ -809,7 +797,7 @@ export default function PaymentModal({
 
   const handleClose = () => {
     if (processing) {
-      toast.error("Please wait for the payment to complete");
+      toast.error("Payment is still processing, please wait");
       return;
     }
     onClose();
@@ -843,182 +831,179 @@ export default function PaymentModal({
 
   const getButtonText = () => {
     if (processing) return "Processing...";
-    if (purchaseAmount === 0) return "Register Now";
-    return `Pay ₹${purchaseAmount}`;
+    return purchaseAmount === 0 ? "Register Now" : `Pay ₹${purchaseAmount}`;
   };
 
   return (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2">
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-sm w-full overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-sm w-full overflow-hidden">
 
-      {/* HEADER */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white relative">
-        <button
-          onClick={handleClose}
-          disabled={processing}
-          className="absolute top-3 right-3 hover:bg-white hover:bg-opacity-20 rounded-full p-1.5 transition disabled:opacity-50"
-          aria-label="Close"
-        >
-          <X className="w-4 h-4" />
-        </button>
-
-        <h2 className="text-lg font-bold mb-1">{getHeaderText()}</h2>
-        <p className="text-blue-100 text-xs">
-          {purchaseAmount === 0
-            ? "Complete your free registration"
-            : "Secure payment powered by Razorpay"}
-        </p>
-      </div>
-
-      {/* BODY */}
-      <div className="p-4 space-y-4">
-
-        {/* PURCHASE INFO */}
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-          <span className="inline-block bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 text-[10px] font-semibold px-2 py-0.5 rounded mb-1">
-            {getPurchaseTypeLabel()}
-          </span>
-
-          <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-1 text-sm">
-            {isVideoPurchase ? video?.title : masterclass.title}
-          </h3>
-
-          {video && (
-            <p className="text-xs text-gray-600 dark:text-gray-300">
-              Part of: {masterclass.title}
-            </p>
-          )}
-
-          {isUpcoming && masterclass.scheduled_date && (
-            <p className="text-[11px] mt-1 text-blue-600 dark:text-blue-400 font-medium">
-              📅{" "}
-              {new Date(masterclass.scheduled_date).toLocaleString()}
-            </p>
-          )}
-
-          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex justify-between items-center">
-            <span className="text-gray-600 dark:text-gray-300 text-xs">Total Amount</span>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">
-              {purchaseAmount === 0 ? "FREE" : `₹${purchaseAmount}`}
-            </span>
-          </div>
-        </div>
-
-        {/* INFO BOX */}
-        {purchaseAmount > 0 && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-2 rounded-md">
-            <div className="flex items-start gap-2">
-              <CheckCircle className="w-3.5 h-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
-              <p className="text-[11px] text-blue-800 dark:text-blue-200">
-                You'll receive a confirmation email
-                {transactionType === "upcoming_registration" && " + event reminders"}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* ERROR BOX */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 p-3 rounded-md">
-            <div className="flex gap-2">
-              <AlertCircle className="text-red-600 dark:text-red-400 w-4 h-4 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="font-semibold text-red-700 dark:text-red-300 text-xs">
-                  Payment Error
-                </p>
-                <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{error}</p>
-              </div>
-              <button
-                onClick={() => setError("")}
-                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* PAYMENT METHODS */}
-        {purchaseAmount > 0 && (
-          <div>
-            <label className="text-xs font-medium mb-2 block text-gray-700 dark:text-gray-300">
-              Select Payment Method *
-            </label>
-
-            <div className="space-y-2">
-
-              {/* Dummy */}
-              <button
-                type="button"
-                onClick={() => setPaymentMethod("dummy")}
-                disabled={processing}
-                className={`w-full p-3 rounded-md border flex items-center gap-2 text-sm ${
-                  paymentMethod === "dummy"
-                    ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
-                    : "border-gray-300 dark:border-gray-600"
-                } ${processing ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                <CreditCard className="w-4 h-4" />
-                <span className="text-xs">Dummy Payment</span>
-                {paymentMethod === "dummy" && <CheckCircle className="w-4 h-4 text-blue-600" />}
-              </button>
-
-              {/* Razorpay */}
-              <button
-                type="button"
-                onClick={() => setPaymentMethod("razorpay")}
-                disabled={processing || !razorpayLoaded}
-                className={`w-full p-3 rounded-md border flex items-center gap-2 text-sm ${
-                  paymentMethod === "razorpay"
-                    ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
-                    : "border-gray-300 dark:border-gray-600"
-                } ${(processing || !razorpayLoaded) ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                <Shield className="w-4 h-4" />
-                <span className="text-xs">Razorpay</span>
-                {paymentMethod === "razorpay" && <CheckCircle className="w-4 h-4 text-blue-600" />}
-              </button>
-
-            </div>
-          </div>
-        )}
-
-        {/* ACTION BUTTONS */}
-        <div className="flex gap-2">
+        {/* HEADER */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white relative">
           <button
-            type="button"
             onClick={handleClose}
             disabled={processing}
-            className="flex-1 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50"
+            className="absolute top-3 right-3 hover:bg-white hover:bg-opacity-20 rounded-full p-1.5 transition disabled:opacity-50"
           >
-            Cancel
+            <X className="w-4 h-4" />
           </button>
 
-          <button
-            type="button"
-            onClick={handlePayment}
-            disabled={processing || (purchaseAmount > 0 && !paymentMethod)}
-            className="flex-1 py-2 bg-blue-600 text-white rounded-md text-xs font-semibold flex items-center justify-center gap-1 hover:bg-blue-700 transition disabled:opacity-50"
-          >
-            {processing ? (
-              <>
-                <div className="animate-spin w-4 h-4 border-b-2 border-white rounded-full"></div>
-                Processing...
-              </>
-            ) : (
-              getButtonText()
-            )}
-          </button>
+          <h2 className="text-lg font-bold mb-1">{getHeaderText()}</h2>
+          <p className="text-blue-100 text-xs">
+            {purchaseAmount === 0
+              ? "Complete your free registration"
+              : "Secure payment powered by Razorpay"}
+          </p>
         </div>
 
-        {/* Additional info */}
-        {transactionType === "upcoming_registration" && purchaseAmount > 0 && (
-          <p className="text-[10px] text-center text-gray-500 dark:text-gray-400">
-            💡 Reminder emails will be sent before event time
-          </p>
-        )}
+        <div className="p-4 space-y-4">
+
+          {/* Purchase Info */}
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+            <span className="inline-block bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 text-[10px] font-semibold px-2 py-0.5 rounded mb-1">
+              {getPurchaseTypeLabel()}
+            </span>
+
+            <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-1 text-sm">
+              {isVideoPurchase ? video?.title : masterclass.title}
+            </h3>
+
+            {video && (
+              <p className="text-xs text-gray-600 dark:text-gray-300">
+                Part of: {masterclass.title}
+              </p>
+            )}
+
+            {isUpcoming && masterclass.scheduled_date && (
+              <p className="text-[11px] mt-1 text-blue-600 dark:text-blue-400 font-medium">
+                📅 {new Date(masterclass.scheduled_date).toLocaleString()}
+              </p>
+            )}
+
+            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex justify-between items-center">
+              <span className="text-gray-600 dark:text-gray-300 text-xs">Total Amount</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">
+                {purchaseAmount === 0 ? "FREE" : `₹${purchaseAmount}`}
+              </span>
+            </div>
+          </div>
+
+          {/* Info Box */}
+          {purchaseAmount > 0 && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-2 rounded-md">
+              <div className="flex items-start gap-2">
+                <CheckCircle className="w-3.5 h-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <p className="text-[11px] text-blue-800 dark:text-blue-200">
+                  You'll receive a confirmation email
+                  {transactionType === "upcoming_registration" && " + event reminders"}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ERROR BLOCK */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 p-3 rounded-md">
+              <div className="flex gap-2">
+                <AlertCircle className="text-red-600 dark:text-red-400 w-4 h-4" />
+                <div className="flex-1">
+                  <p className="font-semibold text-red-700 dark:text-red-300 text-xs">
+                    Payment Error
+                  </p>
+                  <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">
+                    {error}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setError("")}
+                  className="text-red-600 dark:text-red-400 hover:text-red-800"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Payment Methods */}
+          {purchaseAmount > 0 && (
+            <div>
+              <label className="text-xs font-medium mb-2 block text-gray-700 dark:text-gray-300">
+                Select Payment Method *
+              </label>
+
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("dummy")}
+                  disabled={processing}
+                  className={`w-full p-3 rounded-md border flex items-center gap-2 text-sm ${
+                    paymentMethod === "dummy"
+                      ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                      : "border-gray-300 dark:border-gray-600"
+                  }`}
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span className="text-xs">Dummy Payment</span>
+                  {paymentMethod === "dummy" && (
+                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("razorpay")}
+                  disabled={processing || !razorpayLoaded}
+                  className={`w-full p-3 rounded-md border flex items-center gap-2 text-sm ${
+                    paymentMethod === "razorpay"
+                      ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                      : "border-gray-300 dark:border-gray-600"
+                  }`}
+                >
+                  <Shield className="w-4 h-4" />
+                  <span className="text-xs">Razorpay</span>
+                  {paymentMethod === "razorpay" && (
+                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={processing}
+              className="flex-1 py-2 border rounded-md text-xs font-semibold"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePayment}
+              disabled={processing || (purchaseAmount > 0 && !paymentMethod)}
+              className="flex-1 py-2 bg-blue-600 text-white rounded-md text-xs font-semibold flex items-center justify-center gap-1"
+            >
+              {processing ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-b-2 border-white rounded-full"></div>
+                  Processing...
+                </>
+              ) : (
+                getButtonText()
+              )}
+            </button>
+          </div>
+
+          {transactionType === "upcoming_registration" && purchaseAmount > 0 && (
+            <p className="text-[10px] text-center text-gray-500">
+              💡 Reminder emails will be sent before event time
+            </p>
+          )}
+        </div>
       </div>
     </div>
-  </div>
-)
+  );
 }

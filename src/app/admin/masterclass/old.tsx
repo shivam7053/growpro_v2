@@ -1,3 +1,5 @@
+
+// app/admin/masterclass/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -23,7 +25,7 @@ export default function AdminMasterclasses() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
 
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState({
     title: '',
     speaker_name: '',
     speaker_designation: '',
@@ -33,16 +35,9 @@ export default function AdminMasterclasses() {
     total_duration: '',
     thumbnail_url: '',
     scheduled_date: '',
-    // NEW: masterclass source and zoom fields
-    masterclass_source: 'youtube' as 'youtube' | 'zoom',
-    zoom_link: '',
-    zoom_meeting_id: '',
-    zoom_passcode: '',
-    zoom_start_time: '',
-    zoom_end_time: '',
   });
 
-  const [videoFormData, setVideoFormData] = useState<any>({
+  const [videoFormData, setVideoFormData] = useState<MasterclassVideo>({
     id: '',
     title: '',
     youtube_url: '',
@@ -84,14 +79,7 @@ export default function AdminMasterclasses() {
           scheduled_date: data.scheduled_date || '',
           videos: data.videos || [],
           starting_price: data.starting_price || 0,
-          // new: masterclass_source + zoom fields (if present)
-          masterclass_source: data.masterclass_source || 'youtube',
-          zoom_link: data.zoom_link || '',
-          zoom_meeting_id: data.zoom_meeting_id || '',
-          zoom_passcode: data.zoom_passcode || '',
-          zoom_start_time: data.zoom_start_time || '',
-          zoom_end_time: data.zoom_end_time || '',
-        } as Masterclass);
+        });
       }
 
       setClasses(masterclassList);
@@ -108,13 +96,8 @@ export default function AdminMasterclasses() {
   }, []);
 
   const handleAddVideo = () => {
-    // validation (videos only for youtube masterclasses)
-    if (!videoFormData.title || !videoFormData.title.trim()) {
-      return alert('Video title is required');
-    }
-
-    if (!videoFormData.youtube_url || !videoFormData.youtube_url.trim()) {
-      return alert('YouTube URL is required');
+    if (!videoFormData.title.trim() || !videoFormData.youtube_url.trim()) {
+      return alert('Video title and URL are required');
     }
 
     if (videoFormData.type === 'paid' && videoFormData.price <= 0) {
@@ -122,15 +105,10 @@ export default function AdminMasterclasses() {
     }
 
     const newVideo: MasterclassVideo = {
+      ...videoFormData,
       id: `video_${Date.now()}`,
-      title: videoFormData.title,
-      youtube_url: videoFormData.youtube_url,
-      duration: videoFormData.duration || '',
       order: currentVideos.length,
-      type: videoFormData.type,
-      price: Number(videoFormData.price) || 0,
-      description: videoFormData.description || '',
-    } as MasterclassVideo;
+    };
 
     if (editingVideoIndex !== null) {
       const updated = [...currentVideos];
@@ -155,17 +133,7 @@ export default function AdminMasterclasses() {
   };
 
   const handleEditVideo = (index: number) => {
-    const v = currentVideos[index];
-    setVideoFormData({
-      id: v.id,
-      title: v.title,
-      youtube_url: v.youtube_url || '',
-      duration: v.duration || '',
-      order: v.order || 0,
-      type: v.type || 'free',
-      price: v.price || 0,
-      description: v.description || '',
-    });
+    setVideoFormData(currentVideos[index]);
     setEditingVideoIndex(index);
     setShowVideoModal(true);
   };
@@ -177,30 +145,17 @@ export default function AdminMasterclasses() {
   };
 
   const validateForm = () => {
-    if (!formData.title || !formData.title.trim()) {
+    if (!formData.title.trim()) {
       alert('Title is required');
       return false;
     }
-    if (!formData.speaker_name || !formData.speaker_name.trim()) {
+    if (!formData.speaker_name.trim()) {
       alert('Speaker name is required');
       return false;
     }
-
-    // masterclass source specific validation
-    if (formData.masterclass_source === 'youtube') {
-      if (currentVideos.length === 0) {
-        alert('Add at least one video for YouTube masterclass');
-        return false;
-      }
-    } else if (formData.masterclass_source === 'zoom') {
-      if (!formData.zoom_link || !formData.zoom_link.trim()) {
-        alert('Zoom link is required for Zoom masterclass');
-        return false;
-      }
-      if (!formData.zoom_meeting_id || !formData.zoom_meeting_id.trim()) {
-        alert('Zoom meeting ID is required');
-        return false;
-      }
+    if (currentVideos.length === 0) {
+      alert('Add at least one video');
+      return false;
     }
 
     // Validate upcoming masterclass
@@ -216,18 +171,16 @@ export default function AdminMasterclasses() {
       }
     }
 
-    // Auto-calculate starting price from videos (only for youtube source)
-    if (formData.masterclass_source === 'youtube') {
-      const paidVideos = currentVideos.filter(v => v.type === 'paid');
-      if (paidVideos.length > 0) {
-        const minPrice = Math.min(...paidVideos.map(v => v.price));
-        if (Number(formData.starting_price) !== minPrice) {
-          const shouldContinue = confirm(
-            `Starting price should match the minimum video price (₹${minPrice}). Update automatically?`
-          );
-          if (shouldContinue) {
-            setFormData({ ...formData, starting_price: String(minPrice) });
-          }
+    // Auto-calculate starting price from videos
+    const paidVideos = currentVideos.filter(v => v.type === 'paid');
+    if (paidVideos.length > 0) {
+      const minPrice = Math.min(...paidVideos.map(v => v.price));
+      if (Number(formData.starting_price) !== minPrice) {
+        const shouldContinue = confirm(
+          `Starting price should match the minimum video price (₹${minPrice}). Update automatically?`
+        );
+        if (shouldContinue) {
+          setFormData({ ...formData, starting_price: String(minPrice) });
         }
       }
     }
@@ -241,13 +194,13 @@ export default function AdminMasterclasses() {
     if (!validateForm()) return;
 
     try {
-      // Auto-calculate starting price for YouTube masterclasses
+      // Auto-calculate starting price
       const paidVideos = currentVideos.filter(v => v.type === 'paid');
-      const calculatedPrice = paidVideos.length > 0
+      const calculatedPrice = paidVideos.length > 0 
         ? Math.min(...paidVideos.map(v => v.price))
         : 0;
 
-      const dataToSave: any = {
+      const dataToSave = {
         title: formData.title,
         speaker_name: formData.speaker_name,
         speaker_designation: formData.speaker_designation,
@@ -257,18 +210,8 @@ export default function AdminMasterclasses() {
         total_duration: formData.total_duration,
         thumbnail_url: formData.thumbnail_url,
         scheduled_date: formData.scheduled_date,
-        masterclass_source: formData.masterclass_source,
-        videos: formData.masterclass_source === 'youtube' ? currentVideos : [],
+        videos: currentVideos,
       };
-
-      // include zoom fields when applicable
-      if (formData.masterclass_source === 'zoom') {
-        dataToSave.zoom_link = formData.zoom_link;
-        dataToSave.zoom_meeting_id = formData.zoom_meeting_id;
-        dataToSave.zoom_passcode = formData.zoom_passcode;
-        dataToSave.zoom_start_time = formData.zoom_start_time;
-        dataToSave.zoom_end_time = formData.zoom_end_time;
-      }
 
       if (editingId) {
         await updateDoc(doc(db, 'MasterClasses', editingId), dataToSave);
@@ -282,7 +225,6 @@ export default function AdminMasterclasses() {
         alert('✅ Masterclass added successfully!');
       }
 
-      // reset
       setFormData({
         title: '',
         speaker_name: '',
@@ -293,12 +235,6 @@ export default function AdminMasterclasses() {
         total_duration: '',
         thumbnail_url: '',
         scheduled_date: '',
-        masterclass_source: 'youtube',
-        zoom_link: '',
-        zoom_meeting_id: '',
-        zoom_passcode: '',
-        zoom_start_time: '',
-        zoom_end_time: '',
       });
       setCurrentVideos([]);
       setEditingId(null);
@@ -332,14 +268,7 @@ export default function AdminMasterclasses() {
       total_duration: cls.total_duration || '',
       thumbnail_url: cls.thumbnail_url || '',
       scheduled_date: cls.scheduled_date || '',
-      masterclass_source: (cls as any).masterclass_source || 'youtube',
-      zoom_link: (cls as any).zoom_link || '',
-      zoom_meeting_id: (cls as any).zoom_meeting_id || '',
-      zoom_passcode: (cls as any).zoom_passcode || '',
-      zoom_start_time: (cls as any).zoom_start_time || '',
-      zoom_end_time: (cls as any).zoom_end_time || '',
     });
-
     setCurrentVideos(cls.videos || []);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -356,12 +285,6 @@ export default function AdminMasterclasses() {
       total_duration: '',
       thumbnail_url: '',
       scheduled_date: '',
-      masterclass_source: 'youtube',
-      zoom_link: '',
-      zoom_meeting_id: '',
-      zoom_passcode: '',
-      zoom_start_time: '',
-      zoom_end_time: '',
     });
     setCurrentVideos([]);
   };
@@ -383,7 +306,7 @@ export default function AdminMasterclasses() {
     const freeVideos = currentVideos.filter(v => v.type === 'free');
     const paidVideos = currentVideos.filter(v => v.type === 'paid');
     const minPrice = paidVideos.length > 0 ? Math.min(...paidVideos.map(v => v.price)) : 0;
-
+    
     return {
       freeCount: freeVideos.length,
       paidCount: paidVideos.length,
@@ -438,15 +361,6 @@ export default function AdminMasterclasses() {
             <option value="upcoming">Upcoming</option>
           </select>
 
-          <select
-            value={formData.masterclass_source}
-            onChange={(e) => setFormData({ ...formData, masterclass_source: e.target.value })}
-            className="border p-3 rounded-lg text-gray-900"
-          >
-            <option value="youtube">YouTube (pre-recorded)</option>
-            <option value="zoom">Zoom (live)</option>
-          </select>
-
           <input type="text" placeholder="Total Duration (e.g., 5 hours)"
             value={formData.total_duration}
             onChange={(e) => setFormData({ ...formData, total_duration: e.target.value })}
@@ -468,51 +382,6 @@ export default function AdminMasterclasses() {
           )}
         </div>
 
-        {/* Zoom fields (shown only when masterclass_source === 'zoom') */}
-        {formData.masterclass_source === 'zoom' && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Zoom Meeting Link"
-              value={formData.zoom_link}
-              onChange={(e) => setFormData({ ...formData, zoom_link: e.target.value })}
-              className="border p-3 rounded-lg text-gray-900"
-            />
-
-            <input
-              type="text"
-              placeholder="Meeting ID"
-              value={formData.zoom_meeting_id}
-              onChange={(e) => setFormData({ ...formData, zoom_meeting_id: e.target.value })}
-              className="border p-3 rounded-lg text-gray-900"
-            />
-
-            <input
-              type="text"
-              placeholder="Passcode"
-              value={formData.zoom_passcode}
-              onChange={(e) => setFormData({ ...formData, zoom_passcode: e.target.value })}
-              className="border p-3 rounded-lg text-gray-900"
-            />
-
-            <input
-              type="datetime-local"
-              placeholder="Zoom Start Time"
-              value={formData.zoom_start_time}
-              onChange={(e) => setFormData({ ...formData, zoom_start_time: e.target.value })}
-              className="border p-3 rounded-lg text-gray-900"
-            />
-
-            <input
-              type="datetime-local"
-              placeholder="Zoom End Time"
-              value={formData.zoom_end_time}
-              onChange={(e) => setFormData({ ...formData, zoom_end_time: e.target.value })}
-              className="border p-3 rounded-lg text-gray-900"
-            />
-          </div>
-        )}
-
         <textarea
           placeholder="Description"
           value={formData.description}
@@ -522,7 +391,7 @@ export default function AdminMasterclasses() {
         />
 
         {/* Pricing Info Banner */}
-        {formData.masterclass_source === 'youtube' && currentVideos.length > 0 && (
+        {currentVideos.length > 0 && (
           <div className={`mt-4 p-4 rounded-lg ${pricingInfo.isFree ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'} border`}>
             <div className="flex items-start gap-2">
               <AlertCircle className={`w-5 h-5 mt-0.5 ${pricingInfo.isFree ? 'text-green-600' : 'text-orange-600'}`} />
@@ -543,46 +412,44 @@ export default function AdminMasterclasses() {
           </div>
         )}
 
-        {/* Videos Section (only for YouTube masterclasses) */}
-        {formData.masterclass_source === 'youtube' && (
-          <div className="mt-6 border-t pt-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Videos ({currentVideos.length})</h3>
-              <button
-                type="button"
-                onClick={() => setShowVideoModal(true)}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" /> Add Video
-              </button>
-            </div>
+        {/* Videos Section */}
+        <div className="mt-6 border-t pt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Videos ({currentVideos.length})</h3>
+            <button
+              type="button"
+              onClick={() => setShowVideoModal(true)}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> Add Video
+            </button>
+          </div>
 
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {currentVideos.map((video, index) => (
-                <div key={video.id} className="bg-gray-50 p-4 rounded-lg flex justify-between items-start">
-                  <div className="flex-1">
-                    <p className="font-semibold">{index + 1}. {video.title}</p>
-                    <p className="text-sm text-gray-600 truncate">{video.youtube_url}</p>
-                    <div className="flex gap-2 mt-1">
-                      {video.duration && <span className="text-xs bg-gray-200 px-2 py-1 rounded">{video.duration}</span>}
-                      <span className={`text-xs px-2 py-1 rounded ${video.type === 'free' ? 'bg-green-500 text-white' : 'bg-orange-500 text-white'}`}>
-                        {video.type === 'free' ? 'FREE' : `₹${video.price}`}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => handleEditVideo(index)} className="text-blue-600 hover:text-blue-800">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button type="button" onClick={() => handleDeleteVideo(index)} className="text-red-600 hover:text-red-800">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {currentVideos.map((video, index) => (
+              <div key={video.id} className="bg-gray-50 p-4 rounded-lg flex justify-between items-start">
+                <div className="flex-1">
+                  <p className="font-semibold">{index + 1}. {video.title}</p>
+                  <p className="text-sm text-gray-600 truncate">{video.youtube_url}</p>
+                  <div className="flex gap-2 mt-1">
+                    {video.duration && <span className="text-xs bg-gray-200 px-2 py-1 rounded">{video.duration}</span>}
+                    <span className={`text-xs px-2 py-1 rounded ${video.type === 'free' ? 'bg-green-500 text-white' : 'bg-orange-500 text-white'}`}>
+                      {video.type === 'free' ? 'FREE' : `₹${video.price}`}
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => handleEditVideo(index)} className="text-blue-600 hover:text-blue-800">
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button type="button" onClick={() => handleDeleteVideo(index)} className="text-red-600 hover:text-red-800">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
 
         <div className="flex gap-4 mt-6">
           <button type="submit" className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700">
@@ -601,7 +468,7 @@ export default function AdminMasterclasses() {
       </form>
 
       {/* Video Modal */}
-      {showVideoModal && formData.masterclass_source === 'youtube' && (
+      {showVideoModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
@@ -746,17 +613,6 @@ export default function AdminMasterclasses() {
                   📅 {new Date(cls.scheduled_date).toLocaleString()}
                 </p>
               )}
-
-              {/* show source info */}
-              <div className="mt-2 text-sm text-gray-700">
-                Source: <strong className="capitalize">{(cls as any).masterclass_source || 'youtube'}</strong>
-                {(cls as any).masterclass_source === 'zoom' && (
-                  <div className="mt-1 text-xs text-gray-600">
-                    Zoom ID: {(cls as any).zoom_meeting_id || '—'} • Pass: {(cls as any).zoom_passcode || '—'}
-                  </div>
-                )}
-              </div>
-
               <p className="text-xs text-gray-600 mt-1">Created: {new Date(cls.created_at).toLocaleDateString()}</p>
 
               <div className="mt-3 bg-gray-100 p-3 rounded-lg border border-gray-200">
