@@ -7,19 +7,18 @@ import { useAuth } from "@/context/AuthContexts";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 
-import HeroSection from "@/components/home/HeroSection";
+
 import MasterclassSection from "@/components/home/MasterclassSection";
-import UpcomingMasterclassSection from "@/components/home/UpcomingMasterClassSection";
 import WorkshopsTestimonialsSection from "@/components/home/WorkshopsTestimonialsSection";
 import CTAFooter from "@/components/home/CTAFooter";
 import BackgroundAnimation from "@/components/home/BackgroundAnimation";
 import TeachersCarousel from "@/components/home/TeachersCarousel";
 import FAQSection from "@/components/home/FAQSection";
 import StudentFeedback from "@/components/home/StudentFeedback";
-import HeroVideoSection from "@/components/home/HeroVideoSection";
 
-import { Masterclass } from "@/types/masterclass";
-import { parseMasterclassData } from "@/utils/masterclass";
+
+import { Masterclass, MasterclassContent } from "@/types/masterclass";
+import AchievementGoals from "@/components/home/AchievementGoals";
 
 export default function HomePage() {
   const [masterclasses, setMasterclasses] = useState<Masterclass[]>([]);
@@ -32,13 +31,24 @@ export default function HomePage() {
       setLoading(true);
       const querySnapshot = await getDocs(collection(db, "MasterClasses"));
       
-      const list: Masterclass[] = [];
-      querySnapshot.docs.forEach((docSnap) => {
-        const parsed = parseMasterclassData(docSnap.id, docSnap.data());
-        if (parsed) list.push(parsed);
+      const masterclassList: Masterclass[] = querySnapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          title: data.title || "",
+          description: data.description || "",
+          speaker_name: data.speaker_name || "",
+          speaker_designation: data.speaker_designation || "",
+          thumbnail_url: data.thumbnail_url || "",
+          price: data.price || 0,
+          type: data.type || 'free',
+          created_at: data.created_at?.toDate()?.toISOString() || new Date().toISOString(),
+          content: (data.content || []).sort((a: MasterclassContent, b: MasterclassContent) => a.order - b.order),
+          purchased_by_users: data.purchased_by_users || [],
+        };
       });
 
-      setMasterclasses(list);
+      setMasterclasses(masterclassList);
     } catch (error: any) {
       console.error("❌ Error loading masterclasses:", error);
       toast.error("Error loading masterclasses");
@@ -55,25 +65,16 @@ export default function HomePage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 overflow-hidden relative text-gray-900 dark:text-gray-100">
       <BackgroundAnimation />
 
-      {/* Hero Section */}
+      {/* AchievementGoals Section */}
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
         transition={{ duration: 0.6 }}
       >
-        <HeroSection />
+        <AchievementGoals />
       </motion.div>
 
-      {/* Hero Video Section */}
-      {/* <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.3 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-      >
-        <HeroVideoSection />
-      </motion.div> */}
 
       {/* Featured Masterclasses Section - Shows any 4 classes */}
       <motion.div
@@ -86,24 +87,10 @@ export default function HomePage() {
           masterclasses={masterclasses}
           loading={loading}
           user={user}
-          onPurchaseComplete={fetchMasterclasses}
         />
       </motion.div>
 
-      {/* Upcoming Masterclasses Section - Shows only upcoming classes */}
-      <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.3 }}
-        transition={{ duration: 0.6, delay: 0.3 }}
-      >
-        <UpcomingMasterclassSection
-          masterclasses={masterclasses}
-          loading={loading}
-          user={user}
-          onPurchaseComplete={fetchMasterclasses}
-        />
-      </motion.div>
+
 
       {/* Workshops & Testimonials */}
       <motion.div

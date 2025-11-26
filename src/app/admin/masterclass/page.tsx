@@ -12,49 +12,43 @@ import {
   doc,
   serverTimestamp,
 } from 'firebase/firestore';
-import { Masterclass, MasterclassVideo } from '@/types/masterclass';
+import { Masterclass, MasterclassContent } from '@/types/masterclass';
 import { Plus, Trash2, Edit2, Video, X, AlertCircle } from 'lucide-react';
 
 export default function AdminMasterclasses() {
   const router = useRouter();
   const [classes, setClasses] = useState<Masterclass[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'free' | 'paid' | 'featured' | 'upcoming'>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [showContentModal, setShowContentModal] = useState(false);
 
+  // State for the main Masterclass form
   const [formData, setFormData] = useState<any>({
     title: '',
     speaker_name: '',
     speaker_designation: '',
-    starting_price: '',
-    type: 'free' as 'free' | 'paid' | 'featured' | 'upcoming',
     description: '',
-    total_duration: '',
+    price: 0,
+    type: 'free' as 'free' | 'paid',
     thumbnail_url: '',
-    scheduled_date: '',
-    // NEW: masterclass source and zoom fields
-    masterclass_source: 'youtube' as 'youtube' | 'zoom',
-    zoom_link: '',
-    zoom_meeting_id: '',
-    zoom_passcode: '',
-    zoom_start_time: '',
-    zoom_end_time: '',
   });
 
-  const [videoFormData, setVideoFormData] = useState<any>({
+  // State for the MasterclassContent modal (for YouTube/Zoom)
+  const [contentFormData, setContentFormData] = useState<Partial<MasterclassContent>>({
     id: '',
     title: '',
-    youtube_url: '',
-    duration: '',
     order: 0,
-    type: 'free',
-    price: 0,
     description: '',
+    source: 'youtube' as 'youtube' | 'zoom',
+    youtube_url: '',
+    zoom_meeting_id: '',
+    zoom_passcode: '',
+    zoom_link: '',
+    scheduled_date: '',
   });
 
-  const [currentVideos, setCurrentVideos] = useState<MasterclassVideo[]>([]);
-  const [editingVideoIndex, setEditingVideoIndex] = useState<number | null>(null);
+  const [currentContent, setCurrentContent] = useState<MasterclassContent[]>([]);
+  const [editingContentIndex, setEditingContentIndex] = useState<number | null>(null);
 
   const fetchClasses = async () => {
     try {
@@ -64,33 +58,22 @@ export default function AdminMasterclasses() {
 
       for (const docSnap of querySnapshot.docs) {
         const data = docSnap.data();
-        const joinedUsers: string[] = Array.isArray(data.joined_users)
-          ? data.joined_users.filter((id) => typeof id === 'string')
+        const purchasedByUsers: string[] = Array.isArray(data.purchased_by_users)
+          ? data.purchased_by_users.filter((id) => typeof id === 'string')
           : [];
 
         masterclassList.push({
           id: docSnap.id,
           title: data.title || '',
+          description: data.description || '',
           speaker_name: data.speaker_name || '',
           speaker_designation: data.speaker_designation || '',
-          created_at: data.created_at
-            ? new Date(data.created_at.seconds * 1000).toISOString()
-            : new Date().toISOString(),
-          joined_users: joinedUsers,
-          type: data.type || 'free',
-          description: data.description || '',
-          total_duration: data.total_duration || '',
           thumbnail_url: data.thumbnail_url || '',
-          scheduled_date: data.scheduled_date || '',
-          videos: data.videos || [],
-          starting_price: data.starting_price || 0,
-          // new: masterclass_source + zoom fields (if present)
-          masterclass_source: data.masterclass_source || 'youtube',
-          zoom_link: data.zoom_link || '',
-          zoom_meeting_id: data.zoom_meeting_id || '',
-          zoom_passcode: data.zoom_passcode || '',
-          zoom_start_time: data.zoom_start_time || '',
-          zoom_end_time: data.zoom_end_time || '',
+          price: data.price || 0,
+          type: data.type || 'free',
+          created_at: data.created_at?.toDate()?.toISOString() || new Date().toISOString(),
+          content: data.content || [],
+          purchased_by_users: purchasedByUsers,
         } as Masterclass);
       }
 
@@ -107,72 +90,65 @@ export default function AdminMasterclasses() {
     fetchClasses();
   }, []);
 
-  const handleAddVideo = () => {
-    // validation (videos only for youtube masterclasses)
-    if (!videoFormData.title || !videoFormData.title.trim()) {
-      return alert('Video title is required');
+  const handleAddContent = () => {
+    // Validation for content form
+    if (!contentFormData.title || !contentFormData.title.trim()) {
+      return alert('Content title is required');
     }
 
-    if (!videoFormData.youtube_url || !videoFormData.youtube_url.trim()) {
-      return alert('YouTube URL is required');
+    if (contentFormData.source === 'youtube' && (!contentFormData.youtube_url || !contentFormData.youtube_url.trim())) {
+      return alert('YouTube URL is required for YouTube content.');
     }
 
-    if (videoFormData.type === 'paid' && videoFormData.price <= 0) {
-      return alert('Price must be greater than 0 for paid videos');
+    if (contentFormData.source === 'zoom' && (!contentFormData.zoom_meeting_id || !contentFormData.zoom_meeting_id.trim())) {
+      return alert('Zoom Meeting ID is required for Zoom content.');
     }
 
-    const newVideo: MasterclassVideo = {
+    const newContent: MasterclassContent = {
       id: `video_${Date.now()}`,
-      title: videoFormData.title,
-      youtube_url: videoFormData.youtube_url,
-      duration: videoFormData.duration || '',
-      order: currentVideos.length,
-      type: videoFormData.type,
-      price: Number(videoFormData.price) || 0,
-      description: videoFormData.description || '',
-    } as MasterclassVideo;
+      ...contentFormData,
+      order: currentContent.length,
+    } as MasterclassContent;
 
-    if (editingVideoIndex !== null) {
-      const updated = [...currentVideos];
-      updated[editingVideoIndex] = newVideo;
-      setCurrentVideos(updated);
-      setEditingVideoIndex(null);
+    if (editingContentIndex !== null) {
+      const updated = [...currentContent];
+      updated[editingContentIndex] = newContent;
+      setCurrentContent(updated);
+      setEditingContentIndex(null);
     } else {
-      setCurrentVideos([...currentVideos, newVideo]);
+      setCurrentContent([...currentContent, newContent]);
     }
 
-    setVideoFormData({
+    // Reset modal form
+    setContentFormData({
       id: '',
       title: '',
-      youtube_url: '',
-      duration: '',
       order: 0,
-      type: 'free',
-      price: 0,
       description: '',
+      source: 'youtube',
+      youtube_url: '',
+      zoom_meeting_id: '',
+      zoom_passcode: '',
+      zoom_link: '',
+      scheduled_date: '',
     });
-    setShowVideoModal(false);
+    setShowContentModal(false);
   };
 
-  const handleEditVideo = (index: number) => {
-    const v = currentVideos[index];
-    setVideoFormData({
-      id: v.id,
-      title: v.title,
-      youtube_url: v.youtube_url || '',
-      duration: v.duration || '',
-      order: v.order || 0,
-      type: v.type || 'free',
-      price: v.price || 0,
-      description: v.description || '',
+  const handleEditContent = (index: number) => {
+    const contentItem = currentContent[index];
+    setContentFormData({
+      ...contentItem,
     });
-    setEditingVideoIndex(index);
-    setShowVideoModal(true);
+    setEditingContentIndex(index);
+    setShowContentModal(true);
   };
 
-  const handleDeleteVideo = (index: number) => {
-    if (confirm('Delete this video?')) {
-      setCurrentVideos(currentVideos.filter((_, i) => i !== index));
+  const handleDeleteContent = (index: number) => {
+    if (confirm('Are you sure you want to delete this content item?')) {
+      const updatedContent = currentContent.filter((_, i) => i !== index);
+      // Re-order the remaining items
+      setCurrentContent(updatedContent.map((item, idx) => ({ ...item, order: idx })));
     }
   };
 
@@ -186,50 +162,9 @@ export default function AdminMasterclasses() {
       return false;
     }
 
-    // masterclass source specific validation
-    if (formData.masterclass_source === 'youtube') {
-      if (currentVideos.length === 0) {
-        alert('Add at least one video for YouTube masterclass');
-        return false;
-      }
-    } else if (formData.masterclass_source === 'zoom') {
-      if (!formData.zoom_link || !formData.zoom_link.trim()) {
-        alert('Zoom link is required for Zoom masterclass');
-        return false;
-      }
-      if (!formData.zoom_meeting_id || !formData.zoom_meeting_id.trim()) {
-        alert('Zoom meeting ID is required');
-        return false;
-      }
-    }
-
-    // Validate upcoming masterclass
-    if (formData.type === 'upcoming') {
-      if (!formData.scheduled_date) {
-        alert('Scheduled date is required for upcoming masterclasses');
-        return false;
-      }
-      const scheduledDate = new Date(formData.scheduled_date);
-      if (scheduledDate <= new Date()) {
-        alert('Scheduled date must be in the future');
-        return false;
-      }
-    }
-
-    // Auto-calculate starting price from videos (only for youtube source)
-    if (formData.masterclass_source === 'youtube') {
-      const paidVideos = currentVideos.filter(v => v.type === 'paid');
-      if (paidVideos.length > 0) {
-        const minPrice = Math.min(...paidVideos.map(v => v.price));
-        if (Number(formData.starting_price) !== minPrice) {
-          const shouldContinue = confirm(
-            `Starting price should match the minimum video price (₹${minPrice}). Update automatically?`
-          );
-          if (shouldContinue) {
-            setFormData({ ...formData, starting_price: String(minPrice) });
-          }
-        }
-      }
+    if (currentContent.length === 0) {
+      alert('A masterclass must have at least one piece of content (a video or a zoom session).');
+      return false;
     }
 
     return true;
@@ -241,34 +176,16 @@ export default function AdminMasterclasses() {
     if (!validateForm()) return;
 
     try {
-      // Auto-calculate starting price for YouTube masterclasses
-      const paidVideos = currentVideos.filter(v => v.type === 'paid');
-      const calculatedPrice = paidVideos.length > 0
-        ? Math.min(...paidVideos.map(v => v.price))
-        : 0;
-
       const dataToSave: any = {
         title: formData.title,
         speaker_name: formData.speaker_name,
         speaker_designation: formData.speaker_designation,
-        starting_price: calculatedPrice,
-        type: formData.type,
         description: formData.description,
-        total_duration: formData.total_duration,
+        price: Number(formData.price) || 0,
+        type: formData.type,
         thumbnail_url: formData.thumbnail_url,
-        scheduled_date: formData.scheduled_date,
-        masterclass_source: formData.masterclass_source,
-        videos: formData.masterclass_source === 'youtube' ? currentVideos : [],
+        content: currentContent,
       };
-
-      // include zoom fields when applicable
-      if (formData.masterclass_source === 'zoom') {
-        dataToSave.zoom_link = formData.zoom_link;
-        dataToSave.zoom_meeting_id = formData.zoom_meeting_id;
-        dataToSave.zoom_passcode = formData.zoom_passcode;
-        dataToSave.zoom_start_time = formData.zoom_start_time;
-        dataToSave.zoom_end_time = formData.zoom_end_time;
-      }
 
       if (editingId) {
         await updateDoc(doc(db, 'MasterClasses', editingId), dataToSave);
@@ -276,7 +193,7 @@ export default function AdminMasterclasses() {
       } else {
         await addDoc(collection(db, 'MasterClasses'), {
           ...dataToSave,
-          joined_users: [],
+          purchased_by_users: [],
           created_at: serverTimestamp(),
         });
         alert('✅ Masterclass added successfully!');
@@ -287,20 +204,12 @@ export default function AdminMasterclasses() {
         title: '',
         speaker_name: '',
         speaker_designation: '',
-        starting_price: '',
-        type: 'free',
         description: '',
-        total_duration: '',
+        price: 0,
+        type: 'free',
         thumbnail_url: '',
-        scheduled_date: '',
-        masterclass_source: 'youtube',
-        zoom_link: '',
-        zoom_meeting_id: '',
-        zoom_passcode: '',
-        zoom_start_time: '',
-        zoom_end_time: '',
       });
-      setCurrentVideos([]);
+      setCurrentContent([]);
       setEditingId(null);
       fetchClasses();
     } catch (err) {
@@ -326,21 +235,13 @@ export default function AdminMasterclasses() {
       title: cls.title,
       speaker_name: cls.speaker_name,
       speaker_designation: cls.speaker_designation,
-      starting_price: String(cls.starting_price),
-      type: cls.type,
       description: cls.description || '',
-      total_duration: cls.total_duration || '',
+      price: cls.price || 0,
+      type: cls.type || 'free',
       thumbnail_url: cls.thumbnail_url || '',
-      scheduled_date: cls.scheduled_date || '',
-      masterclass_source: (cls as any).masterclass_source || 'youtube',
-      zoom_link: (cls as any).zoom_link || '',
-      zoom_meeting_id: (cls as any).zoom_meeting_id || '',
-      zoom_passcode: (cls as any).zoom_passcode || '',
-      zoom_start_time: (cls as any).zoom_start_time || '',
-      zoom_end_time: (cls as any).zoom_end_time || '',
     });
 
-    setCurrentVideos(cls.videos || []);
+    setCurrentContent(cls.content || []);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -350,46 +251,17 @@ export default function AdminMasterclasses() {
       title: '',
       speaker_name: '',
       speaker_designation: '',
-      starting_price: '',
-      type: 'free',
       description: '',
-      total_duration: '',
+      price: 0,
+      type: 'free',
       thumbnail_url: '',
-      scheduled_date: '',
-      masterclass_source: 'youtube',
-      zoom_link: '',
-      zoom_meeting_id: '',
-      zoom_passcode: '',
-      zoom_start_time: '',
-      zoom_end_time: '',
     });
-    setCurrentVideos([]);
+    setCurrentContent([]);
   };
 
-  const filteredClasses =
-    filter === 'all' ? classes : classes.filter((cls) => cls.type === filter);
-
-  const getTypeBadgeColor = (type: string) => {
-    switch (type) {
-      case 'upcoming': return 'bg-blue-500';
-      case 'featured': return 'bg-yellow-500';
-      case 'paid': return 'bg-purple-500';
-      default: return 'bg-green-500';
-    }
-  };
-
-  // Calculate pricing info from videos
+  // Calculate pricing info from content
   const calculatePricingInfo = () => {
-    const freeVideos = currentVideos.filter(v => v.type === 'free');
-    const paidVideos = currentVideos.filter(v => v.type === 'paid');
-    const minPrice = paidVideos.length > 0 ? Math.min(...paidVideos.map(v => v.price)) : 0;
-
-    return {
-      freeCount: freeVideos.length,
-      paidCount: paidVideos.length,
-      minPrice,
-      isFree: paidVideos.length === 0,
-    };
+    return { isFree: formData.type === 'free', price: formData.price };
   };
 
   const pricingInfo = calculatePricingInfo();
@@ -424,94 +296,34 @@ export default function AdminMasterclasses() {
 
           <select
             value={formData.type}
-            onChange={(e) =>
+            onChange={(e) => {
+              const newType = e.target.value as 'free' | 'paid';
               setFormData({
                 ...formData,
-                type: e.target.value as 'free' | 'paid' | 'featured' | 'upcoming',
-              })
-            }
+                type: newType,
+                price: newType === 'free' ? 0 : formData.price,
+              });
+            }}
             className="border p-3 rounded-lg text-gray-900"
           >
             <option value="free">Free</option>
             <option value="paid">Paid</option>
-            <option value="featured">Featured</option>
-            <option value="upcoming">Upcoming</option>
           </select>
 
-          <select
-            value={formData.masterclass_source}
-            onChange={(e) => setFormData({ ...formData, masterclass_source: e.target.value })}
-            className="border p-3 rounded-lg text-gray-900"
-          >
-            <option value="youtube">YouTube (pre-recorded)</option>
-            <option value="zoom">Zoom (live)</option>
-          </select>
-
-          <input type="text" placeholder="Total Duration (e.g., 5 hours)"
-            value={formData.total_duration}
-            onChange={(e) => setFormData({ ...formData, total_duration: e.target.value })}
-            className="border p-3 rounded-lg text-gray-900" />
-
+          {formData.type === 'paid' && (
+            <input
+              type="number"
+              placeholder="Price (₹) *"
+              value={formData.price || ''}
+              onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+              className="border p-3 rounded-lg text-gray-900"
+            />
+          )}
           <input type="text" placeholder="Thumbnail URL"
             value={formData.thumbnail_url}
             onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
-            className="border p-3 rounded-lg text-gray-900" />
-
-          {formData.type === 'upcoming' && (
-            <input 
-              type="datetime-local" 
-              value={formData.scheduled_date}
-              onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-              className="border p-3 rounded-lg text-gray-900"
-              required
-            />
-          )}
+            className="border p-3 rounded-lg text-gray-900 col-span-1 md:col-span-2" />
         </div>
-
-        {/* Zoom fields (shown only when masterclass_source === 'zoom') */}
-        {formData.masterclass_source === 'zoom' && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Zoom Meeting Link"
-              value={formData.zoom_link}
-              onChange={(e) => setFormData({ ...formData, zoom_link: e.target.value })}
-              className="border p-3 rounded-lg text-gray-900"
-            />
-
-            <input
-              type="text"
-              placeholder="Meeting ID"
-              value={formData.zoom_meeting_id}
-              onChange={(e) => setFormData({ ...formData, zoom_meeting_id: e.target.value })}
-              className="border p-3 rounded-lg text-gray-900"
-            />
-
-            <input
-              type="text"
-              placeholder="Passcode"
-              value={formData.zoom_passcode}
-              onChange={(e) => setFormData({ ...formData, zoom_passcode: e.target.value })}
-              className="border p-3 rounded-lg text-gray-900"
-            />
-
-            <input
-              type="datetime-local"
-              placeholder="Zoom Start Time"
-              value={formData.zoom_start_time}
-              onChange={(e) => setFormData({ ...formData, zoom_start_time: e.target.value })}
-              className="border p-3 rounded-lg text-gray-900"
-            />
-
-            <input
-              type="datetime-local"
-              placeholder="Zoom End Time"
-              value={formData.zoom_end_time}
-              onChange={(e) => setFormData({ ...formData, zoom_end_time: e.target.value })}
-              className="border p-3 rounded-lg text-gray-900"
-            />
-          </div>
-        )}
 
         <textarea
           placeholder="Description"
@@ -522,67 +334,50 @@ export default function AdminMasterclasses() {
         />
 
         {/* Pricing Info Banner */}
-        {formData.masterclass_source === 'youtube' && currentVideos.length > 0 && (
+        {formData.type === 'paid' && (
           <div className={`mt-4 p-4 rounded-lg ${pricingInfo.isFree ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'} border`}>
             <div className="flex items-start gap-2">
               <AlertCircle className={`w-5 h-5 mt-0.5 ${pricingInfo.isFree ? 'text-green-600' : 'text-orange-600'}`} />
               <div>
                 <p className="font-semibold text-gray-900">Pricing Summary</p>
-                <p className="text-sm text-gray-700">
-                  {pricingInfo.freeCount} free video{pricingInfo.freeCount !== 1 ? 's' : ''}, {' '}
-                  {pricingInfo.paidCount} paid video{pricingInfo.paidCount !== 1 ? 's' : ''}
-                  {pricingInfo.paidCount > 0 && ` • Starting at ₹${pricingInfo.minPrice}`}
-                </p>
-                {formData.type === 'upcoming' && (
-                  <p className="text-sm text-blue-600 mt-1">
-                    {pricingInfo.isFree ? '✅ Free registration' : `💳 Registration fee: ₹${pricingInfo.minPrice}`}
-                  </p>
-                )}
+                <p className="text-sm text-gray-700">This masterclass is set to 'Paid' with a price of ₹{pricingInfo.price || 0}.</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Videos Section (only for YouTube masterclasses) */}
-        {formData.masterclass_source === 'youtube' && (
-          <div className="mt-6 border-t pt-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Videos ({currentVideos.length})</h3>
-              <button
-                type="button"
-                onClick={() => setShowVideoModal(true)}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" /> Add Video
-              </button>
-            </div>
-
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {currentVideos.map((video, index) => (
-                <div key={video.id} className="bg-gray-50 p-4 rounded-lg flex justify-between items-start">
-                  <div className="flex-1">
-                    <p className="font-semibold">{index + 1}. {video.title}</p>
-                    <p className="text-sm text-gray-600 truncate">{video.youtube_url}</p>
-                    <div className="flex gap-2 mt-1">
-                      {video.duration && <span className="text-xs bg-gray-200 px-2 py-1 rounded">{video.duration}</span>}
-                      <span className={`text-xs px-2 py-1 rounded ${video.type === 'free' ? 'bg-green-500 text-white' : 'bg-orange-500 text-white'}`}>
-                        {video.type === 'free' ? 'FREE' : `₹${video.price}`}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => handleEditVideo(index)} className="text-blue-600 hover:text-blue-800">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button type="button" onClick={() => handleDeleteVideo(index)} className="text-red-600 hover:text-red-800">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Content Section (Videos and Zoom sessions) */}
+        <div className="mt-6 border-t pt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Content ({currentContent.length})</h3>
+            <button
+              type="button"
+              onClick={() => setShowContentModal(true)}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> Add Content
+            </button>
           </div>
-        )}
+
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {currentContent.map((item, index) => (
+              <div key={item.id} className="bg-gray-50 p-4 rounded-lg flex justify-between items-start">
+                <div className="flex-1">
+                  <p className="font-semibold">{index + 1}. {item.title} <span className="text-xs font-normal capitalize bg-gray-200 px-2 py-0.5 rounded-full">{item.source}</span></p>
+                  <p className="text-sm text-gray-600 truncate">{item.source === 'youtube' ? item.youtube_url : `Zoom ID: ${item.zoom_meeting_id}`}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => handleEditContent(index)} className="text-blue-600 hover:text-blue-800">
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button type="button" onClick={() => handleDeleteContent(index)} className="text-red-600 hover:text-red-800">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div className="flex gap-4 mt-6">
           <button type="submit" className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700">
@@ -600,24 +395,22 @@ export default function AdminMasterclasses() {
         </div>
       </form>
 
-      {/* Video Modal */}
-      {showVideoModal && formData.masterclass_source === 'youtube' && (
+      {/* Content Modal */}
+      {showContentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold">{editingVideoIndex !== null ? 'Edit Video' : 'Add Video'}</h3>
+              <h3 className="text-xl font-bold">{editingContentIndex !== null ? 'Edit Content' : 'Add New Content'}</h3>
               <button onClick={() => {
-                setShowVideoModal(false);
-                setEditingVideoIndex(null);
-                setVideoFormData({
+                setShowContentModal(false);
+                setEditingContentIndex(null);
+                setContentFormData({
                   id: '',
                   title: '',
-                  youtube_url: '',
-                  duration: '',
                   order: 0,
-                  type: 'free',
-                  price: 0,
                   description: '',
+                  source: 'youtube',
+                  zoom_link: '',
                 });
               }} className="text-gray-500 hover:text-gray-700">
                 <X className="w-6 h-6" />
@@ -625,149 +418,126 @@ export default function AdminMasterclasses() {
             </div>
 
             <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Video Title *"
-                value={videoFormData.title}
-                onChange={(e) => setVideoFormData({ ...videoFormData, title: e.target.value })}
+              <select
+                value={contentFormData.source}
+                onChange={(e) => setContentFormData({ ...contentFormData, source: e.target.value as 'youtube' | 'zoom' })}
                 className="w-full border p-3 rounded-lg"
-              />
+              >
+                <option value="youtube">YouTube Video</option>
+                <option value="zoom">Zoom Session</option>
+              </select>
 
               <input
                 type="text"
-                placeholder="YouTube URL *"
-                value={videoFormData.youtube_url}
-                onChange={(e) => setVideoFormData({ ...videoFormData, youtube_url: e.target.value })}
+                placeholder="Content Title *"
+                value={contentFormData.title}
+                onChange={(e) => setContentFormData({ ...contentFormData, title: e.target.value })}
                 className="w-full border p-3 rounded-lg"
               />
+
+              {contentFormData.source === 'youtube' && (
+                <input
+                  type="text"
+                  placeholder="YouTube URL *"
+                  value={contentFormData.youtube_url}
+                  onChange={(e) => setContentFormData({ ...contentFormData, youtube_url: e.target.value })}
+                  className="w-full border p-3 rounded-lg"
+                />
+              )}
+
+              {contentFormData.source === 'zoom' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    placeholder="Zoom Join Link"
+                    value={contentFormData.zoom_link}
+                    onChange={(e) => setContentFormData({ ...contentFormData, zoom_link: e.target.value })}
+                    className="w-full border p-3 rounded-lg col-span-2"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Zoom Meeting ID *"
+                    value={contentFormData.zoom_meeting_id}
+                    onChange={(e) => setContentFormData({ ...contentFormData, zoom_meeting_id: e.target.value })}
+                    className="w-full border p-3 rounded-lg"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Zoom Passcode"
+                    value={contentFormData.zoom_passcode}
+                    onChange={(e) => setContentFormData({ ...contentFormData, zoom_passcode: e.target.value })}
+                    className="w-full border p-3 rounded-lg"
+                  />
+                  <input
+                    type="datetime-local"
+                    value={contentFormData.scheduled_date}
+                    onChange={(e) => setContentFormData({ ...contentFormData, scheduled_date: e.target.value })}
+                    className="w-full border p-3 rounded-lg col-span-2"
+                  />
+                </div>
+              )}
 
               <input
                 type="text"
                 placeholder="Duration (e.g., 45 min)"
-                value={videoFormData.duration}
-                onChange={(e) => setVideoFormData({ ...videoFormData, duration: e.target.value })}
+                value={contentFormData.duration}
+                onChange={(e) => setContentFormData({ ...contentFormData, duration: e.target.value })}
                 className="w-full border p-3 rounded-lg"
               />
 
               <textarea
-                placeholder="Video Description"
-                value={videoFormData.description}
-                onChange={(e) => setVideoFormData({ ...videoFormData, description: e.target.value })}
+                placeholder="Content Description"
+                value={contentFormData.description}
+                onChange={(e) => setContentFormData({ ...contentFormData, description: e.target.value })}
                 className="w-full border p-3 rounded-lg"
                 rows={3}
               />
 
-              <div className="grid grid-cols-2 gap-4">
-                <select
-                  value={videoFormData.type}
-                  onChange={(e) => {
-                    const newType = e.target.value as 'free' | 'paid';
-                    setVideoFormData({ 
-                      ...videoFormData, 
-                      type: newType,
-                      price: newType === 'free' ? 0 : videoFormData.price
-                    });
-                  }}
-                  className="border p-3 rounded-lg"
-                >
-                  <option value="free">Free</option>
-                  <option value="paid">Paid</option>
-                </select>
-
-                {videoFormData.type === 'paid' && (
-                  <input
-                    type="number"
-                    placeholder="Price (₹) *"
-                    value={videoFormData.price || ''}
-                    onChange={(e) => setVideoFormData({ ...videoFormData, price: Number(e.target.value) })}
-                    min="1"
-                    className="border p-3 rounded-lg"
-                    required
-                  />
-                )}
-              </div>
-
               <button
-                onClick={handleAddVideo}
+                onClick={handleAddContent}
                 className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700"
               >
-                {editingVideoIndex !== null ? 'Update Video' : 'Add Video'}
+                {editingContentIndex !== null ? 'Update Content' : 'Add Content'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Filter Buttons */}
-      <div className="flex justify-center mb-6 gap-3 flex-wrap">
-        {['all', 'free', 'paid', 'featured', 'upcoming'].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f as any)}
-            className={`px-4 py-2 rounded-lg font-semibold ${
-              filter === f ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
-            }`}
-          >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
-        ))}
-      </div>
-
       {/* Display Masterclasses */}
       {loading ? (
         <p className="text-center text-gray-700 font-medium">Loading...</p>
-      ) : filteredClasses.length === 0 ? (
+      ) : classes.length === 0 ? (
         <p className="text-center text-gray-700 font-medium">No masterclasses found.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredClasses.map((cls) => (
+          {classes.map((cls) => (
             <div key={cls.id} className="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
               <div className="flex items-start justify-between mb-3">
                 <h2 className="text-xl font-semibold text-gray-900">{cls.title}</h2>
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-bold uppercase text-white ${getTypeBadgeColor(cls.type)}`}
-                >
-                  {cls.type}
+                <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase text-white ${cls.type === 'paid' ? 'bg-purple-500' : 'bg-green-500'}`}>
+                  {cls.type === 'paid' ? `₹${cls.price}` : 'FREE'}
                 </span>
               </div>
 
               <p className="text-sm text-gray-800">
                 {cls.speaker_name} • {cls.speaker_designation || '—'}
               </p>
-              <p className="text-gray-900 mt-2 font-medium">
-                {cls.starting_price === 0 ? '🎁 FREE' : `💰 Starting from ₹${cls.starting_price}`}
-              </p>
               <p className="text-sm text-gray-700 mt-1 flex items-center gap-1">
-                <Video className="w-4 h-4" /> {cls.videos?.length || 0} videos
+                <Video className="w-4 h-4" /> {cls.content?.length || 0} content items
               </p>
-              {cls.total_duration && <p className="text-sm text-gray-700 mt-1">⏱️ {cls.total_duration}</p>}
-              {cls.scheduled_date && (
-                <p className="text-sm text-gray-700 mt-1">
-                  📅 {new Date(cls.scheduled_date).toLocaleString()}
-                </p>
-              )}
-
-              {/* show source info */}
-              <div className="mt-2 text-sm text-gray-700">
-                Source: <strong className="capitalize">{(cls as any).masterclass_source || 'youtube'}</strong>
-                {(cls as any).masterclass_source === 'zoom' && (
-                  <div className="mt-1 text-xs text-gray-600">
-                    Zoom ID: {(cls as any).zoom_meeting_id || '—'} • Pass: {(cls as any).zoom_passcode || '—'}
-                  </div>
-                )}
-              </div>
 
               <p className="text-xs text-gray-600 mt-1">Created: {new Date(cls.created_at).toLocaleDateString()}</p>
 
               <div className="mt-3 bg-gray-100 p-3 rounded-lg border border-gray-200">
                 <h3 className="font-semibold text-sm mb-1 text-gray-800">
-                  👥 {cls.type === 'upcoming' ? 'Registered' : 'Enrolled'} Users ({cls.joined_users?.length || 0})
+                  👥 Enrolled Users ({cls.purchased_by_users?.length || 0})
                 </h3>
                 <button
                   onClick={() => router.push(`/admin/enrolled/${cls.id}`)}
                   className="text-blue-600 hover:underline text-sm font-semibold"
                 >
-                  View {cls.type === 'upcoming' ? 'Registered' : 'Enrolled'} Users →
+                  View Enrolled Users →
                 </button>
               </div>
 

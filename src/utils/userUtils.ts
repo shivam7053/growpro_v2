@@ -151,8 +151,6 @@ export async function addTransactionRecord(
         firestoreTransaction.set(userRef, {
           id: userId,
           transactions: [sanitized],
-          purchasedClasses: [],
-          purchasedVideos: [],
           created_at: new Date().toISOString(),
         });
 
@@ -233,144 +231,6 @@ export async function updateTransactionStatus(
 }
 
 /* -----------------------------------------------------
-   ADD PURCHASED CLASS (ATOMIC)
------------------------------------------------------ */
-export async function addPurchasedClass(
-  userId: string,
-  masterclassTitle: string | null
-): Promise<void> {
-  if (!userId) {
-    throw new Error("userId is required");
-  }
-
-  if (!masterclassTitle) {
-    console.log("⚠️ addPurchasedClass called with empty title — skipping");
-    return;
-  }
-
-  await retryOperation(async () => {
-    const userRef = doc(db, "user_profiles", userId);
-
-    await runTransaction(db, async (firestoreTransaction) => {
-      const snap = await firestoreTransaction.get(userRef);
-
-      if (snap.exists()) {
-        const data = snap.data();
-        const existing: string[] = data.purchasedClasses || [];
-
-        // Prevent duplicates
-        if (existing.includes(masterclassTitle)) {
-          console.log("ℹ️ Class already purchased:", masterclassTitle);
-          return;
-        }
-
-        firestoreTransaction.update(userRef, {
-          purchasedClasses: [...existing, masterclassTitle],
-        });
-      } else {
-        firestoreTransaction.set(userRef, {
-          id: userId,
-          purchasedClasses: [masterclassTitle],
-          purchasedVideos: [],
-          transactions: [],
-          created_at: new Date().toISOString(),
-        });
-      }
-
-      console.log("✅ Masterclass added to purchased list:", masterclassTitle);
-    });
-  });
-}
-
-/* -----------------------------------------------------
-   ADD PURCHASED VIDEO (ATOMIC)
------------------------------------------------------ */
-export async function addPurchasedVideo(
-  userId: string,
-  videoId: string | null
-): Promise<void> {
-  if (!userId) {
-    throw new Error("userId is required");
-  }
-
-  if (!videoId) {
-    console.log("⚠️ addPurchasedVideo called with empty videoId — skipping");
-    return;
-  }
-
-  await retryOperation(async () => {
-    const userRef = doc(db, "user_profiles", userId);
-
-    await runTransaction(db, async (firestoreTransaction) => {
-      const snap = await firestoreTransaction.get(userRef);
-
-      if (snap.exists()) {
-        const data = snap.data();
-        const existing: string[] = data.purchasedVideos || [];
-
-        // Prevent duplicates
-        if (existing.includes(videoId)) {
-          console.log("ℹ️ Video already purchased:", videoId);
-          return;
-        }
-
-        firestoreTransaction.update(userRef, {
-          purchasedVideos: [...existing, videoId],
-        });
-      } else {
-        firestoreTransaction.set(userRef, {
-          id: userId,
-          purchasedVideos: [videoId],
-          purchasedClasses: [],
-          transactions: [],
-          created_at: new Date().toISOString(),
-        });
-      }
-
-      console.log("✅ Video added to purchased list:", videoId);
-    });
-  });
-}
-
-/* -----------------------------------------------------
-   HAS VIDEO ACCESS
------------------------------------------------------ */
-export async function hasVideoAccess(
-  userId: string,
-  masterclassId: string,
-  videoId: string
-): Promise<boolean> {
-  try {
-    if (!userId || !masterclassId || !videoId) {
-      return false;
-    }
-
-    // Check if user has full masterclass access
-    const mcRef = doc(db, "MasterClasses", masterclassId);
-    const mcSnap = await getDoc(mcRef);
-
-    if (mcSnap.exists()) {
-      const joinedUsers: string[] = mcSnap.data().joined_users || [];
-      if (joinedUsers.includes(userId)) {
-        return true;
-      }
-    }
-
-    // Check if user purchased individual video
-    const userSnap = await getDoc(doc(db, "user_profiles", userId));
-    if (userSnap.exists()) {
-      const purchasedVideos: string[] = userSnap.data().purchasedVideos || [];
-      return purchasedVideos.includes(videoId);
-    }
-
-    return false;
-  } catch (err) {
-    console.error("❌ Error checking video access:", err);
-    return false;
-  }
-}
-
-/* -----------------------------------------------------
    GET USER TRANSACTIONS
 ----------------------------------------------------- */
 export async function getUserTransactions(
@@ -441,8 +301,6 @@ export async function getUserPurchaseSummary(userId: string) {
     if (!snap.exists()) {
       return {
         totalSpent: 0,
-        purchasedClasses: [],
-        purchasedVideos: [],
         transactionCount: 0,
         successfulPayments: 0,
         failedPayments: 0,
@@ -458,9 +316,6 @@ export async function getUserPurchaseSummary(userId: string) {
       totalSpent: transactions
         .filter((t) => t.status === "success")
         .reduce((sum, t) => sum + t.amount, 0),
-
-      purchasedClasses: data.purchasedClasses || [],
-      purchasedVideos: data.purchasedVideos || [],
 
       transactionCount: transactions.length,
       successfulPayments: transactions.filter((t) => t.status === "success")

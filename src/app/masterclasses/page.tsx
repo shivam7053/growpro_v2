@@ -8,11 +8,11 @@ import { AlertTriangle, ArrowLeft, Search, RefreshCw, ChevronLeft, ChevronRight 
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContexts";
-import toast from "react-hot-toast";
 import MasterclassCard from "@/components/masterclassCard";
 import { FirebaseError } from "firebase/app";
-import { Masterclass, FilterType } from "@/types/masterclass";
-import { parseMasterclassData, filterMasterclasses } from "@/utils/masterclass";
+import { Masterclass, MasterclassContent } from "@/types/masterclass";
+
+type FilterType = "all" | "free" | "paid" | "enrolled";
 
 export default function MasterclassesPage() {
   const [masterclasses, setMasterclasses] = useState<Masterclass[]>([]);
@@ -20,8 +20,6 @@ export default function MasterclassesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
-  // NEW: source filter (all | youtube | zoom)
-  const [sourceFilter, setSourceFilter] = useState<"all" | "youtube" | "zoom">("all");
   const { user } = useAuth();
 
   // Pagination
@@ -36,29 +34,32 @@ export default function MasterclassesPage() {
     setLoading(true);
     try {
       const querySnapshot = await getDocs(collection(db, "MasterClasses"));
-      await new Promise((res) => setTimeout(res, 600));
 
       if (querySnapshot.empty) {
-        toast("No masterclasses available yet.");
         setMasterclasses([]);
         return;
       }
 
-      const list: Masterclass[] = [];
-      querySnapshot.docs.forEach((docSnap) => {
-        const parsed = parseMasterclassData(docSnap.id, docSnap.data());
-        if (parsed) list.push(parsed);
+      const masterclassList: Masterclass[] = querySnapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          title: data.title || "",
+          description: data.description || "",
+          speaker_name: data.speaker_name || "",
+          speaker_designation: data.speaker_designation || "",
+          thumbnail_url: data.thumbnail_url || "",
+          price: data.price || 0,
+          type: data.type || 'free',
+          created_at: data.created_at?.toDate()?.toISOString() || new Date().toISOString(),
+          content: (data.content || []).sort((a: MasterclassContent, b: MasterclassContent) => a.order - b.order),
+          purchased_by_users: data.purchased_by_users || [],
+        };
       });
 
-      setMasterclasses(list);
-      toast.success(`Loaded ${list.length} masterclass${list.length !== 1 ? "es" : ""}`);
+      setMasterclasses(masterclassList);
     } catch (error) {
       console.error("🔥 Error fetching masterclasses:", error);
-      if (error instanceof FirebaseError) {
-        toast.error(`Firebase Error: ${error.code}`);
-      } else {
-        toast.error("Unexpected error while loading masterclasses.");
-      }
       setMasterclasses([]);
     } finally {
       setLoading(false);
@@ -71,26 +72,32 @@ export default function MasterclassesPage() {
 
   // Apply filters
   useEffect(() => {
-    if (filterType === "enrolled" && !user) {
-      toast("Login required to view enrolled courses.");
+    let filtered = masterclasses;
+
+    // Filter by search query
+    if (searchQuery) {
+      filtered = filtered.filter(mc =>
+        mc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        mc.speaker_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        mc.speaker_designation.toLowerCase().includes(searchQuery.toLowerCase())
+      );
     }
 
-    // First apply the existing (type/search/enrolled) filters using your util
-    const basicFiltered = filterMasterclasses(masterclasses, searchQuery, filterType, user?.uid);
-
-    // Then apply the new source filter on top — this keeps previous behaviour intact
-    let finalFiltered = basicFiltered;
-    if (sourceFilter !== "all") {
-      finalFiltered = basicFiltered.filter((mc) => {
-        // defensive: support both masterclass_source and masterclass_source missing (treat missing as 'youtube')
-        const source = (mc as any).masterclass_source || (mc as any).videoSource || "youtube";
-        return source === sourceFilter;
-      });
+    // Filter by type (free/paid/enrolled)
+    if (filterType === "free") {
+      filtered = filtered.filter(mc => mc.type === 'free');
+    } else if (filterType === "paid") {
+      filtered = filtered.filter(mc => mc.type === 'paid');
+    } else if (filterType === "enrolled" && user?.uid) {
+      // A user has a course if they bought the bundle OR if they bought any individual piece of content from it.
+      filtered = filtered.filter(mc => 
+        mc.purchased_by_users.includes(user.uid)
+      );
     }
 
-    setFilteredMasterclasses(finalFiltered);
+    setFilteredMasterclasses(filtered);
     setCurrentPage(1);
-  }, [masterclasses, searchQuery, filterType, sourceFilter, user]);
+  }, [masterclasses, searchQuery, filterType, user]);
 
   const handleRefresh = () => fetchMasterclasses();
 
@@ -118,8 +125,6 @@ export default function MasterclassesPage() {
     { type: "all", label: "All" },
     { type: "free", label: "Free" },
     { type: "paid", label: "Paid" },
-    { type: "featured", label: "Featured" },
-    { type: "upcoming", label: "Upcoming" },
   ];
 
   return (
@@ -209,24 +214,6 @@ export default function MasterclassesPage() {
                 )}
               </div>
             </div>
-
-            {/* NEW: Source filter row (non-breaking; optional) */}
-            <div className="flex gap-2 flex-wrap items-center">
-              <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Source:</span>
-              {(["all", "youtube", "zoom"] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSourceFilter(s)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                    sourceFilter === s
-                      ? "bg-black dark:bg-white text-white dark:text-black shadow-sm"
-                      : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Results */}
@@ -255,7 +242,6 @@ export default function MasterclassesPage() {
                 onClick={() => {
                   setSearchQuery("");
                   setFilterType("all");
-                  setSourceFilter("all");
                 }}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 font-semibold transition"
               >
@@ -273,7 +259,7 @@ export default function MasterclassesPage() {
                 {currentMasterclasses.map((mc) => (
                   <motion.div key={mc.id} variants={cardVariants}>
                     {/* pass the full masterclass through — card should handle its own rendering */}
-                    <MasterclassCard masterclass={mc} user={user} onPurchaseComplete={fetchMasterclasses} />
+                    <MasterclassCard masterclass={mc} user={user} />
                   </motion.div>
                 ))}
               </motion.div>

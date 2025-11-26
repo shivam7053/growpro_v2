@@ -19,7 +19,6 @@ export async function POST(req: NextRequest) {
       amount,
       currency = "INR",
       masterclassId,
-      videoId,
       userId,
       type = "purchase", // purchase | upcoming_registration | video_purchase
     } = body;
@@ -28,7 +27,6 @@ export async function POST(req: NextRequest) {
       amount,
       currency,
       masterclassId,
-      videoId,
       userId,
       type,
     });
@@ -58,7 +56,6 @@ export async function POST(req: NextRequest) {
     // -----------------------------------------
     let masterclassData: any = null;
     let masterclassTitle = "Unknown Masterclass";
-    let videoTitle: string | undefined = undefined;
 
     try {
       const classRef = doc(db, "MasterClasses", masterclassId);
@@ -68,38 +65,19 @@ export async function POST(req: NextRequest) {
         masterclassData = snap.data();
         masterclassTitle = masterclassData.title || masterclassId;
 
-        if (videoId && masterclassData.videos) {
-          const video = masterclassData.videos.find((v: any) => v.id === videoId);
-          if (video) videoTitle = video.title;
-        }
-
-        // UPCOMING VALIDATION (ONLY VALIDATION, NO AUTO-REGISTRATION)
-        if (type === "upcoming_registration") {
-          if (masterclassData.type !== "upcoming") {
-            return NextResponse.json(
-              { success: false, error: "This is not an upcoming masterclass" },
-              { status: 400 }
-            );
-          }
-
-          const joined = masterclassData.joined_users || [];
-          if (joined.includes(userId)) {
-            return NextResponse.json(
-              { success: false, error: "You are already registered" },
-              { status: 400 }
-            );
-          }
-
-          console.log("🟢 Upcoming registration validated → Payment flow will continue.");
+        // Prevent re-purchasing the *entire* masterclass bundle.
+        // This check should NOT run for individual video purchases.
+        const isAlreadyEnrolled = (masterclassData.purchased_by_users || []).includes(userId);
+        if (isAlreadyEnrolled) {
+          return NextResponse.json(
+            { success: false, error: "You are already enrolled in this masterclass" },
+            { status: 400 }
+          );
         }
       }
     } catch (err) {
       console.warn("⚠ Could not fetch masterclass data", err);
     }
-
-    const combinedTitle = videoTitle
-      ? `${masterclassTitle} - ${videoTitle}`
-      : masterclassTitle;
 
     // -----------------------------------------
     // UPCOMING REGISTRATION → NOW DOES NOT AUTO-REGISTER
@@ -122,10 +100,9 @@ export async function POST(req: NextRequest) {
       receipt,
       notes: {
         masterclassId,
-        videoId: videoId ?? "",
         userId,
         type,
-      },
+    }
     };
 
     console.log("🔵 Calling Razorpay API...");
@@ -137,9 +114,7 @@ export async function POST(req: NextRequest) {
     await addTransactionRecord(userId, {
       orderId: order.id,
       masterclassId,
-      videoId: videoId ?? undefined,
-      masterclassTitle: combinedTitle,
-      videoTitle: videoTitle ?? undefined,
+      masterclassTitle: masterclassTitle,
       amount,
       status: "pending",
       method: "razorpay",
@@ -156,7 +131,7 @@ export async function POST(req: NextRequest) {
       amount: order.amount,
       currency: order.currency,
       key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      masterclassTitle: combinedTitle,
+      masterclassTitle: masterclassTitle,
       type,
     });
   } catch (error: any) {
@@ -169,7 +144,6 @@ export async function POST(req: NextRequest) {
         await addTransactionRecord(body.userId, {
           orderId: `failed_${Date.now()}`,
           masterclassId: body.masterclassId ?? "unknown",
-          videoId: body.videoId ?? undefined,
           masterclassTitle: "Order Creation Failed",
           amount: body.amount ?? 0,
           status: "failed",

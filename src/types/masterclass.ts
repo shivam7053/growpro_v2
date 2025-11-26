@@ -1,34 +1,4 @@
 // types/masterclass.ts
-// ✅ UPDATED WITH NEW TRANSACTION FIELDS
-
-// export interface MasterclassVideo {
-//   id: string;
-//   title: string;
-//   youtube_url: string;
-//   duration?: string;
-//   order: number;
-//   type: "free" | "paid";
-//   price: number;
-//   description?: string;
-// }
-
-// export interface Masterclass {
-//   id: string;
-//   title: string;
-//   speaker_name: string;
-//   speaker_designation: string;
-//   thumbnail_url?: string;
-//   description?: string;
-//   type: "free" | "paid" | "featured" | "upcoming";
-//   scheduled_date?: string;
-//   created_at: string;
-//   videos: MasterclassVideo[];
-//   joined_users: string[];
-//   starting_price: number;
-//   total_duration?: string;
-// }
-
-// types/masterclass.ts
 
 export type FilterType = "all" | "free" | "paid" | "featured" | "enrolled" | "upcoming";
 
@@ -59,18 +29,13 @@ export interface PaymentResponse {
 
 // ✅ NEW: Transaction types
 export type TransactionType = 
-  | "purchase"              // Regular masterclass purchase
-  | "upcoming_registration" // Paid registration for upcoming
-  | "video_purchase"        // Individual video purchase
-  | "free_registration";    // Free upcoming registration
+  | "purchase";              // Simplified to only one type
 
 export interface Transaction {
   orderId: string;
   paymentId?: string;
   masterclassId: string;
-  videoId?: string; // ✅ For individual video purchases
   masterclassTitle: string;
-  videoTitle?: string; // ✅ For individual video purchases
   amount: number;
   status: "pending" | "success" | "failed";
   method: "razorpay" | "dummy" | "free";
@@ -88,9 +53,7 @@ export interface UserProfile {
   phone?: string;
   avatar_url?: string;
   bio?: string;
-  linkedin?: string;
-  purchasedClasses: string[];
-  purchasedVideos: string[]; // ✅ Individual video IDs
+  linkedin?: string; // This field was also missing from the diff, adding it back.
   transactions?: Transaction[];
   created_at: string;
   selectedCheckpoints?: {
@@ -144,43 +107,48 @@ export interface Registration {
   feedback?: string; // Post-event feedback
 }
 
-export interface MasterclassVideo {
+
+// ✅ NEW: Represents a single piece of content within a Masterclass (YouTube video or Zoom session)
+export interface MasterclassContent {
   id: string;
   title: string;
-  youtube_url: string;
-  duration?: string;
-  order: number;
-  type: "free" | "paid";
-  price: number;
   description?: string;
+  order: number;
+  duration?: string;
+  source: "youtube" | "zoom";
+
+  // YouTube-specific fields
+  youtube_url?: string;
+
+  // Zoom-specific fields
+  zoom_meeting_id?: string;
+  zoom_passcode?: string;
+  scheduled_date?: string; // Start time for the Zoom session
+  zoom_link?: string; // The direct link to join the Zoom meeting
+  zoom_end_time?: string;
 }
 
-// ⭐ ADD: Masterclass can be from YouTube OR Zoom
-export type MasterclassSource = "youtube" | "zoom";
-
+/**
+ * @description Represents a collection of educational content (videos or live sessions).
+ * A Masterclass is a container for MasterclassContent items.
+ */
 export interface Masterclass {
   id: string;
   title: string;
+  description?: string;
   speaker_name: string;
   speaker_designation: string;
   thumbnail_url?: string;
-  description?: string;
-  type: "free" | "paid" | "featured" | "upcoming";
-
-  // ⭐ ADDED: YouTube or Zoom
-  masterclass_source?: MasterclassSource;
-
-  // ⭐ ADDED: Zoom info (only used when masterclass_source = "zoom")
-  zoom_link?: string;
-  zoom_meeting_id?: string;
-  zoom_passcode?: string;
-  zoom_start_time?: string;
-  zoom_end_time?: string;
-
-  scheduled_date?: string;
+  price: number;
+  type: "free" | "paid";
   created_at: string;
-  videos: MasterclassVideo[]; // unchanged
-  joined_users: string[];
-  starting_price: number;
-  total_duration?: string;
+  
+  // An array of content items (videos, zoom sessions, etc.)
+  content: MasterclassContent[];
+
+  // List of user IDs who have purchased the entire masterclass (if bundled)
+  purchased_by_users: string[];
 }
+
+// This is now an alias for MasterclassContent, can be removed if no longer used elsewhere.
+export type MasterclassVideo = MasterclassContent;

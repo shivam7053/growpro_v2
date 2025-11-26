@@ -10,7 +10,6 @@ interface Props {
   masterclasses: Masterclass[];
   loading: boolean;
   user: any;
-  onPurchaseComplete: () => void;
 }
 
 const fadeInUp: Variants = {
@@ -26,13 +25,43 @@ export default function MasterclassSection({
   masterclasses,
   loading,
   user,
-  onPurchaseComplete,
 }: Props) {
-  // Featured → Others → Take top 4
-  const displayedMasterclasses = [
-    ...masterclasses.filter((mc) => mc.type === "featured"),
-    ...masterclasses.filter((mc) => mc.type !== "featured"),
-  ].slice(0, 4);
+  // --- NEW SORTING LOGIC ---
+  // Prioritize masterclasses with upcoming Zoom sessions, sorted by the soonest date.
+  const getSoonestFutureZoomDate = (mc: Masterclass): Date | null => {
+    const now = new Date();
+    const futureZoomDates = mc.content
+      .filter(c => c.source === 'zoom' && c.scheduled_date && new Date(c.scheduled_date) > now)
+      .map(c => new Date(c.scheduled_date!));
+
+    if (futureZoomDates.length === 0) return null;
+    return new Date(Math.min(...futureZoomDates.map(d => d.getTime())));
+  };
+
+  const sortedMasterclasses = [...masterclasses].sort((a, b) => {
+    const aSoonestDate = getSoonestFutureZoomDate(a);
+    const bSoonestDate = getSoonestFutureZoomDate(b);
+
+    // If both have future zoom sessions, sort by the soonest date
+    if (aSoonestDate && bSoonestDate) {
+      return aSoonestDate.getTime() - bSoonestDate.getTime();
+    }
+    // Prioritize 'a' if it has a future zoom session and 'b' does not
+    if (aSoonestDate) return -1;
+    // Prioritize 'b' if it has a future zoom session and 'a' does not
+    if (bSoonestDate) return 1;
+
+    // Fallback: sort by most recently created
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  const displayedMasterclasses = sortedMasterclasses.slice(0, 4);
+
+  // The old logic is now replaced:
+  // const displayedMasterclasses = [
+  //   ...masterclasses.filter((mc) => mc.type === "featured"),
+  //   ...masterclasses.filter((mc) => mc.type !== "featured"),
+  // ].slice(0, 4);
 
   return (
     <motion.section
@@ -110,7 +139,6 @@ export default function MasterclassSection({
                 key={mc.id}
                 masterclass={mc}
                 user={user}
-                onPurchaseComplete={onPurchaseComplete}
               />
             ))}
           </motion.div>
