@@ -90,6 +90,13 @@ export default function MasterclassCard({
                 <Video className="w-4 h-4" /> Live
               </div>
             )}
+            {/* ✅ NEW: Demo Video Badge */}
+            {mc.demo_video_url && !isEnrolled && (
+              <div className="bg-yellow-500 text-white px-3 py-1 text-sm rounded-full font-medium shadow flex items-center gap-1">
+                <Play className="w-4 h-4" />
+                Preview
+              </div>
+            )}
           </div>
 
           {/* Price Badge */}

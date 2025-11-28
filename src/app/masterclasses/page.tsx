@@ -54,6 +54,7 @@ export default function MasterclassesPage() {
           created_at: data.created_at?.toDate()?.toISOString() || new Date().toISOString(),
           content: (data.content || []).sort((a: MasterclassContent, b: MasterclassContent) => a.order - b.order),
           purchased_by_users: data.purchased_by_users || [],
+          demo_video_url: data.demo_video_url || '', // ✅ NEW: Fetch the demo video URL
         };
       });
 

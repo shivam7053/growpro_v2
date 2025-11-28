@@ -79,10 +79,10 @@ export default function MasterclassSection({
         >
           <div className="text-center md:text-left">
             <h2 className="text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white mb-2">
-              Featured Masterclasses
+              Upcoming & New Masterclasses
             </h2>
             <p className="text-gray-700 dark:text-gray-300 text-lg">
-              Learn from industry experts and upgrade your skills
+              Explore our latest sessions and join live events
             </p>
           </div>
 

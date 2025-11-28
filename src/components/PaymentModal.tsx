@@ -20,7 +20,6 @@ interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   masterclass: Masterclass;
-  video?: MasterclassContent; // This is the content item being purchased
   user: any;
   onPurchaseSuccess?: () => void;
   // The type of purchase is now more explicit
@@ -32,7 +31,6 @@ export default function PaymentModal({
   isOpen,
   onClose,
   masterclass,
-  video,
   user,
   onPurchaseSuccess,
   purchaseType: propPurchaseType,
@@ -45,16 +43,12 @@ export default function PaymentModal({
   // Determine the amount based on the prop or the content item's price.
   // Fallback to 0 if no amount is provided.
   const purchaseAmount =
-    propAmount !== undefined
-      ? propAmount
-      : video?.price || 0;
+    propAmount !== undefined ? propAmount : masterclass.price || 0;
 
   // The transaction type is now directly derived from the `purchaseType` prop.
   const transactionType: TransactionType = 'purchase';
 
-  const purchaseTitle = video
-    ? `${masterclass.title} - ${video.title}`
-    : masterclass.title;
+  const purchaseTitle = masterclass.title;
 
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   useEffect(() => {
@@ -104,23 +98,30 @@ export default function PaymentModal({
     setProcessing(true);
     setError("");
 
+    // --- ✅ NEW: Initial toast to indicate payment process has started ---
+    const initialToastId = toast.loading("Initiating payment process...");
+
     const paymentDetails: PaymentDetails = {
       amount: purchaseAmount,
       currency: "INR",
       masterclassId: masterclass.id,
-      videoId: video?.id,
       userId: user.uid,
       email: user.email || undefined,
       phone: user.phone || undefined,
       type: transactionType,
       masterclassTitle: masterclass.title,
-      videoTitle: video?.title || undefined,
     };
 
     /* DUMMY PAYMENT */
     if (paymentMethod === "dummy") {
       const dummyOrderId = `dummy_${Date.now()}`;
       const dummyPaymentId = `dummy_pay_${Date.now()}`;
+
+      toast.dismiss(initialToastId); // Dismiss initial loading toast
+
+      // ✅ CORRECTED: Show a more accurate toast message based on the purchase amount.
+      const toastMessage = purchaseAmount === 0 ? "Processing free registration..." : "Processing dummy payment...";
+      toast.loading(toastMessage, { id: "dummyProcessing" });
 
       try {
         const verifyResponse = await fetch(
@@ -133,10 +134,8 @@ export default function PaymentModal({
               razorpay_payment_id: dummyPaymentId,
               razorpay_signature: "dummy_signature",
               masterclassId: masterclass.id,
-              videoId: video?.id,
               userId: user.uid,
               masterclassTitle: masterclass.title,
-              videoTitle: video?.title || null,
               amount: purchaseAmount,
               method: "dummy",
               type: transactionType,
@@ -146,24 +145,19 @@ export default function PaymentModal({
 
         const verifyData = await verifyResponse.json();
 
+        toast.dismiss("dummyProcessing"); // Dismiss dummy processing toast
+
         if (!verifyData?.success) {
           const msg = safeExtractError(verifyData);
           throw new Error(msg);
         }
 
-        toast.success(
-          transactionType === "free_registration"
-            ? "Registered successfully!"
-            : transactionType === "upcoming_registration"
-            ? "Registration completed!"
-            : transactionType === "video_purchase"
-            ? "Video unlocked!"
-            : "Purchase successful!"
-        );
+        // --- ✅ NEW: On-screen notification that email sending has started ---
+        toast.success("Purchase successful! Sending confirmation email...");
 
         handleSuccessCallback();
 
-        setTimeout(onClose, 500);
+        setTimeout(onClose, 3000); // ✅ Increased duration for toast visibility
       } catch (err: any) {
         setError(err.message);
         toast.error(err.message);
@@ -178,6 +172,7 @@ export default function PaymentModal({
     if (paymentMethod === "razorpay") {
       if (!razorpayLoaded) {
         setError("Failed to load Razorpay. Please refresh.");
+        toast.dismiss(initialToastId); // Dismiss initial loading toast
         setProcessing(false);
         return;
       }
@@ -190,6 +185,9 @@ export default function PaymentModal({
           // SUCCESS
           async (response) => {
             try {
+              // --- ✅ NEW: On-screen notification for verification step ---
+              toast.loading("Verifying payment, please wait...");
+
               const verifyRes = await fetch(
                 "/.netlify/functions/payment-verify",
                 {
@@ -200,10 +198,8 @@ export default function PaymentModal({
                     razorpay_payment_id: response.razorpay_payment_id,
                     razorpay_signature: response.razorpay_signature,
                     masterclassId: masterclass.id,
-                    videoId: video?.id,
                     userId: user.uid,
                     masterclassTitle: masterclass.title,
-                    videoTitle: video?.title || null,
                     amount: purchaseAmount,
                     method: "razorpay",
                     type: transactionType,
@@ -213,23 +209,20 @@ export default function PaymentModal({
 
               const verifyData = await verifyRes.json();
 
+              toast.dismiss(); // Remove the "Verifying..." toast
+
               if (!verifyData?.success) {
                 throw new Error(safeExtractError(verifyData));
               }
 
-              toast.success(
-                transactionType === "upcoming_registration"
-                  ? "Registration successful!"
-                  : transactionType === "video_purchase"
-                  ? "Video unlocked!"
-                  : "Payment successful!"
-              );
+              toast.success("Payment successful! Sending confirmation email...");
 
               handleSuccessCallback();
 
-              setTimeout(onClose, 600);
+              setTimeout(onClose, 3000); // ✅ Increased duration for toast visibility
             } catch (err: any) {
               const msg = safeExtractError(err);
+              toast.dismiss();
               setError(msg);
               toast.error(msg);
             } finally {
@@ -240,7 +233,7 @@ export default function PaymentModal({
           // FAILURE
           (error) => {
             const msg =
-              error?.error?.description ||
+              (toast.dismiss(initialToastId), error?.error?.description) || // Dismiss initial loading toast on failure
               safeExtractError(error) ||
               "Payment cancelled";
             setError(msg);
@@ -264,28 +257,10 @@ export default function PaymentModal({
     onClose();
   };
 
-  const getHeaderText = () => {
-    switch (transactionType) {
-      case "free_registration":
-        return "Free Registration";
-      case "upcoming_registration":
-        return "Register for Event";
-      case "video_purchase":
-        return "Purchase Video";
-      default:
-        return "Complete Purchase";
-    }
-  };
+  const getHeaderText = () => "Complete Purchase";
 
   const getPurchaseTypeLabel = () => {
-    switch (transactionType) {
-      case "upcoming_registration":
-        return "Event Registration";
-      case "video_purchase":
-        return "Individual Video";
-      default:
-        return "Masterclass Purchase";
-    }
+    return "Masterclass Purchase";
   };
 
   const getButtonText = () => {
@@ -307,7 +282,7 @@ export default function PaymentModal({
             <X className="w-4 h-4" />
           </button>
 
-          <h2 className="text-lg font-bold mb-1">{getHeaderText()}</h2>
+          <h2 className="text-lg font-bold mb-1">Complete Purchase</h2>
           <p className="text-blue-100 text-xs">
             {purchaseAmount === 0
               ? "Complete your free registration"
@@ -327,12 +302,6 @@ export default function PaymentModal({
               {purchaseTitle}
             </h3>
 
-            {video && transactionType !== 'purchase' && (
-              <p className="text-xs text-gray-600 dark:text-gray-300">
-                Part of: {masterclass.title}
-              </p>
-            )}
-
             <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex justify-between items-center">
               <span className="text-gray-600 dark:text-gray-300 text-xs">Total Amount</span>
               <span className="text-xl font-bold text-gray-900 dark:text-white">
@@ -346,10 +315,7 @@ export default function PaymentModal({
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-2 rounded-md">
               <div className="flex items-start gap-2">
                 <CheckCircle className="w-3.5 h-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
-                <p className="text-[11px] text-blue-800 dark:text-blue-200">
-                  You'll receive a confirmation email
-                  {transactionType === "upcoming_registration" && " + event reminders"}
-                </p>
+                <p className="text-[11px] text-blue-800 dark:text-blue-200">You'll receive a confirmation email with access details.</p>
               </div>
             </div>
           )}
@@ -450,11 +416,6 @@ export default function PaymentModal({
             </button>
           </div>
 
-          {transactionType === "upcoming_registration" && purchaseAmount > 0 && (
-            <p className="text-[10px] text-center text-gray-500">
-              💡 Reminder emails will be sent before event time
-            </p>
-          )}
         </div>
       </div>
     </div>

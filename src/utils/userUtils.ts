@@ -29,8 +29,6 @@ function sanitizeTransaction(tx: Partial<Transaction>): Record<string, any> {
 
     // Optional fields (undefined -> null)
     paymentId: tx.paymentId ?? null,
-    videoId: tx.videoId ?? null,
-    videoTitle: tx.videoTitle ?? null,
     type: tx.type ?? null,
     failureReason: tx.failureReason ?? null,
     errorCode: tx.errorCode ?? null,
@@ -46,9 +44,7 @@ function deserializeTransaction(raw: any): Transaction {
     orderId: raw.orderId ?? `txn_${Date.now()}`,
     paymentId: raw.paymentId ?? undefined,
     masterclassId: raw.masterclassId ?? "",
-    videoId: raw.videoId ?? undefined,
     masterclassTitle: raw.masterclassTitle ?? "Unknown",
-    videoTitle: raw.videoTitle ?? undefined,
     amount: raw.amount ?? 0,
     status: raw.status ?? "pending",
     method: raw.method ?? "razorpay",

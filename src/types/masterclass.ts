@@ -148,6 +148,8 @@ export interface Masterclass {
 
   // List of user IDs who have purchased the entire masterclass (if bundled)
   purchased_by_users: string[];
+  remindersSent?: Record<string, boolean>;
+  demo_video_url?: string; // Optional URL for a welcome/demo video
 }
 
 // This is now an alias for MasterclassContent, can be removed if no longer used elsewhere.

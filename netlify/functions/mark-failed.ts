@@ -1,24 +1,31 @@
-// app/api/payment/mark-failed/route.ts
+// netlify/functions/mark-failed.ts
 
-import { NextRequest, NextResponse } from "next/server";
+import { Handler } from "@netlify/functions";
 import { doc, runTransaction } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { adminAuth } from "@/lib/firebaseAdmin";
+import { db } from "../../src/lib/firebase"; // Client-side Firebase for Firestore operations
+import { adminAuth } from "../../src/lib/firebaseAdmin"; // Admin SDK for auth verification
+import { Transaction } from "../../src/types/masterclass"; // Import Transaction type
 
-
-export async function POST(req: NextRequest) {
+export const handler: Handler = async (event, context) => {
   try {
-    console.log("🔵 Marking transaction as failed...");
+    console.log("🔵 Marking transaction as failed (Netlify Function)...");
+
+    if (event.httpMethod !== "POST") {
+      return {
+        statusCode: 405,
+        body: JSON.stringify({ success: false, error: "Method Not Allowed" }),
+      };
+    }
 
     // ===================================
     // 🔐 AUTHENTICATION
     // ===================================
-    const authHeader = req.headers.get("authorization");
+    const authHeader = event.headers["authorization"];
     if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized - No token provided" },
-        { status: 401 }
-      );
+      return {
+        statusCode: 401,
+        body: JSON.stringify({ success: false, error: "Unauthorized - No token provided" }),
+      };
     }
 
     const token = authHeader.split("Bearer ")[1];
@@ -28,16 +35,17 @@ export async function POST(req: NextRequest) {
       const decodedToken = await adminAuth.verifyIdToken(token);
       authenticatedUserId = decodedToken.uid;
     } catch (authError) {
-      return NextResponse.json(
-        { success: false, error: "Invalid authentication token" },
-        { status: 401 }
-      );
+      console.error("❌ Authentication token verification failed:", authError);
+      return {
+        statusCode: 401,
+        body: JSON.stringify({ success: false, error: "Invalid authentication token" }),
+      };
     }
 
     // ===================================
     // 📥 PARSE & VALIDATE REQUEST
     // ===================================
-    const body = await req.json();
+    const body = JSON.parse(event.body || "{}");
 
     const {
       userId,
@@ -47,26 +55,24 @@ export async function POST(req: NextRequest) {
       errorDescription,
       masterclassId,
       masterclassTitle,
-      videoId,
-      videoTitle,
       amount,
       type,
     } = body;
 
     // Validate required fields
     if (!userId || !orderId) {
-      return NextResponse.json(
-        { success: false, error: "Missing userId or orderId" },
-        { status: 400 }
-      );
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ success: false, error: "Missing userId or orderId" }),
+      };
     }
 
     // Ensure user can only modify their own transactions
     if (userId !== authenticatedUserId) {
-      return NextResponse.json(
-        { success: false, error: "Forbidden - Cannot modify other users' transactions" },
-        { status: 403 }
-      );
+      return {
+        statusCode: 403,
+        body: JSON.stringify({ success: false, error: "Forbidden - Cannot modify other users' transactions" }),
+      };
     }
 
     // ===================================
@@ -82,11 +88,11 @@ export async function POST(req: NextRequest) {
       }
 
       const userData = userSnap.data();
-      const transactions = userData.transactions || [];
+      const transactions: Transaction[] = userData?.transactions || [];
 
       // Check if transaction exists
       const existingIndex = transactions.findIndex(
-        (txn: any) => txn.orderId === orderId
+        (txn: Transaction) => txn.orderId === orderId
       );
 
       const detailedReason =
@@ -98,13 +104,11 @@ export async function POST(req: NextRequest) {
       if (existingIndex === -1) {
         console.warn("⚠️ Transaction not found → creating failure record");
 
-        const failureTransaction = {
+        const failureTransaction: Transaction = {
           orderId,
           paymentId: undefined,
           masterclassId: masterclassId || "unknown",
-          videoId: videoId || undefined,
           masterclassTitle: masterclassTitle || "Unknown Masterclass",
-          videoTitle: videoTitle || undefined,
           amount: amount ?? 0,
           status: "failed",
           method: "razorpay",
@@ -160,46 +164,58 @@ export async function POST(req: NextRequest) {
     // ✅ RETURN APPROPRIATE RESPONSE
     // ===================================
     if (result.alreadyFailed) {
-      return NextResponse.json({
-        success: true,
-        alreadyFailed: true,
-        message: "Transaction was already marked as failed",
-      });
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          alreadyFailed: true,
+          message: "Transaction was already marked as failed",
+        }),
+      };
     }
 
     if (result.created) {
       console.log(`✅ Failure transaction created for order ${orderId}`);
-      return NextResponse.json({
-        success: true,
-        created: true,
-        message: "Failure transaction created",
-      });
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          created: true,
+          message: "Failure transaction created",
+        }),
+      };
     }
 
     if (result.updated) {
       console.log(`✅ Transaction ${orderId} marked as failed`);
-      return NextResponse.json({
-        success: true,
-        updated: true,
-        message: "Transaction marked as failed",
-      });
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          updated: true,
+          message: "Transaction marked as failed",
+        }),
+      };
     }
 
     // Shouldn't reach here
-    return NextResponse.json({
-      success: false,
-      error: "Unexpected state",
-    }, { status: 500 });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        success: false,
+        error: "Unexpected state",
+      }),
+    };
 
   } catch (error: any) {
-    console.error("❌ mark-failed API error:", error);
+    console.error("❌ mark-failed Netlify function error:", error);
 
-    return NextResponse.json(
-      {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
         success: false,
         error: error.message || "Failed to mark transaction as failed",
-      },
-      { status: 500 }
-    );
+      }),
+    };
   }
-}
+};

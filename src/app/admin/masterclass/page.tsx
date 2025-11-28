@@ -31,6 +31,7 @@ export default function AdminMasterclasses() {
     price: 0,
     type: 'free' as 'free' | 'paid',
     thumbnail_url: '',
+    demo_video_url: '', // ✅ NEW: State for the demo video URL
   });
 
   // State for the MasterclassContent modal (for YouTube/Zoom)
@@ -74,6 +75,7 @@ export default function AdminMasterclasses() {
           created_at: data.created_at?.toDate()?.toISOString() || new Date().toISOString(),
           content: data.content || [],
           purchased_by_users: purchasedByUsers,
+          demo_video_url: data.demo_video_url || '', // ✅ NEW: Fetch the demo video URL
         } as Masterclass);
       }
 
@@ -184,6 +186,7 @@ export default function AdminMasterclasses() {
         price: Number(formData.price) || 0,
         type: formData.type,
         thumbnail_url: formData.thumbnail_url,
+        demo_video_url: formData.demo_video_url, // ✅ NEW: Save the demo video URL
         content: currentContent,
       };
 
@@ -208,6 +211,7 @@ export default function AdminMasterclasses() {
         price: 0,
         type: 'free',
         thumbnail_url: '',
+        demo_video_url: '',
       });
       setCurrentContent([]);
       setEditingId(null);
@@ -239,6 +243,7 @@ export default function AdminMasterclasses() {
       price: cls.price || 0,
       type: cls.type || 'free',
       thumbnail_url: cls.thumbnail_url || '',
+      demo_video_url: cls.demo_video_url || '', // ✅ NEW: Populate form on edit
     });
 
     setCurrentContent(cls.content || []);
@@ -255,6 +260,7 @@ export default function AdminMasterclasses() {
       price: 0,
       type: 'free',
       thumbnail_url: '',
+      demo_video_url: '',
     });
     setCurrentContent([]);
   };
@@ -322,7 +328,13 @@ export default function AdminMasterclasses() {
           <input type="text" placeholder="Thumbnail URL"
             value={formData.thumbnail_url}
             onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
-            className="border p-3 rounded-lg text-gray-900 col-span-1 md:col-span-2" />
+            className="border p-3 rounded-lg text-gray-900" />
+            
+          {/* ✅ NEW: Demo Video URL Input */}
+          <input type="text" placeholder="Demo Video URL (Optional, YouTube)"
+            value={formData.demo_video_url}
+            onChange={(e) => setFormData({ ...formData, demo_video_url: e.target.value })}
+            className="border p-3 rounded-lg text-gray-900" />
         </div>
 
         <textarea

@@ -3,9 +3,9 @@ import { Handler } from "@netlify/functions";
 import crypto from "crypto";
 // Use admin initializer which should export adminDb (admin.firestore.Firestore)
 import { adminDb } from "../../src/lib/firebaseAdmin"; // export { adminDb } from firebaseAdmin
-import admin from "firebase-admin"; // for FieldValue
+import admin from "firebase-admin"; // for FieldValue and Masterclass types
 import { sendEmail } from "../../src/utils/gmailHelper";
-
+import { Masterclass, MasterclassContent } from "../../src/types/masterclass";
 // Helper: ensure required envs exist (only called when needed)
 function requireEnv(name: string) {
   const v = process.env[name];
@@ -15,74 +15,68 @@ function requireEnv(name: string) {
   return v;
 }
 
-const SITE_URL = process.env.SITE_URL || process.env.URL || "";
-
-async function sendRegistrationEmail(
-  email: string,
-  userName: string,
-  masterclass: any,
-  masterclassId: string
-) {
+/**
+ * Calls the 'send-purchase-confirmation' Netlify function.
+ * This is a "fire-and-forget" operation.
+ */
+async function triggerPurchaseConfirmationEmail(email: string, userName: string, masterclass: any, userId: string) {
+  // Use the public API endpoint defined in netlify.toml. This is more robust.
+  const functionUrl = `${process.env.URL}/api/send-purchase-confirmation`;
+  
   try {
-    const scheduledDateTime = masterclass?.scheduled_date
-      ? new Date(masterclass.scheduled_date)
-      : null;
-    const formattedDate = scheduledDateTime
-      ? scheduledDateTime.toLocaleString("en-US", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZoneName: "short",
-        })
-      : "TBA";
+    console.log(`🚀 Triggering purchase confirmation email for ${email} by calling ${functionUrl}`);
+    
+    // ✅ CORRECTED: Await the fetch call to ensure it completes before the function exits.
+    const response = await fetch(functionUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, userName, masterclass, userId }), // ✅ Pass the correct userId
+    });
 
-    const htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>
-      <h1>Registration Confirmed</h1>
-      <p>Hi ${userName || "there"},</p>
-      <p>You have been registered for <strong>${masterclass?.title || "the masterclass"}</strong> on ${formattedDate}.</p>
-      <p><a href="${SITE_URL}/masterclasses/${masterclassId}">View details</a></p>
-      </body></html>`;
-
-    await sendEmail(email, `✅ Registration Confirmed: ${masterclass?.title || ""}`, htmlContent);
-    console.log("✅ Registration email sent via Gmail");
+    const responseBody = await response.text();
+    if (!response.ok) {
+      console.error(`❌ triggerPurchaseConfirmationEmail: HTTP error! status: ${response.status}. Body: ${responseBody}`);
+    } else {
+      console.log('✅ triggerPurchaseConfirmationEmail: Function invoked successfully. Response:', responseBody);
+    }
   } catch (err) {
-    console.error("❌ Registration email error:", err);
+    // Log the error but don't fail the main transaction. This will catch network errors.
+    console.error("❌ FATAL: Failed to trigger purchase confirmation email function:", err);
   }
 }
 
-async function sendPurchaseConfirmationEmail(
-  email: string,
-  userName: string,
-  orderId: string,
-  paymentId: string,
-  masterclassId: string,
-  masterclassTitle: string,
-  videoId: string | null,
-  videoTitle: string | null,
-  amount: number,
-  purchaseType: "video" | "upcoming_registration" | "masterclass"
-) {
+/**
+ * Sends an immediate reminder if a session is starting within 12 hours.
+ * This is a "fire-and-forget" operation.
+ */
+async function sendImmediateReminder(email: string, userName: string, masterclass: Masterclass, contentItem: MasterclassContent) {
   try {
-    const isPaid = amount > 0;
-    const subject = `${isPaid ? "💳 Purchase" : "✅ Enrollment"} Confirmed`;
-    const html = `<html><body>
-      <h1>${subject}</h1>
-      <p>Hi ${userName || "there"},</p>
-      <p>${isPaid ? "Your payment succeeded." : "Your enrollment is confirmed."}</p>
-      <p>Order: ${orderId} ${paymentId ? `| Payment: ${paymentId}` : ""}</p>
-      <p>Item: ${videoId ? videoTitle : masterclassTitle} ${isPaid ? `| Amount: ₹${amount}` : ""}</p>
-      <p><a href="${SITE_URL}/masterclasses/${masterclassId}">Open masterclass</a></p>
-    </body></html>`;
-    await sendEmail(email, subject, html);
-    console.log("✅ Purchase confirmation email sent via Gmail");
+    console.log(`🚀 Triggering IMMEDIATE reminder for "${contentItem.title}" for user ${email}`);
+    const scheduledDate = new Date(contentItem.scheduled_date!);
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <body>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+          <h2 style="color: #333;">🚨 Reminder: Your Live Session is Starting Soon!</h2>
+          <p>Hi ${userName},</p>
+          <p>Thank you for your purchase! This is an immediate reminder that your live session, "<b>${contentItem.title}</b>", is scheduled to begin soon.</p>
+          <p><b>Scheduled Time:</b> ${scheduledDate.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
+          <p>You can access the session details and join link directly from the masterclass page:</p>
+          <a href="${process.env.SITE_URL}/masterclasses/${masterclass.id}" style="display: inline-block; padding: 10px 20px; background-color: #4f46e5; color: #fff; text-decoration: none; border-radius: 5px;">
+            Go to Masterclass
+          </a>
+          <p style="margin-top: 20px; font-size: 0.9em; color: #777;">We're excited to see you there!</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await sendEmail(email, `🚨 Reminder: "${contentItem.title}" starts soon!`, html);
   } catch (err) {
-    console.error("❌ Purchase confirmation email error:", err);
+    console.error(`❌ Failed to send immediate reminder for ${contentItem.title}:`, err);
   }
 }
-
 /**
  * Serverless handler — uses adminDb (Firestore Admin) only.
  * NOTE: ensure `adminDb` is the Admin Firestore instance exported by your firebaseAdmin file.
@@ -194,35 +188,34 @@ export const handler: Handler = async (event, context) => {
         } else {
           console.warn("⚠️ Masterclass doc not found for dummy grant");
         }
-      } else if (masterclassId && masterRef) {
-        // This block now only runs if it's a full masterclass purchase.
-        const mcSnap = await masterRef.get();
-        if (mcSnap.exists) {
-          await masterRef.update({
-            purchased_by_users: admin.firestore.FieldValue.arrayUnion(userId),
-          });
-          console.log("✅ User added to masterclass purchasers (dummy)");
-        } else {
-          console.warn("⚠️ Masterclass doc not found for dummy grant");
-        }
       }
 
       // Send emails if needed (best-effort)
       try {
-        if (amount > 0 && userData?.email) {
-          const mcData = masterclassId && masterRef ? (await masterRef.get()).data() : null;
-          // ✅ CORRECTED: Determine if it's an upcoming (Zoom) session based on the 'type' passed from the frontend.
+        if (userData?.email) {
+          let mcData = null;
+          if (masterclassId && masterRef) {
+            const doc = await masterRef.get();
+            if (doc.exists) mcData = { id: doc.id, ...doc.data() };
+          }
+          // Fire-and-forget call to our Netlify function
+          await triggerPurchaseConfirmationEmail(userData.email, userName, mcData, userId);
 
-          await sendPurchaseConfirmationEmail(
-            userData.email,
-            userName,
-            razorpay_order_id,
-            razorpay_payment_id,
-            masterclassId ?? "",
-            masterclassTitle || mcData?.title || "Unknown",
-            amount ?? 0,
-            "masterclass"
-          );
+          // --- ✅ NEW: IMMEDIATE REMINDER LOGIC ---
+          const typedMcData = mcData as Masterclass;
+          if (typedMcData && typedMcData.content) {
+            const now = new Date();
+            const twelveHoursFromNow = now.getTime() + 12 * 60 * 60 * 1000;
+            for (const contentItem of typedMcData.content) {
+              if (contentItem.source === 'zoom' && contentItem.scheduled_date) {
+                const scheduledTime = new Date(contentItem.scheduled_date).getTime();
+                // If the session is in the future AND within the next 12 hours
+                if (scheduledTime > now.getTime() && scheduledTime < twelveHoursFromNow) {
+                  sendImmediateReminder(userData.email, userName, typedMcData, contentItem);
+                }
+              }
+            }
+          }
         }
       } catch (emailErr) {
         console.error("❌ Error while sending confirmation emails (dummy):", emailErr);
@@ -355,21 +348,26 @@ export const handler: Handler = async (event, context) => {
     // Send emails (best-effort)
     try {
       if (userEmail) {
-        if (!mcData) {
-  throw new Error("Masterclass data not found.");
-        }
+        // Re-fetch mcData with ID to pass to email function
+        const doc = await masterRef.get();
+        const mcDataWithId = doc.exists ? { id: doc.id, ...doc.data() } : mcData;
+        // Fire-and-forget call to our Netlify function
+        await triggerPurchaseConfirmationEmail(userEmail, userName, mcDataWithId, userId);
 
-        if (amount > 0) {
-          await sendPurchaseConfirmationEmail(
-            userEmail,
-            userName,
-            razorpay_order_id,
-            razorpay_payment_id,
-            masterclassId,
-            masterclassTitle || mcData.title,
-            amount ?? 0,
-            "masterclass"
-          );
+        // --- ✅ NEW: IMMEDIATE REMINDER LOGIC ---
+        const typedMcDataWithId = mcDataWithId as Masterclass;
+        if (typedMcDataWithId && typedMcDataWithId.content) {
+          const now = new Date();
+          const twelveHoursFromNow = now.getTime() + 12 * 60 * 60 * 1000;
+          for (const contentItem of typedMcDataWithId.content) {
+            if (contentItem.source === 'zoom' && contentItem.scheduled_date) {
+              const scheduledTime = new Date(contentItem.scheduled_date).getTime();
+              // If the session is in the future AND within the next 12 hours
+              if (scheduledTime > now.getTime() && scheduledTime < twelveHoursFromNow) {
+                sendImmediateReminder(userEmail, userName, typedMcDataWithId, contentItem);
+              }
+            }
+          }
         }
       }
     } catch (emailErr) {
@@ -381,7 +379,8 @@ export const handler: Handler = async (event, context) => {
       body: JSON.stringify({ success: true, message: "Payment verified successfully" }),
     };
   } catch (err: any) {
-    console.error("❌ Payment verify error:", err);
+    const orderId = JSON.parse(event.body || "{}")?.razorpay_order_id;
+    console.error(`❌ FATAL Payment Verify Error for order [${orderId || 'unknown'}]:`, err);
     return { statusCode: 500, body: JSON.stringify({ success: false, error: err?.message || String(err) }) };
   }
 };

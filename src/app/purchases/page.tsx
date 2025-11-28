@@ -11,29 +11,34 @@ import { db } from "@/lib/firebase";
 import { Masterclass } from "@/types/masterclass"; // ✅ Single source of truth
 
 export default function PurchasesPage() {
-  const { userProfile, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { theme } = useTheme();
   const [masterclasses, setMasterclasses] = useState<Masterclass[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
 
   useEffect(() => {
     const fetchPurchasedMasterclasses = async () => {
-      if (!userProfile?.purchasedClasses?.length) {
+      // Use the user's UID directly for the query
+      if (!user?.uid) {
         setLoadingClasses(false);
         return;
       }
 
+      setLoadingClasses(true);
       try {
         const masterclassesRef = collection(db, "MasterClasses");
+        // Query for masterclasses where the user's ID is in the 'purchased_by_users' array.
         const q = query(
           masterclassesRef,
-          where("title", "in", userProfile.purchasedClasses.slice(0, 10)) // Firestore 'in' limit is 10
+          where("purchased_by_users", "array-contains", user.uid)
         );
         const querySnapshot = await getDocs(q);
         
         const fetchedClasses: Masterclass[] = [];
         querySnapshot.forEach((doc) => {
-          fetchedClasses.push({ id: doc.id, ...doc.data() } as Masterclass);
+          // Reconstruct the object to ensure type safety
+          const data = doc.data();
+          fetchedClasses.push({ id: doc.id, ...data } as Masterclass);
         });
 
         setMasterclasses(fetchedClasses);
@@ -45,17 +50,15 @@ export default function PurchasesPage() {
     };
 
     fetchPurchasedMasterclasses();
-  }, [userProfile]);
+  }, [user]);
 
-  if (loading || loadingClasses) {
+  if (authLoading || loadingClasses) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
-
-  const purchasedClasses = userProfile?.purchasedClasses || [];
 
   return (
     <div
@@ -95,7 +98,7 @@ export default function PurchasesPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-3xl font-bold text-blue-600">
-                {purchasedClasses.length}
+                {masterclasses.length}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 Total Masterclasses Enrolled
@@ -106,7 +109,7 @@ export default function PurchasesPage() {
         </motion.div>
 
         {/* Classes List */}
-        {purchasedClasses.length === 0 ? (
+        {masterclasses.length === 0 ? (
           <motion.div
             className={`text-center py-16 rounded-lg shadow ${
               theme === "dark" ? "bg-gray-800" : "bg-white"
@@ -137,81 +140,52 @@ export default function PurchasesPage() {
             transition={{ delay: 0.2 }}
           >
             {/* If we have full masterclass data */}
-            {masterclasses.length > 0 ? (
-              masterclasses.map((masterclass, i) => (
-                <motion.div
-                  key={masterclass.id}
-                  className={`p-5 rounded-lg shadow hover:shadow-md transition ${
-                    theme === "dark"
-                      ? "bg-gray-800 border border-gray-700"
-                      : "bg-white border border-gray-200"
-                  }`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Thumbnail */}
-                    {masterclass.thumbnail_url && (
-                      <img
-                        src={masterclass.thumbnail_url}
-                        alt={masterclass.title}
-                        className="w-24 h-24 rounded-lg object-cover flex-shrink-0"
-                      />
-                    )}
+            {masterclasses.map((masterclass, i) => (
+              <motion.div
+                key={masterclass.id}
+                className={`p-5 rounded-lg shadow hover:shadow-md transition ${
+                  theme === "dark"
+                    ? "bg-gray-800 border border-gray-700"
+                    : "bg-white border border-gray-200"
+                }`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+              >
+                <div className="flex items-start gap-4">
+                  {/* Thumbnail */}
+                  {masterclass.thumbnail_url && (
+                    <img
+                      src={masterclass.thumbnail_url}
+                      alt={masterclass.title}
+                      className="w-24 h-24 rounded-lg object-cover flex-shrink-0"
+                    />
+                  )}
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4 mb-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-lg mb-1 truncate">
-                            {masterclass.title}
-                          </h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            By {masterclass.speaker_name}
-                          </p>
-                          {masterclass.speaker_designation && (
-                            <p className="text-xs text-gray-500 dark:text-gray-500">
-                              {masterclass.speaker_designation}
-                            </p>
-                          )}
-                        </div>
-                        <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-lg mb-1 truncate">
+                          {masterclass.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          By {masterclass.speaker_name}
+                        </p>
                       </div>
-
-                      {/* Action Button */}
-                      <Link
-                        href={`/masterclasses/${masterclass.id}`}
-                        className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        Access Class
-                      </Link>
+                      <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
                     </div>
+                    <Link
+                      href={`/masterclasses/${masterclass.id}`}
+                      className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Access Class
+                    </Link>
                   </div>
-                </motion.div>
-              ))
-            ) : (
-              // Fallback: Show titles only if full data not available
-              purchasedClasses.map((className, i) => (
-                <motion.div
-                  key={i}
-                  className={`p-4 rounded-lg shadow ${
-                    theme === "dark"
-                      ? "bg-gray-800 border border-gray-700"
-                      : "bg-white border border-gray-200"
-                  }`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <div className="flex items-center gap-3">
-                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                    <span className="flex-1">{className}</span>
-                  </div>
-                </motion.div>
-              ))
-            )}
+                </div>
+              </motion.div>
+            ))}
           </motion.div>
         )}
 

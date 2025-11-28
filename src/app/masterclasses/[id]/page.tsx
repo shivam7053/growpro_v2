@@ -16,6 +16,8 @@ import {
   IndianRupee,
   CheckCircle,
   ShoppingCart,
+  AlertCircle,
+  Video,
 } from "lucide-react";
 import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -35,6 +37,7 @@ export default function MasterclassDetailPage() {
   const [loading, setLoading] = useState(true);
   const [selectedContent, setSelectedContent] = useState<MasterclassContent | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [error, setError] = useState<string | null>(null); // ✅ NEW: State for handling errors
   const [processing, setProcessing] = useState(false);
 
   const masterclassId = params.id as string;
@@ -52,7 +55,7 @@ export default function MasterclassDetailPage() {
         const docSnap = await getDoc(docRef);
 
         if (!docSnap.exists()) {
-          toast.error("Masterclass not found.");
+          setError("Masterclass not found."); // ✅ NEW: Set error state
           // Consider redirecting here
           return;
         }
@@ -74,6 +77,7 @@ export default function MasterclassDetailPage() {
             : new Date().toISOString(),
           content: (data.content || []).sort((a: MasterclassContent, b: MasterclassContent) => a.order - b.order),
           purchased_by_users: data.purchased_by_users || [],
+          demo_video_url: data.demo_video_url || '', // ✅ Fetch the demo video URL
         };
 
         setMasterclass(mc);
@@ -84,14 +88,16 @@ export default function MasterclassDetailPage() {
         }
       } catch (error) {
         console.error("Error fetching masterclass:", error);
-        toast.error("Error loading masterclass");
+        setError("Failed to load masterclass details."); // ✅ NEW: Set error state
       } finally {
         setLoading(false);
       }
     };
 
+    toast.loading("Loading masterclass details...", { id: "loading-toast" });
     fetchMasterclass();
-  }, [masterclassId, user?.uid]); // Removed unnecessary dependency
+    toast.dismiss("loading-toast");
+  }, [masterclassId]); // ✅ CORRECTED: Removed user?.uid dependency
 
   const userHasFullAccess = user?.uid && masterclass?.purchased_by_users?.includes(user.uid);
 
@@ -180,15 +186,25 @@ export default function MasterclassDetailPage() {
     );
   }
 
-  if (!masterclass) {
+  // ✅ NEW: Handle error state
+  if (error) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400 mb-4">Masterclass not found</p>
+        <div className="text-center p-4">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600 dark:text-red-400 mb-4 font-semibold">{error}</p>
           <Link href="/masterclasses" className="text-indigo-600 hover:underline">
             Back to Masterclasses
           </Link>
         </div>
+      </div>
+    );
+  }
+
+  if (!masterclass) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+        {/* This state is now handled by the loading and error states above */}
       </div>
     );
   }
@@ -205,7 +221,7 @@ return (
   <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <Link
-        href="/masterclasses"
+        href="/masterclasses" // ✅ Improved navigation
         className="inline-flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white font-medium transition mb-6"
       >
         <ArrowLeft className="w-5 h-5" />
@@ -259,6 +275,27 @@ return (
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ✅ CORRECTED: Demo Video Section was missing from the final JSX */}
+          {masterclass.demo_video_url && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mt-6">
+               <div className="flex items-center gap-3 mb-4">
+                <Video className="w-6 h-6 text-indigo-500" />
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Watch the Welcome Video
+                </h2>
+              </div>
+              <div className="aspect-video w-full bg-black rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700">
+                <iframe
+                  className="w-full h-full"
+                  src={`https://www.youtube.com/embed/${getYouTubeVideoId(masterclass.demo_video_url)}`}
+                  title="YouTube video player"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
             </div>
           )}
 
