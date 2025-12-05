@@ -22,6 +22,7 @@ export default function AdminMasterclasses() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showContentModal, setShowContentModal] = useState(false);
 
+  
   // State for the main Masterclass form
   const [formData, setFormData] = useState<any>({
     title: '',
@@ -60,7 +61,7 @@ export default function AdminMasterclasses() {
       for (const docSnap of querySnapshot.docs) {
         const data = docSnap.data();
         const purchasedByUsers: string[] = Array.isArray(data.purchased_by_users)
-          ? data.purchased_by_users.filter((id) => typeof id === 'string')
+          ? data.purchased_by_users.filter(id => typeof id === 'string')
           : [];
 
         masterclassList.push({
@@ -265,6 +266,14 @@ export default function AdminMasterclasses() {
     setCurrentContent([]);
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev: any) => ({
+      ...prev,
+      [name]: e.target.type === 'number' ? Number(value) : value,
+    }));
+  };
+
   // Calculate pricing info from content
   const calculatePricingInfo = () => {
     return { isFree: formData.type === 'free', price: formData.price };
@@ -289,28 +298,22 @@ export default function AdminMasterclasses() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input type="text" placeholder="Title *" value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            onChange={handleChange} name="title" // Use handleChange
             className="border p-3 rounded-lg text-gray-900" />
 
           <input type="text" placeholder="Speaker Name *" value={formData.speaker_name}
-            onChange={(e) => setFormData({ ...formData, speaker_name: e.target.value })}
+            onChange={handleChange} name="speaker_name" // Use handleChange
             className="border p-3 rounded-lg text-gray-900" />
 
           <input type="text" placeholder="Speaker Designation" value={formData.speaker_designation}
-            onChange={(e) => setFormData({ ...formData, speaker_designation: e.target.value })}
+            onChange={handleChange} name="speaker_designation" // Use handleChange
             className="border p-3 rounded-lg text-gray-900" />
 
           <select
             value={formData.type}
-            onChange={(e) => {
-              const newType = e.target.value as 'free' | 'paid';
-              setFormData({
-                ...formData,
-                type: newType,
-                price: newType === 'free' ? 0 : formData.price,
-              });
-            }}
+            onChange={handleChange} // Use handleChange
             className="border p-3 rounded-lg text-gray-900"
+            name="type"
           >
             <option value="free">Free</option>
             <option value="paid">Paid</option>
@@ -321,26 +324,26 @@ export default function AdminMasterclasses() {
               type="number"
               placeholder="Price (₹) *"
               value={formData.price || ''}
-              onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+              onChange={handleChange} name="price" // Use handleChange
               className="border p-3 rounded-lg text-gray-900"
             />
           )}
           <input type="text" placeholder="Thumbnail URL"
             value={formData.thumbnail_url}
-            onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+            onChange={handleChange} name="thumbnail_url" // Use handleChange
             className="border p-3 rounded-lg text-gray-900" />
             
           {/* ✅ NEW: Demo Video URL Input */}
           <input type="text" placeholder="Demo Video URL (Optional, YouTube)"
             value={formData.demo_video_url}
-            onChange={(e) => setFormData({ ...formData, demo_video_url: e.target.value })}
+            onChange={handleChange} name="demo_video_url" // Use handleChange
             className="border p-3 rounded-lg text-gray-900" />
         </div>
 
         <textarea
           placeholder="Description"
           value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          onChange={handleChange} name="description" // Use handleChange
           className="border p-3 rounded-lg text-gray-900 w-full mt-4"
           rows={3}
         />

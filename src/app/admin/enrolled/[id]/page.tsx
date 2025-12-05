@@ -30,17 +30,18 @@ export default function EnrolledUsersPage() {
         const classData = classSnap.data();
         setClassType(classData.type);
 
-        const joinedIds = classData.joined_users || [];
-        const usersData: UserProfile[] = [];
-
-        for (const userId of joinedIds) {
-          const userRef = doc(db, 'user_profiles', userId);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            usersData.push(userSnap.data() as UserProfile);
-          }
-        }
-
+        const purchasedByUserIds = classData.purchased_by_users || [];
+        
+        const userPromises = purchasedByUserIds.map((userId: string) => getDoc(doc(db, 'user_profiles', userId)));
+        const userSnaps = await Promise.all(userPromises);
+        
+        const usersData = userSnaps
+          .filter(snap => snap.exists())
+          .map(snap => ({
+            id: snap.id,
+            ...snap.data(),
+          })) as UserProfile[];
+          
         setUsers(usersData);
       } catch (error) {
         console.error(error);
@@ -60,10 +61,10 @@ export default function EnrolledUsersPage() {
       const classSnap = await getDoc(classRef);
       if (!classSnap.exists()) return;
 
-      const currentUsers = classSnap.data().joined_users || [];
+      const currentUsers = classSnap.data().purchased_by_users || [];
       const updatedUsers = currentUsers.filter((id: string) => id !== userId);
 
-      await updateDoc(classRef, { joined_users: updatedUsers });
+      await updateDoc(classRef, { purchased_by_users: updatedUsers });
       setUsers(users.filter((u) => u.id !== userId));
 
       alert('✅ User removed successfully');

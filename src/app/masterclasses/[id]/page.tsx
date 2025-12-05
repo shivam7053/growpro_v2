@@ -1,3 +1,5 @@
+
+
 // app/masterclasses/[id]/page.tsx
 "use client";
 
@@ -18,6 +20,7 @@ import {
   ShoppingCart,
   AlertCircle,
   Video,
+  List,
 } from "lucide-react";
 import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -36,71 +39,135 @@ export default function MasterclassDetailPage() {
   const [masterclass, setMasterclass] = useState<Masterclass | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedContent, setSelectedContent] = useState<MasterclassContent | null>(null);
+  const [showAllContent, setShowAllContent] = useState(false); // ✅ NEW: State for "All Content" view
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [error, setError] = useState<string | null>(null); // ✅ NEW: State for handling errors
+  const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
   const masterclassId = params.id as string;
 
-  // Fetch user's purchased videos
-
   // Fetch masterclass details
+  // useEffect(() => {
+  //   const fetchMasterclass = async () => {
+  //     if (!masterclassId) return;
+
+  //     try {
+  //       setLoading(true);
+  //       const docRef = doc(db, "MasterClasses", masterclassId);
+  //       const docSnap = await getDoc(docRef);
+
+  //       if (!docSnap.exists()) {
+  //         setError("Masterclass not found.");
+  //         return;
+  //       }
+
+  //       const data = docSnap.data();
+
+  //       const mc: Masterclass = {
+  //         id: docSnap.id,
+  //         title: data.title || "",
+  //         speaker_name: data.speaker_name || "",
+  //         speaker_designation: data.speaker_designation || "",
+  //         thumbnail_url: data.thumbnail_url || "",
+  //         description: data.description || "",
+  //         price: data.price || 0,
+  //         type: data.type || 'free',
+  //         created_at: data.created_at
+  //           ? new Date(data.created_at.seconds * 1000).toISOString()
+  //           : new Date().toISOString(),
+  //         content: (data.content || []).sort((a: MasterclassContent, b: MasterclassContent) => a.order - b.order),
+  //         purchased_by_users: data.purchased_by_users || [],
+  //         demo_video_url: data.demo_video_url || '',
+  //       };
+
+  //       setMasterclass(mc);
+
+  //       // Auto-select the first piece of content
+  //       if (mc.content.length > 0) {
+  //         setSelectedContent(mc.content[0]);
+  //       }
+  //     } catch (error) {
+  //       console.error("Error fetching masterclass:", error);
+  //       setError("Failed to load masterclass details.");
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
+  //   toast.loading("Loading masterclass details...", { id: "loading-toast" });
+  //   fetchMasterclass();
+  //   toast.dismiss("loading-toast");
+  // }, [masterclassId]);
+
+
+
   useEffect(() => {
-    const fetchMasterclass = async () => {
-      if (!masterclassId) return;
+  const fetchMasterclass = async () => {
+    if (!masterclassId) return;
 
-      try {
-        setLoading(true);
-        const docRef = doc(db, "MasterClasses", masterclassId);
-        const docSnap = await getDoc(docRef);
+    try {
+      setLoading(true);
+      const docRef = doc(db, "MasterClasses", masterclassId);
+      const docSnap = await getDoc(docRef);
 
-        if (!docSnap.exists()) {
-          setError("Masterclass not found."); // ✅ NEW: Set error state
-          // Consider redirecting here
-          return;
-        }
-
-        const data = docSnap.data();
-
-        // Build Masterclass object using the new structure
-        const mc: Masterclass = {
-          id: docSnap.id,
-          title: data.title || "",
-          speaker_name: data.speaker_name || "",
-          speaker_designation: data.speaker_designation || "",
-          thumbnail_url: data.thumbnail_url || "",
-          description: data.description || "",
-          price: data.price || 0,
-          type: data.type || 'free',
-          created_at: data.created_at
-            ? new Date(data.created_at.seconds * 1000).toISOString()
-            : new Date().toISOString(),
-          content: (data.content || []).sort((a: MasterclassContent, b: MasterclassContent) => a.order - b.order),
-          purchased_by_users: data.purchased_by_users || [],
-          demo_video_url: data.demo_video_url || '', // ✅ Fetch the demo video URL
-        };
-
-        setMasterclass(mc);
-
-        // Auto-select the first piece of content
-        if (mc.content.length > 0) {
-          setSelectedContent(mc.content[0]);
-        }
-      } catch (error) {
-        console.error("Error fetching masterclass:", error);
-        setError("Failed to load masterclass details."); // ✅ NEW: Set error state
-      } finally {
-        setLoading(false);
+      if (!docSnap.exists()) {
+        setError("Masterclass not found.");
+        return;
       }
-    };
 
-    toast.loading("Loading masterclass details...", { id: "loading-toast" });
-    fetchMasterclass();
-    toast.dismiss("loading-toast");
-  }, [masterclassId]); // ✅ CORRECTED: Removed user?.uid dependency
+      const data = docSnap.data();
+
+      // ✅ FIX: Generate unique IDs for each content item
+      const fixedContent = (data.content || []).map(
+        (c: MasterclassContent, index: number) => ({
+          ...c,
+          id:
+            c.id && c.id.trim() !== ""
+              ? c.id
+              : `${docSnap.id}_content_${index}`, // generate unique id
+          order: typeof c.order === "number" ? c.order : index,
+        })
+      );
+
+      const mc: Masterclass = {
+        id: docSnap.id,
+        title: data.title || "",
+        speaker_name: data.speaker_name || "",
+        speaker_designation: data.speaker_designation || "",
+        thumbnail_url: data.thumbnail_url || "",
+        description: data.description || "",
+        price: data.price || 0,
+        type: data.type || "free",
+        created_at: data.created_at
+          ? new Date(data.created_at.seconds * 1000).toISOString()
+          : new Date().toISOString(),
+        content: fixedContent.sort(
+          (a: MasterclassContent, b: MasterclassContent) =>
+            a.order - b.order
+        ),
+        purchased_by_users: data.purchased_by_users || [],
+        demo_video_url: data.demo_video_url || "",
+      };
+
+      setMasterclass(mc);
+
+      if (mc.content.length > 0) {
+        setSelectedContent(mc.content[0]);
+      }
+    } catch (error) {
+      console.error("Error fetching masterclass:", error);
+      setError("Failed to load masterclass details.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  toast.loading("Loading masterclass details...", { id: "loading-toast" });
+  fetchMasterclass();
+  toast.dismiss("loading-toast");
+}, [masterclassId]);
 
   const userHasFullAccess = user?.uid && masterclass?.purchased_by_users?.includes(user.uid);
-
   const isMasterclassFree = masterclass?.type === 'free';
 
   // Refresh masterclass data after purchase
@@ -186,7 +253,6 @@ export default function MasterclassDetailPage() {
     );
   }
 
-  // ✅ NEW: Handle error state
   if (error) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
@@ -204,47 +270,110 @@ export default function MasterclassDetailPage() {
   if (!masterclass) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
-        {/* This state is now handled by the loading and error states above */}
       </div>
     );
   }
 
   const isUpcomingContent = (content: MasterclassContent) =>
-    content.source === 'zoom' && content.scheduled_date && new Date(content.scheduled_date) > new Date(); // This function is not used, can be removed if desired.
+    content.source === 'zoom' && content.scheduled_date && new Date(content.scheduled_date) > new Date();
 
   const videoId = selectedContent?.source === "youtube" && selectedContent.youtube_url ? getYouTubeVideoId(selectedContent.youtube_url) : null;
 
-  // Fixed return statement for app/masterclasses/[id]/page.tsx
-// Replace the return statement in your component with this corrected version
+  // ✅ NEW: Render content in "All Content" view
+  // const renderAllContent = () => {
+  //   const hasAccess = userHasFullAccess || isMasterclassFree;
 
-return (
-  <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <Link
-        href="/masterclasses" // ✅ Improved navigation
-        className="inline-flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white font-medium transition mb-6"
-      >
-        <ArrowLeft className="w-5 h-5" />
-        Back to Masterclasses
-      </Link>
+  //   return (
+  //     <div className="space-y-6">
+  //       {masterclass.content.map((contentItem, index) => {
+  //         const contentVideoId = contentItem.source === "youtube" && contentItem.youtube_url 
+  //           ? getYouTubeVideoId(contentItem.youtube_url) 
+  //           : null;
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          {/* Player / Zoom panel */}
-          {selectedContent?.source === "zoom" && (
-            <ZoomPanel
-              content={selectedContent}
-              hasAccess={!!(userHasFullAccess || isMasterclassFree)}
-              processing={processing}
-            />
-          )}
-          {selectedContent?.source === "youtube" && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+  //         return (
+  //           <div key={contentItem.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+  //             {/* Video Player or Locked State */}
+  //             {contentItem.source === "youtube" && (
+  //               <div className="relative aspect-video bg-gray-900">
+  //                 {hasAccess && contentVideoId ? (
+  //                   <iframe
+  //                     src={`https://www.youtube.com/embed/${contentVideoId}`}
+  //                     title={contentItem.title}
+  //                     className="w-full h-full"
+  //                     allowFullScreen
+  //                   />
+  //                 ) : (
+  //                   <div className="flex flex-col items-center justify-center h-full">
+  //                     <Lock className="w-16 h-16 text-gray-500 mb-4" />
+  //                     <p className="text-gray-400 text-lg">
+  //                       {isMasterclassFree ? "Loading..." : "Purchase to unlock"}
+  //                     </p>
+  //                   </div>
+  //                 )}
+  //               </div>
+  //             )}
+
+  //             {contentItem.source === "zoom" && (
+  //               <ZoomPanel
+  //                 content={contentItem}
+  //                 hasAccess={hasAccess}
+  //                 processing={processing}
+  //               />
+  //             )}
+
+  //             {/* Content Details */}
+  //             <div className="p-6">
+  //               <h3 className="text-xl font-bold mb-2">
+  //                 {index + 1}. {contentItem.title}
+  //               </h3>
+  //               {contentItem.description && (
+  //                 <p className="text-gray-600 dark:text-gray-400 mb-4">{contentItem.description}</p>
+  //               )}
+
+  //               <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+  //                 {contentItem.duration && (
+  //                   <div className="flex items-center gap-1">
+  //                     <Clock className="w-4 h-4" />
+  //                     {contentItem.duration}
+  //                   </div>
+  //                 )}
+  //               </div>
+  //             </div>
+  //           </div>
+  //         );
+  //       })}
+  //     </div>
+  //   );
+  // };
+
+
+  const renderAllContent = () => {
+  const hasAccess = userHasFullAccess || isMasterclassFree;
+
+  return (
+    <div className="space-y-6">
+      {masterclass.content.map((contentItem, index) => {
+        const isActive = selectedContent?.id === contentItem.id;
+
+        const contentVideoId =
+          contentItem.source === "youtube" && contentItem.youtube_url
+            ? getYouTubeVideoId(contentItem.youtube_url)
+            : null;
+
+        return (
+          <div
+            key={contentItem.id}
+            onClick={() => setSelectedContent(contentItem)}
+            className={`rounded-xl shadow-lg overflow-hidden cursor-pointer transition-all 
+            ${isActive ? "ring-2 ring-indigo-500 bg-white dark:bg-gray-700" : "bg-white dark:bg-gray-800"}`}
+          >
+            {/* Video / Zoom */}
+            {contentItem.source === "youtube" && (
               <div className="relative aspect-video bg-gray-900">
-                {(userHasFullAccess || isMasterclassFree) && videoId ? (
+                {hasAccess && contentVideoId ? (
                   <iframe
-                    src={`https://www.youtube.com/embed/${videoId}`}
-                    title={selectedContent.title}
+                    src={`https://www.youtube.com/embed/${contentVideoId}`}
+                    title={contentItem.title}
                     className="w-full h-full"
                     allowFullScreen
                   />
@@ -252,194 +381,303 @@ return (
                   <div className="flex flex-col items-center justify-center h-full">
                     <Lock className="w-16 h-16 text-gray-500 mb-4" />
                     <p className="text-gray-400 text-lg">
-                      {isMasterclassFree ? "Select a video" : "Purchase to unlock"}
+                      {isMasterclassFree ? "Loading..." : "Purchase to unlock"}
                     </p>
                   </div>
                 )}
               </div>
+            )}
 
-              {selectedContent && (
-                <div className="p-6">
-                  <h2 className="text-2xl font-bold mb-2">{selectedContent.title}</h2>
-                  {selectedContent.description && (
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">{selectedContent.description}</p>
-                  )}
+            {contentItem.source === "zoom" && (
+              <ZoomPanel
+                content={contentItem}
+                hasAccess={hasAccess}
+                processing={processing}
+              />
+            )}
 
-                  <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                    {selectedContent.duration && (
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {selectedContent.duration}
-                      </div>
-                    )}
-                  </div>
+            {/* Content Info */}
+            <div className={`p-6 ${isActive ? "bg-indigo-50 dark:bg-indigo-900" : ""}`}>
+              <h3 className="text-xl font-bold mb-2">
+                {index + 1}. {contentItem.title}
+              </h3>
+
+              {contentItem.description && (
+                <p className="text-gray-600 dark:text-gray-300 mb-4">
+                  {contentItem.description}
+                </p>
+              )}
+
+              {contentItem.duration && (
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                  <Clock className="w-4 h-4" />
+                  {contentItem.duration}
                 </div>
               )}
             </div>
-          )}
-
-          {/* ✅ CORRECTED: Demo Video Section was missing from the final JSX */}
-          {masterclass.demo_video_url && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mt-6">
-               <div className="flex items-center gap-3 mb-4">
-                <Video className="w-6 h-6 text-indigo-500" />
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Watch the Welcome Video
-                </h2>
-              </div>
-              <div className="aspect-video w-full bg-black rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700">
-                <iframe
-                  className="w-full h-full"
-                  src={`https://www.youtube.com/embed/${getYouTubeVideoId(masterclass.demo_video_url)}`}
-                  title="YouTube video player"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
-              </div>
-            </div>
-          )}
-
-          {/* Details block (title, instructor, about) */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mt-6">
-            <h1 className="text-3xl font-bold mb-4">{masterclass.title}</h1>
-
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
-              <div className="flex items-center gap-2">
-                <User className="w-5 h-5 text-gray-500" />
-                <div>
-                  <p className="text-sm text-gray-500">Instructor</p>
-                  <p className="font-semibold">{masterclass.speaker_name}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-gray-500" />
-                <div>
-                  <p className="text-sm text-gray-500">Designation</p>
-                  <p className="font-semibold">{masterclass.speaker_designation}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-gray-500" />
-                <div>
-                  <p className="text-sm text-gray-500">Published</p>
-                  <p className="font-semibold">
-                    {formatMasterclassDate(masterclass.created_at)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-gray-500" />
-                <div>
-                  <p className="text-sm text-gray-500">Total Enrollments</p>
-                  <p className="font-semibold">{masterclass.purchased_by_users?.length || 0}</p>
-                </div>
-              </div>
-            </div>
-
-            {masterclass.description && (
-              <div>
-                <h3 className="font-semibold text-lg mb-2">About this Masterclass</h3>
-                <p className="text-gray-600 dark:text-gray-400">{masterclass.description}</p>
-              </div>
-            )}
           </div>
-        </div>
+        );
+      })}
+    </div>
+  );
+};
 
-        {/* Sidebar: course content */}
-        <div className="lg:col-span-1">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sticky top-8">
-            <h3 className="text-xl font-bold mb-4">Course Content</h3>
+  return (
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Link
+          href="/masterclasses"
+          className="inline-flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white font-medium transition mb-6"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Back to Masterclasses
+        </Link>
 
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {masterclass.content.map((contentItem, index) => {
-                const hasAccess = userHasFullAccess || isMasterclassFree;
-                const isSelected = selectedContent?.id === contentItem.id;
-                const isUpcoming = isUpcomingContent(contentItem);
+        <div className="grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            {/* ✅ IMPROVED: Conditional rendering based on view mode */}
+            {!showAllContent ? (
+              <>
+                {/* Single Content Player */}
+                {selectedContent?.source === "zoom" && (
+                  <ZoomPanel
+                    content={selectedContent}
+                    hasAccess={!!(userHasFullAccess || isMasterclassFree)}
+                    processing={processing}
+                  />
+                )}
+                {selectedContent?.source === "youtube" && (
+                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+                    <div className="relative aspect-video bg-gray-900">
+                      {(userHasFullAccess || isMasterclassFree) && videoId ? (
+                        <iframe
+                          src={`https://www.youtube.com/embed/${videoId}`}
+                          title={selectedContent.title}
+                          className="w-full h-full"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full">
+                          <Lock className="w-16 h-16 text-gray-500 mb-4" />
+                          <p className="text-gray-400 text-lg">
+                            {isMasterclassFree ? "Select a video" : "Purchase to unlock"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
-                return (
-                  <button
-                    key={contentItem.id}
-                    onClick={() => hasAccess && setSelectedContent(contentItem)} // The hasAccess check is sufficient
-                    disabled={!hasAccess && !isUpcoming} // Only disable if no access AND not an upcoming item they might want to see info for
-                    className={`w-full text-left p-4 rounded-lg transition ${
-                      isSelected
-                        ? "bg-indigo-100 dark:bg-indigo-900 border-2 border-indigo-500"
-                        : "bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
-                    } ${!hasAccess ? "cursor-not-allowed" : "cursor-pointer"}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-1">
-                        {isUpcoming ? (
-                          <Calendar className="w-5 h-5 text-blue-500" />
-                        ) : hasAccess ? (
-                          <Play className="w-5 h-5 text-green-600" />
-                        ) : (
-                          <Lock className="w-5 h-5 text-gray-500" />
+                    {selectedContent && (
+                      <div className="p-6">
+                        <h2 className="text-2xl font-bold mb-2">{selectedContent.title}</h2>
+                        {selectedContent.description && (
+                          <p className="text-gray-600 dark:text-gray-400 mb-4">{selectedContent.description}</p>
                         )}
-                      </div>
 
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm mb-1 line-clamp-2">
-                          {index + 1}. {contentItem.title}
-                        </p>
-
-                        <div className="flex items-center gap-2 text-xs">
-                          {contentItem.duration && (
-                            <span className="text-gray-500">{contentItem.duration}</span>
+                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                          {selectedContent.duration && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              {selectedContent.duration}
+                            </div>
                           )}
-                          {hasAccess && <CheckCircle className="w-4 h-4 text-green-600" />}
                         </div>
                       </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              /* ✅ NEW: All Content View */
+              renderAllContent()
+            )}
 
-            {/* ENROLL BUTTON */}
-            {!userHasFullAccess && (
-              <div className="mt-6 border-t pt-6">
-                {isMasterclassFree ? (
-                  <button
-                    onClick={handleFreeEnrollment}
-                    disabled={processing}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {processing ? "Processing..." : "Enroll for Free"}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handlePaidEnrollment}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2"
-                  >
-                    <ShoppingCart className="w-5 h-5" />
-                    Enroll for ₹{masterclass.price}
-                  </button>
+            {/* Demo Video Section */}
+            {masterclass.demo_video_url && !showAllContent && (
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mt-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Video className="w-6 h-6 text-indigo-500" />
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    Watch the Welcome Video
+                  </h2>
+                </div>
+                <div className="aspect-video w-full bg-black rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700">
+                  <iframe
+                    className="w-full h-full"
+                    src={`https://www.youtube.com/embed/${getYouTubeVideoId(masterclass.demo_video_url)}`}
+                    title="YouTube video player"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                </div>
+              </div>
+            )}
+
+            {/* Details block */}
+            {!showAllContent && (
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mt-6">
+                <h1 className="text-3xl font-bold mb-4">{masterclass.title}</h1>
+
+                <div className="grid md:grid-cols-2 gap-4 mb-6">
+                  <div className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-gray-500" />
+                    <div>
+                      <p className="text-sm text-gray-500">Instructor</p>
+                      <p className="font-semibold">{masterclass.speaker_name}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-gray-500" />
+                    <div>
+                      <p className="text-sm text-gray-500">Designation</p>
+                      <p className="font-semibold">{masterclass.speaker_designation}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-gray-500" />
+                    <div>
+                      <p className="text-sm text-gray-500">Published</p>
+                      <p className="font-semibold">
+                        {formatMasterclassDate(masterclass.created_at)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-gray-500" />
+                    <div>
+                      <p className="text-sm text-gray-500">Total Enrollments</p>
+                      <p className="font-semibold">{masterclass.purchased_by_users?.length || 0}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {masterclass.description && (
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">About this Masterclass</h3>
+                    <p className="text-gray-600 dark:text-gray-400">{masterclass.description}</p>
+                  </div>
                 )}
               </div>
             )}
           </div>
+
+          {/* Sidebar: course content */}
+          <div className="lg:col-span-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sticky top-8">
+              <h3 className="text-xl font-bold mb-4">Course Content</h3>
+
+              {/* ✅ NEW: View Toggle Button */}
+              {(userHasFullAccess || isMasterclassFree) && (
+                <button
+                  onClick={() => {
+                    setShowAllContent(prev => !prev);
+                  }}
+                  className="w-full mb-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-4 py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2 shadow-md"
+                >
+                  <List className="w-5 h-5" />
+                  {showAllContent ? "Show Single Video" : "Show All Content"}
+                </button>
+              )}
+
+              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                {masterclass.content.map((contentItem, index) => {
+                  const hasAccess = userHasFullAccess || isMasterclassFree;
+                  // ✅ FIXED: Check if THIS specific item is selected
+                  const isSelected = !showAllContent && selectedContent?.id === contentItem.id;
+
+                  return (
+                    <button
+                      key={contentItem.id}
+                      onClick={() => {
+                        if (hasAccess) {
+                          setSelectedContent(contentItem);
+                          setShowAllContent(false); // Switch back to single video view
+                        }
+                      }}
+                      disabled={!hasAccess}
+                      className={`w-full text-left p-4 rounded-lg transition border-2 ${
+                        isSelected
+                          ? "bg-indigo-50 dark:bg-indigo-900/50 border-indigo-500 shadow-md"
+                          : hasAccess
+                          ? "bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 border-transparent"
+                          : "bg-gray-50 dark:bg-gray-700 border-transparent opacity-60"
+                      } ${!hasAccess ? "cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-1">
+                          {isUpcomingContent(contentItem) ? (
+                            <Calendar className="w-5 h-5 text-blue-500" />
+                          ) : isSelected ? (
+                            <CheckCircle className="w-5 h-5 text-indigo-600" />
+                          ) : hasAccess ? (
+                            <Play className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <Lock className="w-5 h-5 text-gray-400" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-semibold text-sm mb-1 line-clamp-2 ${
+                            isSelected ? "text-indigo-700 dark:text-indigo-300" : "text-gray-900 dark:text-gray-100"
+                          }`}>
+                            {index + 1}. {contentItem.title}
+                          </p>
+
+                          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                            {contentItem.duration && (
+                              <span>{contentItem.duration}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* ENROLL BUTTON */}
+              {!userHasFullAccess && (
+                <div className="mt-6 border-t pt-6">
+                  {isMasterclassFree ? (
+                    <button
+                      onClick={handleFreeEnrollment}
+                      disabled={processing}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {processing ? "Processing..." : "Enroll for Free"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handlePaidEnrollment}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2"
+                    >
+                      <ShoppingCart className="w-5 h-5" />
+                      Enroll for ₹{masterclass.price}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    {/* PAYMENT MODAL */}
-    {showPaymentModal && masterclass && (
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => {
-          setShowPaymentModal(false);
-        }}
-        masterclass={masterclass}
-        user={user}
-        purchaseType={"purchase"}
-        amount={masterclass.price}
-        onPurchaseSuccess={handlePaymentSuccess}
-      />
-    )}
-  </div>
-);
+      {/* PAYMENT MODAL */}
+      {showPaymentModal && masterclass && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false);
+          }}
+          masterclass={masterclass}
+          user={user}
+          purchaseType={"purchase"}
+          amount={masterclass.price}
+          onPurchaseSuccess={handlePaymentSuccess}
+        />
+      )}
+    </div>
+  );
 }

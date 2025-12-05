@@ -53,7 +53,9 @@ export const handler: Handler = async (event) => {
     // Send email to all recipients
     for (const recipient of recipients) {
       const html = generateUpdateEmail(recipient.name || "there", after, newContent);
-      await sendEmail(recipient.email, `🚀 New Content Added to ${after.title}!`, html);
+      const subject = `🚀 New Content Added to ${after.title}!`;
+      const encodedSubject = encodeSubject(subject);
+      await sendEmail(recipient.email, encodedSubject, html);
       await new Promise(r => setTimeout(r, 700)); // Rate limit
     }
 
@@ -67,6 +69,11 @@ export const handler: Handler = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
+
+function encodeSubject(subject: string) {
+  const encoded = Buffer.from(subject).toString('base64');
+  return `=?UTF-8?B?${encoded}?=`;
+}
 
 function generateUpdateEmail(userName: string, masterclass: Masterclass, newContent: MasterclassContent[]): string {
   const newContentHtml = newContent.map(item => `

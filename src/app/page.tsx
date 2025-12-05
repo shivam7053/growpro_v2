@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContexts";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
-
+import HeroVideoSection from "@/components/home/HeroVideoSection";
 
 import MasterclassSection from "@/components/home/MasterclassSection";
 import WorkshopsTestimonialsSection from "@/components/home/WorkshopsTestimonialsSection";
@@ -102,14 +102,14 @@ export default function HomePage() {
         <WorkshopsTestimonialsSection />
       </motion.div>
 
-      {/* Teachers Carousel */}
+      {/* Technology Teaching Carousel */}
       <motion.div
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
         transition={{ duration: 0.6, delay: 0.5 }}
       >
-        <TeachersCarousel />
+        <HeroVideoSection />
       </motion.div>
 
       {/* Student Feedback */}

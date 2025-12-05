@@ -92,10 +92,22 @@ export const handler: Handler = async (event) => {
               continue;
             }
 
-            await send12HourReminder(userData.email, userData.name || "there", masterclass, contentItem);
+            // ✅ FIX: Check if the user enrolled *before* the 12-hour window started.
+            // This prevents sending a "12-hour" reminder to someone who just signed up.
+            const userEnrollmentDate = userData.enrollmentDate?.[masterclassId]
+              ? new Date(userData.enrollmentDate[masterclassId])
+              : new Date(0); // Default to a very old date if not found
+
+            // ✅ MODIFIED: Instead of skipping, send a different template for recent signups.
+            if (userEnrollmentDate > in12HoursStart) {
+              // This user enrolled recently (within the 12-hour window).
+              await sendWelcomeAndReminder(userData.email, userData.name || "there", masterclass, contentItem);
+            } else {
+              // This user was enrolled before the 12-hour window. Send standard reminder.
+              await send12HourReminder(userData.email, userData.name || "there", masterclass, contentItem);
+            }
             summary.remindersSent++;
             sentCounter++;
-
             // Gmail Rate Limit Protection
             await new Promise((r) => setTimeout(r, 700));
           } catch (err) {
@@ -132,6 +144,11 @@ export const handler: Handler = async (event) => {
   }
 };
 
+function encodeSubject(subject: string) {
+  const encoded = Buffer.from(subject).toString('base64');
+  return `=?UTF-8?B?${encoded}?=`;
+}
+
 // ------------------------------
 // 5️⃣ Email Templates
 // ------------------------------
@@ -162,5 +179,43 @@ async function send12HourReminder(
     </html>
   `;
 
-  await sendEmail(email, `⏰ Reminder: "${contentItem.title}" starts in 12 hours`, html);
+  const subject = `⏰ Reminder: "${contentItem.title}" starts in 12 hours`;
+  const encodedSubject = encodeSubject(subject);
+
+  await sendEmail(email, encodedSubject, html);
+}
+
+// ✅ NEW: Welcome email for users who enrolled within the 12-hour window
+async function sendWelcomeAndReminder(
+  email: string,
+  userName: string,
+  masterclass: Masterclass,
+  contentItem: MasterclassContent
+) {
+  const scheduledDate = new Date(contentItem.scheduled_date!);
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <body>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+        <h2 style="color: #333;">✅ Welcome & Quick Reminder!</h2>
+        <p>Hi ${userName},</p>
+        <p>Thank you for enrolling in "<b>${masterclass.title}</b>"! We're excited to have you.</p>
+        <p>Your upcoming live session, "<b>${contentItem.title}</b>", is starting soon.</p>
+        <p><b>Scheduled Time:</b> ${scheduledDate.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
+        <p>You can access the session details and join link directly from the masterclass page:</p>
+        <a href="${process.env.SITE_URL}/masterclasses/${masterclass.id}" style="display: inline-block; padding: 10px 20px; background-color: #4f46e5; color: #fff; text-decoration: none; border-radius: 5px;">
+          Go to Masterclass
+        </a>
+        <p style="margin-top: 20px; font-size: 0.9em; color: #777;">We're excited to see you there!</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const subject = `✅ Welcome! Your session for "${masterclass.title}" is starting soon`;
+  const encodedSubject = encodeSubject(subject);
+
+  await sendEmail(email, encodedSubject, html);
 }

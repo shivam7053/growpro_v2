@@ -86,7 +86,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* 👥 Team Section */}
+      {/* 👥 Team Section
       <section className="py-20 px-6">
   <div className="max-w-6xl mx-auto text-center">
     <h2 className="text-3xl font-bold mb-12 text-gray-900 dark:text-white">
@@ -94,7 +94,7 @@ export default function AboutPage() {
     </h2>
 
     {/* ✅ Centered Grid */}
-    <div
+    {/* <div
       className="grid sm:grid-cols-2 md:grid-cols-3 gap-10 justify-center place-items-center"
     >
       {team.map((member, index) => (
@@ -124,7 +124,7 @@ export default function AboutPage() {
       ))}
     </div>
   </div>
-</section>
+</section> */} 
 
 
       {/* 🚀 Why Choose Us */}

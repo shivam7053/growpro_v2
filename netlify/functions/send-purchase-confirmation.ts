@@ -177,9 +177,11 @@ export const handler: Handler = async (event, context) => {
   try {
     console.log(`📧 [${new Date().toISOString()}] Attempting to send email via Gmail API to: ${email} for masterclass "${masterclass.title}".`);
     const start = Date.now();
+    const subject = `✅ Your Purchase Confirmation for: ${masterclass.title}`;
+    const encodedSubject = encodeSubject(subject);
     await sendEmail(
       email,
-      `✅ Your Purchase Confirmation for: ${masterclass.title}`,
+      encodedSubject,
       htmlContent
     );
     console.log(`✅ [${new Date().toISOString()}] Successfully sent email to ${email} in ${Date.now() - start} ms.`);
@@ -205,6 +207,11 @@ export const handler: Handler = async (event, context) => {
     }),
   };
 };
+
+function encodeSubject(subject: string) {
+  const encoded = Buffer.from(subject).toString('base64');
+  return `=?UTF-8?B?${encoded}?=`;
+}
 
 function errorResponse(msg: string) {
   console.warn(`⚠️ [${new Date().toISOString()}] Validation error:`, msg);
