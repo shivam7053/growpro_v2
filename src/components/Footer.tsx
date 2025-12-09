@@ -52,7 +52,7 @@ export default function Footer() {
             </p>
 
             <div className="flex space-x-4">
-              <a
+              {/* <a
                 href="#"
                 className="text-gray-400 hover:text-white transition-colors"
               >
@@ -63,15 +63,15 @@ export default function Footer() {
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 <Twitter className="w-5 h-5" />
-              </a>
+              </a> */}
               <a
-                href="#"
+                href="https://www.linkedin.com/company/growproworld/"
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 <Linkedin className="w-5 h-5" />
               </a>
               <a
-                href="#"
+                href="https://www.instagram.com/growpro.world?igsh=MW5sNzNkcTBxcTZ3aQ=="
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 <Instagram className="w-5 h-5" />

@@ -7,7 +7,7 @@ import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "@/context/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "GrowPro v2.0",
+  title: "GrowPro",
   description: "Next.js based education growth platform",
 };
 
@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider>
           <AuthProvider>
