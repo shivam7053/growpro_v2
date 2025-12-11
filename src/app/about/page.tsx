@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { HTMLAttributes } from 'react';
 import { Users, Target, Award, Rocket, BookOpen } from "lucide-react";
 
 const team = [
@@ -26,7 +27,7 @@ const features = [
   },
 ];
 
-export default function AboutPage() {
+export default function AboutPage() {  
   return (
     <main className="min-h-screen bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100">
       {/* 🎬 Hero Section */}
@@ -34,6 +35,7 @@ export default function AboutPage() {
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
+          
           transition={{ duration: 1 }}
           className="text-4xl md:text-6xl font-bold mb-4"
         >
@@ -41,6 +43,7 @@ export default function AboutPage() {
         </motion.h1>
         <motion.p
           initial={{ opacity: 0 }}
+          
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
           className="text-lg max-w-2xl text-gray-600 dark:text-gray-300"
@@ -57,6 +60,7 @@ export default function AboutPage() {
           <div className="grid md:grid-cols-2 gap-8">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
+              
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
               className="p-8 rounded-2xl shadow-lg bg-white dark:bg-gray-800"
@@ -71,6 +75,7 @@ export default function AboutPage() {
 
             <motion.div
               initial={{ opacity: 0, y: 30 }}
+              
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
               className="p-8 rounded-2xl shadow-lg bg-white dark:bg-gray-800"
@@ -136,6 +141,7 @@ export default function AboutPage() {
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 30 }}
+                
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.2 }}
                 className="p-8 rounded-2xl shadow-lg bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all"
