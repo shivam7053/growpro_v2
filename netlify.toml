@@ -2,6 +2,10 @@
   command = "npm run build"
   publish = ".next"
 
+[build.environment]
+  NODE_VERSION = "20"
+  NEXT_USE_NETLIFY_EDGE = "true"
+
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
