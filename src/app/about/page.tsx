@@ -1,12 +1,12 @@
 "use client";
 
-import { motion, HTMLMotionProps } from "framer-motion";
+import { motion } from "framer-motion";
 import { Users, Target, Award, Rocket, BookOpen } from "lucide-react";
 
-// ✅ FIX: Create explicitly typed motion components to resolve React 19 type issues.
-const MotionH1 = motion.h1 as React.FC<HTMLMotionProps<"h1">>;
-const MotionP = motion.p as React.FC<HTMLMotionProps<"p">>;
-const MotionDiv = motion.div as React.FC<HTMLMotionProps<"div">>;
+// ✅ FIX: Use motion components directly - no type assertions needed
+const MotionH1 = motion.h1;
+const MotionP = motion.p;
+const MotionDiv = motion.div;
 
 const team = [
   { name: "Nupur Gaba", role: "Founder & CEO", image: "/nupur.jpg" },
