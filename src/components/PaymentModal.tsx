@@ -351,7 +351,7 @@ export default function PaymentModal({
               </label>
 
               <div className="space-y-2">
-                <button
+                {/* <button
                   type="button"
                   onClick={() => setPaymentMethod("dummy")}
                   disabled={processing}
@@ -366,7 +366,7 @@ export default function PaymentModal({
                   {paymentMethod === "dummy" && (
                     <CheckCircle className="w-4 h-4 text-blue-600" />
                   )}
-                </button>
+                </button> */}
 
                 <button
                   type="button"
