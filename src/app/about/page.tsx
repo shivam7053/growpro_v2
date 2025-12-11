@@ -1,7 +1,12 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, HTMLMotionProps } from "framer-motion";
 import { Users, Target, Award, Rocket, BookOpen } from "lucide-react";
+
+// ✅ FIX: Create explicitly typed motion components to resolve React 19 type issues.
+const MotionH1 = motion.h1 as React.FC<HTMLMotionProps<"h1">>;
+const MotionP = motion.p as React.FC<HTMLMotionProps<"p">>;
+const MotionDiv = motion.div as React.FC<HTMLMotionProps<"div">>;
 
 const team = [
   { name: "Nupur Gaba", role: "Founder & CEO", image: "/nupur.jpg" },
@@ -33,16 +38,16 @@ export default function AboutPage() {
       {/* 🎬 Hero Section */}
       <section className="relative flex flex-col justify-center items-center text-center py-24 px-6">
 
-        <motion.h1
+        <MotionH1
           className="text-4xl md:text-6xl font-bold mb-4"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1 }}
         >
           About <span className="text-blue-500">GrowPro</span>
-        </motion.h1>
+        </MotionH1>
 
-        <motion.p
+        <MotionP
           className="text-lg max-w-2xl text-gray-600 dark:text-gray-300"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -50,7 +55,7 @@ export default function AboutPage() {
         >
           Empowering learners to grow, upskill, and achieve their professional dreams
           through interactive, expert-led masterclasses.
-        </motion.p>
+        </MotionP>
 
       </section>
 
@@ -62,7 +67,7 @@ export default function AboutPage() {
 
           <div className="grid md:grid-cols-2 gap-8">
 
-            <motion.div
+            <MotionDiv
               className="p-8 rounded-2xl shadow-lg bg-white dark:bg-gray-800"
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -74,9 +79,9 @@ export default function AboutPage() {
                 To make world-class learning accessible, affordable, and outcome-driven
                 for everyone, everywhere.
               </p>
-            </motion.div>
+            </MotionDiv>
 
-            <motion.div
+            <MotionDiv
               className="p-8 rounded-2xl shadow-lg bg-white dark:bg-gray-800"
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -88,7 +93,7 @@ export default function AboutPage() {
                 To create the next generation of global professionals by bridging
                 the gap between academic learning and real-world application.
               </p>
-            </motion.div>
+            </MotionDiv>
 
           </div>
         </div>
@@ -102,7 +107,7 @@ export default function AboutPage() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {features.map((f, index) => (
-              <motion.div
+              <MotionDiv
                 key={index}
                 className="p-8 rounded-2xl shadow-lg bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all"
                 initial={{ opacity: 0, y: 30 }}
@@ -112,7 +117,7 @@ export default function AboutPage() {
                 <div className="flex justify-center mb-4">{f.icon}</div>
                 <h3 className="text-xl font-semibold mb-2">{f.title}</h3>
                 <p className="text-gray-600 dark:text-gray-300">{f.desc}</p>
-              </motion.div>
+              </MotionDiv>
             ))}
           </div>
 
