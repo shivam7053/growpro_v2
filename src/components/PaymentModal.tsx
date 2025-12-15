@@ -81,13 +81,12 @@ export default function PaymentModal({
   };
 
   const triggerCelebration = () => {
+    console.log("🎉 Triggering celebration animation!"); // Debug log
     setShowCelebration(true);
-    setTimeout(() => setShowCelebration(false), 5000);
-  };
-
-  const handleSuccessCallback = () => {
-    triggerCelebration();
-    onPurchaseSuccess?.();
+    setTimeout(() => {
+      console.log("🎉 Celebration animation ended"); // Debug log
+      setShowCelebration(false);
+    }, 5000);
   };
 
   const handlePayment = async () => {
@@ -163,10 +162,12 @@ export default function PaymentModal({
           throw new Error(msg);
         }
 
-        // --- ✅ NEW: On-screen notification that email sending has started ---
+        // --- ✅ FIXED: Trigger celebration AFTER backend confirms success ---
         toast.success("Purchase successful! Sending confirmation email...");
-
-        handleSuccessCallback();
+        
+        // Trigger celebration immediately after success confirmation
+        triggerCelebration();
+        onPurchaseSuccess?.();
 
         setTimeout(onClose, 5000); // ✅ Increased to 5 seconds to allow celebration to complete
       } catch (err: any) {
@@ -230,9 +231,12 @@ export default function PaymentModal({
                 throw new Error(safeExtractError(verifyData));
               }
 
+              // --- ✅ FIXED: Trigger celebration AFTER backend confirms success ---
               toast.success("Payment successful! Sending confirmation email...");
-
-              handleSuccessCallback();
+              
+              // Trigger celebration immediately after success confirmation
+              triggerCelebration();
+              onPurchaseSuccess?.();
 
               setTimeout(onClose, 5000); // ✅ Increased to 5 seconds to allow celebration to complete
             } catch (err: any) {
