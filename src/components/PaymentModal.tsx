@@ -1,6 +1,3 @@
-
-
-
 // components/PaymentModal.tsx
 "use client";
 
@@ -39,6 +36,7 @@ export default function PaymentModal({
   const [processing, setProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"dummy" | "razorpay" | null>(null);
   const [error, setError] = useState("");
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // Determine the amount based on the prop or the content item's price.
   // Fallback to 0 if no amount is provided.
@@ -62,6 +60,7 @@ export default function PaymentModal({
       setProcessing(false);
       setError("");
       setPaymentMethod(purchaseAmount === 0 ? "dummy" : null);
+      setShowCelebration(false);
     }
   }, [isOpen, purchaseAmount]);
 
@@ -81,7 +80,15 @@ export default function PaymentModal({
     );
   };
 
-  const handleSuccessCallback = () => onPurchaseSuccess?.();
+  const triggerCelebration = () => {
+    setShowCelebration(true);
+    setTimeout(() => setShowCelebration(false), 4000);
+  };
+
+  const handleSuccessCallback = () => {
+    triggerCelebration();
+    onPurchaseSuccess?.();
+  };
 
   const handlePayment = async () => {
     if (!user?.uid) {
@@ -270,6 +277,50 @@ export default function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2">
+      {/* Celebration Effect */}
+      {showCelebration && (
+        <div className="fixed inset-0 z-[100] pointer-events-none overflow-hidden">
+          {[...Array(50)].map((_, i) => {
+            const randomX = Math.random() * 100;
+            const randomDelay = Math.random() * 0.5;
+            const randomDuration = 2 + Math.random() * 2;
+            const randomRotation = Math.random() * 360;
+            const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            
+            return (
+              <div
+                key={i}
+                className="absolute w-3 h-3 rounded-full animate-confetti"
+                style={{
+                  left: `${randomX}%`,
+                  top: '-20px',
+                  backgroundColor: randomColor,
+                  animationDelay: `${randomDelay}s`,
+                  animationDuration: `${randomDuration}s`,
+                  transform: `rotate(${randomRotation}deg)`,
+                }}
+              />
+            );
+          })}
+          <style jsx>{`
+            @keyframes confetti {
+              0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+              }
+              100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+              }
+            }
+            .animate-confetti {
+              animation: confetti linear forwards;
+            }
+          `}</style>
+        </div>
+      )}
+
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-sm w-full overflow-hidden">
 
         {/* HEADER */}
@@ -351,7 +402,7 @@ export default function PaymentModal({
               </label>
 
               <div className="space-y-2">
-                {/* <button
+                <button
                   type="button"
                   onClick={() => setPaymentMethod("dummy")}
                   disabled={processing}
@@ -366,7 +417,7 @@ export default function PaymentModal({
                   {paymentMethod === "dummy" && (
                     <CheckCircle className="w-4 h-4 text-blue-600" />
                   )}
-                </button> */}
+                </button>
 
                 <button
                   type="button"
