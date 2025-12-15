@@ -82,7 +82,7 @@ export default function PaymentModal({
 
   const triggerCelebration = () => {
     setShowCelebration(true);
-    setTimeout(() => setShowCelebration(false), 4000);
+    setTimeout(() => setShowCelebration(false), 5000);
   };
 
   const handleSuccessCallback = () => {
@@ -168,7 +168,7 @@ export default function PaymentModal({
 
         handleSuccessCallback();
 
-        setTimeout(onClose, 3000); // ✅ Increased duration for toast visibility
+        setTimeout(onClose, 5000); // ✅ Increased to 5 seconds to allow celebration to complete
       } catch (err: any) {
         setError(err.message);
         toast.error(err.message);
@@ -234,7 +234,7 @@ export default function PaymentModal({
 
               handleSuccessCallback();
 
-              setTimeout(onClose, 3000); // ✅ Increased duration for toast visibility
+              setTimeout(onClose, 5000); // ✅ Increased to 5 seconds to allow celebration to complete
             } catch (err: any) {
               const msg = safeExtractError(err);
               toast.dismiss();
@@ -288,27 +288,33 @@ export default function PaymentModal({
       {/* Celebration Effect */}
       {showCelebration && (
         <div className="fixed inset-0 z-[100] pointer-events-none overflow-hidden">
-          {[...Array(50)].map((_, i) => {
+          {[...Array(80)].map((_, i) => {
             const randomX = Math.random() * 100;
-            const randomDelay = Math.random() * 0.5;
-            const randomDuration = 2 + Math.random() * 2;
+            const randomDelay = Math.random() * 0.8;
+            const randomDuration = 2.5 + Math.random() * 1.5;
             const randomRotation = Math.random() * 360;
-            const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE'];
+            const randomSize = 8 + Math.random() * 8; // Vary size between 8-16px
+            const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#FF1493', '#00CED1'];
             const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            const shapes = ['●', '★', '■', '▲'];
+            const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
             
             return (
               <div
                 key={i}
-                className="absolute w-3 h-3 rounded-full animate-confetti"
+                className="absolute animate-confetti font-bold"
                 style={{
                   left: `${randomX}%`,
-                  top: '-20px',
-                  backgroundColor: randomColor,
+                  top: '-30px',
+                  color: randomColor,
+                  fontSize: `${randomSize}px`,
                   animationDelay: `${randomDelay}s`,
                   animationDuration: `${randomDuration}s`,
                   transform: `rotate(${randomRotation}deg)`,
                 }}
-              />
+              >
+                {randomShape}
+              </div>
             );
           })}
           <style jsx>{`
@@ -318,7 +324,7 @@ export default function PaymentModal({
                 opacity: 1;
               }
               100% {
-                transform: translateY(100vh) rotate(720deg);
+                transform: translateY(120vh) rotate(1080deg);
                 opacity: 0;
               }
             }
