@@ -150,6 +150,10 @@ export default function PaymentModal({
           }
         );
 
+        if (!verifyResponse.ok) {
+          throw new Error(`Server error: ${verifyResponse.status} ${verifyResponse.statusText}`);
+        }
+
         const verifyData = await verifyResponse.json();
 
         toast.dismiss("dummyProcessing"); // Dismiss dummy processing toast
@@ -213,6 +217,10 @@ export default function PaymentModal({
                   }),
                 }
               );
+
+              if (!verifyRes.ok) {
+                throw new Error(`Server error: ${verifyRes.status} ${verifyRes.statusText}`);
+              }
 
               const verifyData = await verifyRes.json();
 

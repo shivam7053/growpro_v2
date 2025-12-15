@@ -6,6 +6,7 @@ import { adminDb } from "../../src/lib/firebaseAdmin"; // export { adminDb } fro
 import admin from "firebase-admin"; // for FieldValue and Masterclass types
 import { sendEmail } from "../../src/utils/gmailHelper";
 import { Masterclass, MasterclassContent } from "../../src/types/masterclass";
+
 // Helper: ensure required envs exist (only called when needed)
 function requireEnv(name: string) {
   const v = process.env[name];
@@ -20,8 +21,9 @@ function requireEnv(name: string) {
  * This is a "fire-and-forget" operation.
  */
 async function triggerPurchaseConfirmationEmail(email: string, userName: string, masterclass: any, userId: string) {
-  // Use the public API endpoint defined in netlify.toml. This is more robust.
-  const functionUrl = `${process.env.URL}/api/send-purchase-confirmation`;
+  // ✅ FIXED: Handle undefined process.env.URL gracefully
+  const baseUrl = process.env.URL || process.env.DEPLOY_URL || 'https://your-site.netlify.app';
+  const functionUrl = `${baseUrl}/api/send-purchase-confirmation`;
   
   try {
     console.log(`🚀 Triggering purchase confirmation email for ${email} by calling ${functionUrl}`);
@@ -53,6 +55,10 @@ async function sendImmediateReminder(email: string, userName: string, masterclas
   try {
     console.log(`🚀 Triggering IMMEDIATE reminder for "${contentItem.title}" for user ${email}`);
     const scheduledDate = new Date(contentItem.scheduled_date!);
+    
+    // ✅ FIXED: Handle undefined process.env.SITE_URL gracefully
+    const siteUrl = process.env.SITE_URL || process.env.URL || process.env.DEPLOY_URL || 'https://your-site.netlify.app';
+    
     const html = `
       <!DOCTYPE html>
       <html>
@@ -63,7 +69,7 @@ async function sendImmediateReminder(email: string, userName: string, masterclas
           <p>Thank you for your purchase! This is an immediate reminder that your live session, "<b>${contentItem.title}</b>", is scheduled to begin soon.</p>
           <p><b>Scheduled Time:</b> ${scheduledDate.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
           <p>You can access the session details and join link directly from the masterclass page:</p>
-          <a href="${process.env.SITE_URL}/masterclasses/${masterclass.id}" style="display: inline-block; padding: 10px 20px; background-color: #4f46e5; color: #fff; text-decoration: none; border-radius: 5px;">
+          <a href="${siteUrl}/masterclasses/${masterclass.id}" style="display: inline-block; padding: 10px 20px; background-color: #4f46e5; color: #fff; text-decoration: none; border-radius: 5px;">
             Go to Masterclass
           </a>
           <p style="margin-top: 20px; font-size: 0.9em; color: #777;">We're excited to see you there!</p>
@@ -77,6 +83,7 @@ async function sendImmediateReminder(email: string, userName: string, masterclas
     console.error(`❌ Failed to send immediate reminder for ${contentItem.title}:`, err);
   }
 }
+
 /**
  * Serverless handler — uses adminDb (Firestore Admin) only.
  * NOTE: ensure `adminDb` is the Admin Firestore instance exported by your firebaseAdmin file.
