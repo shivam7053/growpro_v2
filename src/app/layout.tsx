@@ -3,8 +3,10 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { AuthProvider } from "@/context/AuthContexts";
-import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "@/context/ThemeProvider";
+import ToasterClient from "@/components/ToasterClient";
+import { CelebrationProvider } from "@/context/CelebrationContext";
+import CelebrationClient from "@/components/CelebrationClient";
 
 export const metadata: Metadata = {
   title: "GrowPro",
@@ -19,13 +21,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ThemeProvider>
-          <AuthProvider>
-            <Header />
-            <main className="pt-20">{children}</main>
-            <Footer />
-            <Toaster position="top-right" />
-          </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <CelebrationProvider>
+            <AuthProvider>
+              <ToasterClient />
+              <CelebrationClient />
+              <Header />
+              <main className="pt-20">{children}</main>
+              <Footer />
+            </AuthProvider>
+          </CelebrationProvider>
         </ThemeProvider>
       </body>
     </html>

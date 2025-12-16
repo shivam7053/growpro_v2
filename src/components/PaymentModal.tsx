@@ -12,6 +12,7 @@ import {
 } from "@/types/masterclass";
 import toast from "react-hot-toast";
 import { loadRazorpay } from "@/utils/loadRazorpay";
+import { useCelebration } from "@/context/CelebrationContext";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -36,7 +37,7 @@ export default function PaymentModal({
   const [processing, setProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"dummy" | "razorpay" | null>(null);
   const [error, setError] = useState("");
-  const [showCelebration, setShowCelebration] = useState(false);
+  const { triggerCelebration } = useCelebration();
 
   // Determine the amount based on the prop or the content item's price.
   // Fallback to 0 if no amount is provided.
@@ -60,7 +61,6 @@ export default function PaymentModal({
       setProcessing(false);
       setError("");
       setPaymentMethod(purchaseAmount === 0 ? "dummy" : null);
-      setShowCelebration(false);
     }
   }, [isOpen, purchaseAmount]);
 
@@ -78,15 +78,6 @@ export default function PaymentModal({
       data.reason ||
       "Something went wrong"
     );
-  };
-
-  const triggerCelebration = () => {
-    console.log("🎉 Triggering celebration animation!"); // Debug log
-    setShowCelebration(true);
-    setTimeout(() => {
-      console.log("🎉 Celebration animation ended"); // Debug log
-      setShowCelebration(false);
-    }, 5000);
   };
 
   const handlePayment = async () => {
@@ -169,7 +160,9 @@ export default function PaymentModal({
         triggerCelebration();
         onPurchaseSuccess?.();
 
-        setTimeout(onClose, 5000); // ✅ Increased to 5 seconds to allow celebration to complete
+        setTimeout(() => {
+          onClose();
+        }, 5000);
       } catch (err: any) {
         setError(err.message);
         toast.error(err.message);
@@ -238,7 +231,9 @@ export default function PaymentModal({
               triggerCelebration();
               onPurchaseSuccess?.();
 
-              setTimeout(onClose, 5000); // ✅ Increased to 5 seconds to allow celebration to complete
+              setTimeout(() => {
+                onClose();
+              }, 5000);
             } catch (err: any) {
               const msg = safeExtractError(err);
               toast.dismiss();
@@ -289,56 +284,6 @@ export default function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2">
-      {/* Celebration Effect */}
-      {showCelebration && (
-        <div className="fixed inset-0 z-[100] pointer-events-none overflow-hidden">
-          {[...Array(80)].map((_, i) => {
-            const randomX = Math.random() * 100;
-            const randomDelay = Math.random() * 0.8;
-            const randomDuration = 2.5 + Math.random() * 1.5;
-            const randomRotation = Math.random() * 360;
-            const randomSize = 8 + Math.random() * 8; // Vary size between 8-16px
-            const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#FF1493', '#00CED1'];
-            const randomColor = colors[Math.floor(Math.random() * colors.length)];
-            const shapes = ['●', '★', '■', '▲'];
-            const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
-            
-            return (
-              <div
-                key={i}
-                className="absolute animate-confetti font-bold"
-                style={{
-                  left: `${randomX}%`,
-                  top: '-30px',
-                  color: randomColor,
-                  fontSize: `${randomSize}px`,
-                  animationDelay: `${randomDelay}s`,
-                  animationDuration: `${randomDuration}s`,
-                  transform: `rotate(${randomRotation}deg)`,
-                }}
-              >
-                {randomShape}
-              </div>
-            );
-          })}
-          <style jsx>{`
-            @keyframes confetti {
-              0% {
-                transform: translateY(0) rotate(0deg);
-                opacity: 1;
-              }
-              100% {
-                transform: translateY(120vh) rotate(1080deg);
-                opacity: 0;
-              }
-            }
-            .animate-confetti {
-              animation: confetti linear forwards;
-            }
-          `}</style>
-        </div>
-      )}
-
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-sm w-full overflow-hidden">
 
         {/* HEADER */}
@@ -420,7 +365,7 @@ export default function PaymentModal({
               </label>
 
               <div className="space-y-2">
-                <button
+                {/* <button
                   type="button"
                   onClick={() => setPaymentMethod("dummy")}
                   disabled={processing}
@@ -435,7 +380,7 @@ export default function PaymentModal({
                   {paymentMethod === "dummy" && (
                     <CheckCircle className="w-4 h-4 text-blue-600" />
                   )}
-                </button>
+                </button> */}
 
                 <button
                   type="button"
