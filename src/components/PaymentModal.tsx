@@ -25,6 +25,32 @@ interface PaymentModalProps {
   amount?: number;
 }
 
+/**
+ * Client-side helper to trigger a download from a base64 string.
+ */
+function downloadFromBase64(base64: string, filename: string) {
+  try {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Failed to create download from base64:", error);
+    toast.error("Could not prepare receipt for download.");
+  }
+}
+
 export default function PaymentModal({
   isOpen,
   onClose,
@@ -153,9 +179,15 @@ export default function PaymentModal({
           throw new Error(msg);
         }
 
-        // --- ✅ FIXED: Trigger celebration AFTER backend confirms success ---
-        toast.success("Purchase successful! Sending confirmation email...");
-        
+        // ✅ NEW: Automatically trigger the download and show a confirmation toast.
+        if (verifyData.receiptPdf && verifyData.receiptFilename) {
+          downloadFromBase64(verifyData.receiptPdf, verifyData.receiptFilename);
+          toast.success("Purchase successful! Your receipt is downloading.");
+        } else {
+          // Fallback message if no PDF is returned
+          toast.success("Purchase successful! A confirmation has been sent to your email.");
+        }
+
         // Trigger celebration immediately after success confirmation
         triggerCelebration();
         onPurchaseSuccess?.();
@@ -224,9 +256,15 @@ export default function PaymentModal({
                 throw new Error(safeExtractError(verifyData));
               }
 
-              // --- ✅ FIXED: Trigger celebration AFTER backend confirms success ---
-              toast.success("Payment successful! Sending confirmation email...");
-              
+              // ✅ NEW: Automatically trigger the download and show a confirmation toast.
+              if (verifyData.receiptPdf && verifyData.receiptFilename) {
+                downloadFromBase64(verifyData.receiptPdf, verifyData.receiptFilename);
+                toast.success("Payment successful! Your receipt is downloading.");
+              } else {
+                // Fallback message if no PDF is returned
+                toast.success("Payment successful! A confirmation has been sent to your email.");
+              }
+
               // Trigger celebration immediately after success confirmation
               triggerCelebration();
               onPurchaseSuccess?.();
@@ -365,7 +403,7 @@ export default function PaymentModal({
               </label>
 
               <div className="space-y-2">
-                {/* <button
+                <button
                   type="button"
                   onClick={() => setPaymentMethod("dummy")}
                   disabled={processing}
@@ -380,7 +418,7 @@ export default function PaymentModal({
                   {paymentMethod === "dummy" && (
                     <CheckCircle className="w-4 h-4 text-blue-600" />
                   )}
-                </button> */}
+                </button>
 
                 <button
                   type="button"

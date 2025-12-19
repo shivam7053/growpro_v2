@@ -1,84 +1,3 @@
-// // src/utils/gmailHelper.ts
-// import { google } from 'googleapis';
-
-// const oauth2Client = new google.auth.OAuth2(
-//   process.env.GMAIL_CLIENT_ID,
-//   process.env.GMAIL_CLIENT_SECRET,
-//   process.env.GMAIL_REDIRECT_URI
-// );
-
-// // Set credentials with refresh token
-// oauth2Client.setCredentials({
-//   refresh_token: process.env.GMAIL_REFRESH_TOKEN,
-// });
-
-// const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-
-// function createEmailMessage(to: string, subject: string, html: string, from?: string) {
-//   const fromEmail = from || process.env.GMAIL_FROM_EMAIL || 'your-email@gmail.com';
-  
-//   const emailLines = [
-//     `From: ${fromEmail}`,
-//     `To: ${to}`,
-//     `Subject: ${subject}`,
-//     'MIME-Version: 1.0',
-//     'Content-Type: text/html; charset=utf-8',
-//     '',
-//     html,
-//   ];
-
-//   const email = emailLines.join('\r\n');
-//   const encodedEmail = Buffer.from(email)
-//     .toString('base64')
-//     .replace(/\+/g, '-')
-//     .replace(/\//g, '_')
-//     .replace(/=+$/, '');
-
-//   return encodedEmail;
-// }
-
-// export async function sendEmail(to: string, subject: string, html: string) {
-//   try {
-//     const raw = createEmailMessage(to, subject, html);
-
-//     const response = await gmail.users.messages.send({
-//       userId: 'me',
-//       requestBody: {
-//         raw,
-//       },
-//     });
-
-//     return {
-//       success: true,
-//       messageId: response.data.id,
-//     };
-//   } catch (error: any) {
-//     console.error('Gmail API error:', error);
-//     throw new Error(`Email send failed: ${error.message}`);
-//   }
-// }
-
-// export async function sendBulkEmails(
-//   emails: Array<{ to: string; subject: string; html: string }>
-// ) {
-//   const results = [];
-  
-//   for (const email of emails) {
-//     try {
-//       const result = await sendEmail(email.to, email.subject, email.html);
-//       results.push({ ...email, success: true, messageId: result.messageId });
-      
-//       // Delay to avoid rate limiting (Gmail allows ~100 emails/day for free accounts)
-//       await new Promise(resolve => setTimeout(resolve, 1000));
-//     } catch (error: any) {
-//       results.push({ ...email, success: false, error: error.message });
-//     }
-//   }
-  
-//   return results;
-// }
-
-
 // src/utils/gmailHelper.ts
 import { google } from 'googleapis';
 
@@ -103,21 +22,70 @@ oauth2Client.setCredentials({
 // Gmail instance
 const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-/* ------------------------------------------------------
-   Create Raw Gmail Email (Base64URL encoded)
------------------------------------------------------- */
-function createEmailMessage(to: string, subject: string, html: string, from?: string) {
-  const fromEmail = from || FROM_EMAIL;
+interface Attachment {
+  filename: string;
+  content: string;
+  encoding: string;
+  contentType: string;
+}
 
-  const emailLines = [
-    `From: ${fromEmail}`,
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    "MIME-Version: 1.0",
-    "Content-Type: text/html; charset=utf-8",
-    "",
-    html,
-  ];
+/* ------------------------------------------------------
+   Create Raw Gmail Email with Optional Attachments (Base64URL encoded)
+------------------------------------------------------ */
+function createEmailMessage(
+  to: string, 
+  subject: string, 
+  html: string, 
+  from?: string,
+  attachments?: Attachment[]
+) {
+  const fromEmail = from || FROM_EMAIL;
+  const boundary = `boundary_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+
+  let emailLines: string[];
+
+  if (attachments && attachments.length > 0) {
+    // Email with attachments (multipart)
+    emailLines = [
+      `From: ${fromEmail}`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      "MIME-Version: 1.0",
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      "",
+      `--${boundary}`,
+      "Content-Type: text/html; charset=utf-8",
+      "Content-Transfer-Encoding: 7bit",
+      "",
+      html,
+      ""
+    ];
+
+    // Add each attachment
+    for (const attachment of attachments) {
+      emailLines.push(`--${boundary}`);
+      emailLines.push(`Content-Type: ${attachment.contentType}; name="${attachment.filename}"`);
+      emailLines.push(`Content-Disposition: attachment; filename="${attachment.filename}"`);
+      emailLines.push(`Content-Transfer-Encoding: ${attachment.encoding}`);
+      emailLines.push("");
+      emailLines.push(attachment.content);
+      emailLines.push("");
+    }
+
+    // Close boundary
+    emailLines.push(`--${boundary}--`);
+  } else {
+    // Simple email without attachments
+    emailLines = [
+      `From: ${fromEmail}`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      "MIME-Version: 1.0",
+      "Content-Type: text/html; charset=utf-8",
+      "",
+      html,
+    ];
+  }
 
   const email = emailLines.join("\r\n");
 
@@ -131,12 +99,18 @@ function createEmailMessage(to: string, subject: string, html: string, from?: st
 }
 
 /* ------------------------------------------------------
-   SEND SINGLE EMAIL (WITH FULL DEBUG LOGS)
+   SEND SINGLE EMAIL (WITH FULL DEBUG LOGS + ATTACHMENT SUPPORT)
 ------------------------------------------------------ */
-export async function sendEmail(to: string, subject: string, html: string) {
+export async function sendEmail(
+  to: string, 
+  subject: string, 
+  html: string,
+  attachments?: Attachment[]
+) {
   console.log("📧 Gmail SEND START");
   console.log("➡️ To:", to);
   console.log("➡️ Subject:", subject);
+  console.log("📎 Attachments:", attachments?.length || 0);
 
   // Debug: check envs
   console.log("🔐 ENV CHECK:", {
@@ -152,7 +126,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
     const accessToken = await oauth2Client.getAccessToken();
     console.log("🟢 Access Token acquired:", accessToken?.token?.substring(0, 20) + "...");
 
-    const rawEmail = createEmailMessage(to, subject, html);
+    const rawEmail = createEmailMessage(to, subject, html, FROM_EMAIL, attachments);
 
     console.log("📨 Raw Email Size:", rawEmail.length, "characters");
 
@@ -181,10 +155,15 @@ export async function sendEmail(to: string, subject: string, html: string) {
 }
 
 /* ------------------------------------------------------
-  BULK EMAILS (KEPT SAME, WITH LOGGING)
+  BULK EMAILS (WITH ATTACHMENT SUPPORT)
 ------------------------------------------------------ */
 export async function sendBulkEmails(
-  emails: Array<{ to: string; subject: string; html: string }>
+  emails: Array<{ 
+    to: string; 
+    subject: string; 
+    html: string;
+    attachments?: Attachment[];
+  }>
 ) {
   console.log("📦 Starting Bulk Email Process:", emails.length, "emails");
 
@@ -193,10 +172,16 @@ export async function sendBulkEmails(
   for (const email of emails) {
     try {
       console.log("📤 Sending to:", email.to);
-      const result = await sendEmail(email.to, email.subject, email.html);
+      const result = await sendEmail(
+        email.to, 
+        email.subject, 
+        email.html,
+        email.attachments
+      );
 
       results.push({ ...email, success: true, messageId: result.messageId });
 
+      // Rate limiting: wait 1 second between emails
       await new Promise((resolve) => setTimeout(resolve, 1000));
     } catch (error: any) {
       console.log("❌ Bulk Email Error:", error.message);

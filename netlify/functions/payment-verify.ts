@@ -1,13 +1,13 @@
 // netlify/functions/payment-verify.ts
 import { Handler } from "@netlify/functions";
 import crypto from "crypto";
-// Use admin initializer which should export adminDb (admin.firestore.Firestore)
-import { adminDb } from "../../src/lib/firebaseAdmin"; // export { adminDb } from firebaseAdmin
-import admin from "firebase-admin"; // for FieldValue and Masterclass types
+import { adminDb } from "../../src/lib/firebaseAdmin";
+import admin from "firebase-admin";
 import { sendEmail } from "../../src/utils/gmailHelper";
 import { Masterclass, MasterclassContent } from "../../src/types/masterclass";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
-// Helper: ensure required envs exist (only called when needed)
+// Helper: ensure required envs exist
 function requireEnv(name: string) {
   const v = process.env[name];
   if (!v) {
@@ -17,47 +17,141 @@ function requireEnv(name: string) {
 }
 
 /**
- * Calls the 'send-purchase-confirmation' Netlify function.
- * This is a "fire-and-forget" operation.
+ * Generates a PDF receipt and returns it as a base64 encoded string.
  */
-async function triggerPurchaseConfirmationEmail(email: string, userName: string, masterclass: any, userId: string) {
-  // ✅ FIXED: Handle undefined process.env.URL gracefully
-  const baseUrl = process.env.URL || process.env.DEPLOY_URL || 'https://your-site.netlify.app';
-  const functionUrl = `${baseUrl}/api/send-purchase-confirmation`;
-  
-  try {
-    console.log(`🚀 Triggering purchase confirmation email for ${email} by calling ${functionUrl}`);
-    
-    // ✅ CORRECTED: Await the fetch call to ensure it completes before the function exits.
-    const response = await fetch(functionUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, userName, masterclass, userId }), // ✅ Pass the correct userId
-    });
+async function generatePdfReceiptBase64(
+  orderId: string,
+  paymentId: string,
+  userName: string,
+  userEmail: string,
+  masterclassTitle: string,
+  amount: number,
+  timestamp: string
+): Promise<string> {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage();
+  const { height } = page.getSize();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    const responseBody = await response.text();
-    if (!response.ok) {
-      console.error(`❌ triggerPurchaseConfirmationEmail: HTTP error! status: ${response.status}. Body: ${responseBody}`);
-    } else {
-      console.log('✅ triggerPurchaseConfirmationEmail: Function invoked successfully. Response:', responseBody);
-    }
+  const fontSize = 12;
+  const brandColor = rgb(79 / 255, 70 / 255, 229 / 255); // #4f46e5
+
+  page.drawText("Payment Receipt", {
+    x: 50,
+    y: height - 50,
+    font: boldFont,
+    size: 24,
+    color: brandColor,
+  });
+
+  const details = [
+    { label: "Order ID:", value: orderId },
+    { label: "Payment ID:", value: paymentId },
+    { label: "Date:", value: new Date(timestamp).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' }) },
+    { label: "Billed to:", value: `${userName} (${userEmail})` },
+    { label: "Item:", value: masterclassTitle },
+    { label: "Amount Paid:", value: `INR ${amount.toFixed(2)}` },
+  ];
+
+  let yPosition = height - 100;
+  for (const detail of details) {
+    page.drawText(detail.label, { x: 50, y: yPosition, font: boldFont, size: fontSize });
+    page.drawText(detail.value, { x: 150, y: yPosition, font, size: fontSize });
+    yPosition -= 20;
+  }
+
+  page.drawText("Thank you for your purchase!", {
+    x: 50,
+    y: yPosition - 30,
+    font,
+    size: fontSize,
+    color: brandColor,
+  });
+
+  return await pdfDoc.saveAsBase64();
+}
+
+/**
+ * Emails the generated PDF receipt as an attachment.
+ */
+async function emailPdfReceipt(
+  email: string,
+  userName: string,
+  orderId: string,
+  paymentId: string,
+  masterclassTitle: string,
+  amount: number,
+  pdfBase64: string
+) {
+  try {
+    console.log(`[EMAIL-PDF] Sending receipt for order ${orderId} to ${email}`);
+    const subject = `Your Receipt for ${masterclassTitle}`;
+    const html = `
+      <p>Hi ${userName},</p>
+      <p>Thank you for your purchase! Your payment receipt is attached to this email.</p>
+      <p><b>Order ID:</b> ${orderId}<br/>
+      <b>Amount Paid:</b> INR ${amount.toFixed(2)}</p>
+      <p>You can also access your masterclass content at any time by logging into your account.</p>
+    `;
+    const attachments = [{
+      filename: `receipt-${orderId}.pdf`,
+      content: pdfBase64,
+      encoding: 'base64',
+      contentType: 'application/pdf',
+    }];
+    await sendEmail(email, subject, html, attachments);
+    console.log(`[EMAIL-PDF] ✅ Receipt sent successfully.`);
   } catch (err) {
-    // Log the error but don't fail the main transaction. This will catch network errors.
-    console.error("❌ FATAL: Failed to trigger purchase confirmation email function:", err);
+    console.error(`[EMAIL-PDF] ❌ Failed to email receipt for order ${orderId}:`, err);
   }
 }
 
 /**
- * Sends an immediate reminder if a session is starting within 12 hours.
- * This is a "fire-and-forget" operation.
+ * Triggers purchase confirmation email (fire-and-forget)
  */
-async function sendImmediateReminder(email: string, userName: string, masterclass: Masterclass, contentItem: MasterclassContent) {
+async function triggerPurchaseConfirmationEmail(
+  email: string, 
+  userName: string, 
+  masterclass: any, 
+  userId: string
+) {
+  const baseUrl = process.env.URL || process.env.DEPLOY_URL || "https://your-site.netlify.app";
+  const functionUrl = `${baseUrl}/.netlify/functions/send-purchase-confirmation`;
+  
   try {
-    console.log(`🚀 Triggering IMMEDIATE reminder for "${contentItem.title}" for user ${email}`);
-    const scheduledDate = new Date(contentItem.scheduled_date!);
+    console.log(`[EMAIL] Triggering purchase confirmation for ${email}`);
     
-    // ✅ FIXED: Handle undefined process.env.SITE_URL gracefully
-    const siteUrl = process.env.SITE_URL || process.env.URL || process.env.DEPLOY_URL || 'https://your-site.netlify.app';
+    const response = await fetch(functionUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, userName, masterclass, userId }),
+    });
+
+    if (!response.ok) {
+      const responseBody = await response.text();
+      console.error(`[EMAIL] ❌ HTTP ${response.status}: ${responseBody}`);
+    } else {
+      console.log("[EMAIL] ✅ Confirmation email triggered");
+    }
+  } catch (err) {
+    console.error("[EMAIL] ❌ Failed to trigger confirmation email:", err);
+  }
+}
+
+/**
+ * Sends immediate reminder for sessions starting within 12 hours
+ */
+async function sendImmediateReminder(
+  email: string, 
+  userName: string, 
+  masterclass: Masterclass, 
+  contentItem: MasterclassContent
+) {
+  try {
+    console.log(`[REMINDER] Sending immediate reminder for "${contentItem.title}"`);
+    const scheduledDate = new Date(contentItem.scheduled_date!);
+    const siteUrl = process.env.SITE_URL || process.env.URL || "https://your-site.netlify.app";
     
     const html = `
       <!DOCTYPE html>
@@ -79,23 +173,30 @@ async function sendImmediateReminder(email: string, userName: string, masterclas
     `;
 
     await sendEmail(email, `🚨 Reminder: "${contentItem.title}" starts soon!`, html);
+    console.log("[REMINDER] ✅ Immediate reminder sent");
   } catch (err) {
-    console.error(`❌ Failed to send immediate reminder for ${contentItem.title}:`, err);
+    console.error(`[REMINDER] ❌ Failed to send reminder:`, err);
   }
 }
 
 /**
- * Serverless handler — uses adminDb (Firestore Admin) only.
- * NOTE: ensure `adminDb` is the Admin Firestore instance exported by your firebaseAdmin file.
+ * Main serverless handler
  */
 export const handler: Handler = async (event, context) => {
+  console.log("🔵 Payment verification function invoked");
+  
   try {
     if (event.httpMethod !== "POST") {
       return { statusCode: 405, body: JSON.stringify({ error: "Method not allowed" }) };
     }
 
-    console.log("🔵 Payment verification started...");
-    const body = JSON.parse(event.body || "{}");
+    let body: any;
+    try {
+      body = JSON.parse(event.body || "{}");
+    } catch (parseError) {
+      console.error("[400] Invalid JSON:", event.body);
+      return { statusCode: 400, body: JSON.stringify({ success: false, error: "Invalid JSON" }) };
+    }
 
     const {
       razorpay_order_id,
@@ -107,43 +208,41 @@ export const handler: Handler = async (event, context) => {
       amount = 0,
       method = "razorpay",
       type = "purchase",
-    } = body as any;
+    } = body;
 
     if (!userId) {
+      console.error("[400] Missing userId");
       return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing userId" }) };
     }
 
-    // Helper references (admin DB paths)
     const userRef = adminDb.doc(`user_profiles/${userId}`);
     const masterRef = masterclassId ? adminDb.doc(`MasterClasses/${masterclassId}`) : null;
+
+    // ✅ FIX: Declare twelveHoursFromNow variable
+    const now = new Date();
+    const twelveHoursFromNow = now.getTime() + (12 * 60 * 60 * 1000);
 
     /* -------------------------
        DUMMY PAYMENT HANDLING
        ------------------------- */
     if (typeof razorpay_order_id === "string" && razorpay_order_id.startsWith("dummy_")) {
-      console.log("🧩 Dummy payment detected");
+      console.log("[DUMMY] Processing dummy payment");
 
-      // Read user doc (best-effort)
       const userSnap = await userRef.get();
       const userData = userSnap.exists ? userSnap.data() : null;
       const userEmail = userData?.email;
       const userName = userData?.name || userData?.displayName || "";
 
-      // Transactionally add dummy transaction (idempotent)
+      // Record transaction
       await adminDb.runTransaction(async (tx) => {
         const docSnap = await tx.get(userRef);
-        const now = new Date().toISOString();
+        const timestamp = new Date().toISOString();
 
-        // resolve masterclass title if needed
         let resolvedTitle = masterclassTitle ?? "Dummy Masterclass";
         if (!masterclassTitle && masterRef) {
-          try {
-            const mcSnap = await masterRef.get();
-            if (mcSnap.exists) {
-              resolvedTitle = mcSnap.data()?.title ?? resolvedTitle;
-            }
-          } catch (e) {
-            // ignore - keep fallback title
+          const mcSnap = await masterRef.get();
+          if (mcSnap.exists) {
+            resolvedTitle = mcSnap.data()?.title ?? resolvedTitle;
           }
         }
 
@@ -156,87 +255,115 @@ export const handler: Handler = async (event, context) => {
           status: "success",
           type,
           method,
-          timestamp: now,
-          updatedAt: now,
+          timestamp,
+          updatedAt: timestamp,
         };
 
         if (docSnap.exists) {
           const data = docSnap.data() || {};
           const existing = Array.isArray(data.transactions) ? data.transactions : [];
           const already = existing.some((t: any) => t.orderId === razorpay_order_id);
+          
           if (!already) {
-            await tx.update(userRef, {
+            tx.update(userRef, {
               transactions: admin.firestore.FieldValue.arrayUnion(txObj),
             });
-            console.log("✅ Dummy transaction recorded (added to existing profile)");
-          } else {
-            console.log("ℹ️ Dummy transaction already exists");
           }
         } else {
-          await tx.set(userRef, {
+          tx.set(userRef, {
             id: userId,
             transactions: [txObj],
-            created_at: new Date().toISOString(),
+            created_at: timestamp,
           });
-          console.log("✅ User profile created with dummy transaction");
         }
       });
 
-      // Grant access (outside transaction) — idempotent updates using FieldValue.arrayUnion
-      // ✅ CORRECTED: Use 'else if' to make the logic mutually exclusive.
+      // Grant access
       if (masterclassId && masterRef) {
-        // This block now only runs if it's a full masterclass purchase.
         const mcSnap = await masterRef.get();
         if (mcSnap.exists) {
           await masterRef.update({
             purchased_by_users: admin.firestore.FieldValue.arrayUnion(userId),
           });
-          console.log("✅ User added to masterclass purchasers (dummy)");
-        } else {
-          console.warn("⚠️ Masterclass doc not found for dummy grant");
         }
       }
 
-      // Send emails if needed (best-effort)
-      try {
-        if (userData?.email) {
-          let mcData = null;
-          if (masterclassId && masterRef) {
-            const doc = await masterRef.get();
-            if (doc.exists) mcData = { id: doc.id, ...doc.data() };
+      // ✅ Generate PDF as base64
+      let pdfBase64: string | null = null;
+      if (userEmail) {
+        console.log("[PDF] Generating receipt for dummy payment...");
+        try {
+          pdfBase64 = await generatePdfReceiptBase64(
+            razorpay_order_id,
+            razorpay_payment_id ?? `dummy_${Date.now()}`,
+            userName || userEmail,
+            userEmail,
+            masterclassTitle ?? "Dummy Masterclass",
+            amount,
+            new Date().toISOString()
+          );
+          
+          if (pdfBase64) {
+            console.log("[PDF] ✅ PDF generated successfully");
+            
+            // ✅ Email the PDF as attachment
+            await emailPdfReceipt(
+              userEmail,
+              userName || userEmail,
+              razorpay_order_id,
+              razorpay_payment_id ?? `dummy_${Date.now()}`,
+              masterclassTitle ?? "Dummy Masterclass",
+              amount,
+              pdfBase64
+            );
           }
-          // Fire-and-forget call to our Netlify function
-          await triggerPurchaseConfirmationEmail(userData.email, userName, mcData, userId);
+        } catch (pdfError) {
+          console.error("[PDF] ❌ PDF generation failed:", pdfError);
+        }
+      }
 
-          // --- ✅ NEW: IMMEDIATE REMINDER LOGIC ---
-          const typedMcData = mcData as Masterclass;
-          if (typedMcData && typedMcData.content) {
-            const now = new Date();
-            const twelveHoursFromNow = now.getTime() + 12 * 60 * 60 * 1000;
-            for (const contentItem of typedMcData.content) {
-              if (contentItem.source === 'zoom' && contentItem.scheduled_date) {
-                const scheduledTime = new Date(contentItem.scheduled_date).getTime();
-                // If the session is in the future AND within the next 12 hours
-                if (scheduledTime > now.getTime() && scheduledTime < twelveHoursFromNow) {
-                  sendImmediateReminder(userData.email, userName, typedMcData, contentItem);
-                }
+      // Send emails
+      if (userEmail) {
+        let mcData = null;
+        if (masterclassId && masterRef) {
+          const doc = await masterRef.get();
+          if (doc.exists) mcData = { id: doc.id, ...doc.data() };
+        }
+
+        await triggerPurchaseConfirmationEmail(userEmail, userName, mcData, userId);
+
+        // Send immediate reminders
+        const typedMcData = mcData as Masterclass;
+        if (typedMcData?.content) {
+          for (const contentItem of typedMcData.content) {
+            if (contentItem.source === 'zoom' && contentItem.scheduled_date) {
+              const scheduledTime = new Date(contentItem.scheduled_date).getTime();
+              if (scheduledTime > now.getTime() && scheduledTime < twelveHoursFromNow) {
+                await sendImmediateReminder(userEmail, userName, typedMcData, contentItem);
               }
             }
           }
         }
-      } catch (emailErr) {
-        console.error("❌ Error while sending confirmation emails (dummy):", emailErr);
       }
 
+      console.log("[DUMMY] ✅ Payment completed");
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, message: "Dummy payment completed" }),
+        body: JSON.stringify({ 
+          success: true, 
+          message: "Dummy payment completed",
+          // ✅ Return PDF as base64 - client can download it
+          receiptPdf: pdfBase64,
+          receiptFilename: `receipt-${razorpay_order_id}.pdf`
+        }),
       };
-    } // end dummy
+    }
 
     /* -------------------------
-       VALIDATE RAZORPAY PAYLOAD
+       RAZORPAY PAYMENT HANDLING
        ------------------------- */
+    console.log("[RAZORPAY] Processing real payment");
+
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing payment details" }) };
     }
@@ -244,57 +371,62 @@ export const handler: Handler = async (event, context) => {
       return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing masterclassId" }) };
     }
 
-    // Ensure secret is present for real payment verification
+    // Verify signature
     const secret = requireEnv("RAZORPAY_KEY_SECRET");
-
-    // verify signature
+    const signaturePayload = `${razorpay_order_id}|${razorpay_payment_id}`;
     const generatedSignature = crypto
       .createHmac("sha256", secret)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .update(signaturePayload)
       .digest("hex");
 
     if (generatedSignature !== razorpay_signature) {
-      console.error("❌ Invalid Razorpay signature");
+      console.error("[AUTH] ❌ Invalid signature");
 
-      // mark transaction failed (create or update) inside a transaction
+      // Record failed transaction
       await adminDb.runTransaction(async (tx) => {
         const snap = await tx.get(userRef);
-        const now = new Date().toISOString();
+        const timestamp = new Date().toISOString();
+        
         const failObj = {
           orderId: razorpay_order_id,
           paymentId: razorpay_payment_id,
-          masterclassId: masterclassId,
+          masterclassId,
           amount: amount ?? 0,
           status: "failed",
           method,
           type,
           failureReason: "Invalid payment signature",
-          timestamp: now,
-          updatedAt: now,
+          timestamp,
+          updatedAt: timestamp,
         };
+
         if (snap.exists) {
-          await tx.update(userRef, {
+          tx.update(userRef, {
             transactions: admin.firestore.FieldValue.arrayUnion(failObj),
           });
         } else {
-          await tx.set(userRef, {
+          tx.set(userRef, {
             id: userId,
             transactions: [failObj],
-            created_at: now,
+            created_at: timestamp,
           });
         }
       });
 
-      return { statusCode: 400, body: JSON.stringify({ success: false, error: "Invalid Razorpay signature" }) };
+      return { 
+        statusCode: 400, 
+        body: JSON.stringify({ success: false, error: "Invalid Razorpay signature" }) 
+      };
     }
 
-    console.log("✅ Signature verified");
+    console.log("[AUTH] ✅ Signature verified");
 
-    // fetch user and masterclass
+    // Fetch user and masterclass
     const userSnap = await userRef.get();
     if (!userSnap.exists) {
       return { statusCode: 404, body: JSON.stringify({ success: false, error: "User not found" }) };
     }
+
     const userData = userSnap.data();
     const userEmail = userData?.email;
     const userName = userData?.name || userData?.displayName || "";
@@ -307,26 +439,27 @@ export const handler: Handler = async (event, context) => {
     if (!mcSnap.exists) {
       return { statusCode: 404, body: JSON.stringify({ success: false, error: "Masterclass not found" }) };
     }
+
     const mcData = mcSnap.data();
 
-    // Grant access & record success transaction atomically
+    // Grant access & record transaction
     await adminDb.runTransaction(async (tx) => {
-      const uSnap = await tx.get(userRef);
-      const mSnap = await tx.get(masterRef);
-
+      const timestamp = new Date().toISOString();
+      
       const successObj = {
         orderId: razorpay_order_id,
         paymentId: razorpay_payment_id,
-        masterclassId: masterclassId,
+        masterclassId,
         masterclassTitle: masterclassTitle ?? mcData?.title ?? null,
         amount: amount ?? 0,
         status: "success",
         method,
         type,
-        timestamp: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        timestamp,
+        updatedAt: timestamp,
       };
 
+      const uSnap = await tx.get(userRef);
       if (uSnap.exists) {
         tx.update(userRef, {
           transactions: admin.firestore.FieldValue.arrayUnion(successObj),
@@ -335,59 +468,88 @@ export const handler: Handler = async (event, context) => {
         tx.set(userRef, {
           id: userId,
           transactions: [successObj],
-          created_at: new Date().toISOString(),
+          created_at: timestamp,
         });
       }
 
       // Grant access
-      // ✅ CORRECTED: Use 'else if' to ensure only one access type is granted.
-      if (masterclassId) {
-        // Grant access to the entire masterclass.
-        tx.update(masterRef, {
-          // ✅ CORRECTED: Use the new 'purchased_by_users' field.
-          purchased_by_users: admin.firestore.FieldValue.arrayUnion(userId),
-        });
-      }
+      tx.update(masterRef, {
+        purchased_by_users: admin.firestore.FieldValue.arrayUnion(userId),
+      });
     });
 
-    console.log("✅ Access granted and transaction recorded");
+    // ✅ Generate PDF as base64
+    let pdfBase64: string | null = null;
+    if (userEmail) {
+      console.log("[PDF] Generating receipt for Razorpay payment...");
+      try {
+        pdfBase64 = await generatePdfReceiptBase64(
+          razorpay_order_id,
+          razorpay_payment_id,
+          userName || userEmail,
+          userEmail,
+          masterclassTitle ?? mcData?.title ?? "Masterclass Purchase",
+          amount,
+          new Date().toISOString()
+        );
+        
+        if (pdfBase64) {
+          console.log("[PDF] ✅ PDF generated successfully");
+          
+          // ✅ Email the PDF as attachment
+          await emailPdfReceipt(
+            userEmail,
+            userName || userEmail,
+            razorpay_order_id,
+            razorpay_payment_id,
+            masterclassTitle ?? mcData?.title ?? "Masterclass Purchase",
+            amount,
+            pdfBase64
+          );
+        }
+      } catch (pdfError) {
+        console.error("[PDF] ❌ PDF generation failed:", pdfError);
+      }
+    }
 
-    // Send emails (best-effort)
-    try {
-      if (userEmail) {
-        // Re-fetch mcData with ID to pass to email function
-        const doc = await masterRef.get();
-        const mcDataWithId = doc.exists ? { id: doc.id, ...doc.data() } : mcData;
-        // Fire-and-forget call to our Netlify function
-        await triggerPurchaseConfirmationEmail(userEmail, userName, mcDataWithId, userId);
+    // Send emails
+    if (userEmail) {
+      const doc = await masterRef.get();
+      const mcDataWithId = doc.exists ? { id: doc.id, ...doc.data() } : mcData;
 
-        // --- ✅ NEW: IMMEDIATE REMINDER LOGIC ---
-        const typedMcDataWithId = mcDataWithId as Masterclass;
-        if (typedMcDataWithId && typedMcDataWithId.content) {
-          const now = new Date();
-          const twelveHoursFromNow = now.getTime() + 12 * 60 * 60 * 1000;
-          for (const contentItem of typedMcDataWithId.content) {
-            if (contentItem.source === 'zoom' && contentItem.scheduled_date) {
-              const scheduledTime = new Date(contentItem.scheduled_date).getTime();
-              // If the session is in the future AND within the next 12 hours
-              if (scheduledTime > now.getTime() && scheduledTime < twelveHoursFromNow) {
-                sendImmediateReminder(userEmail, userName, typedMcDataWithId, contentItem);
-              }
+      await triggerPurchaseConfirmationEmail(userEmail, userName, mcDataWithId, userId);
+
+      // Send immediate reminders
+      const typedMcDataWithId = mcDataWithId as Masterclass;
+      if (typedMcDataWithId?.content) {
+        for (const contentItem of typedMcDataWithId.content) {
+          if (contentItem.source === 'zoom' && contentItem.scheduled_date) {
+            const scheduledTime = new Date(contentItem.scheduled_date).getTime();
+            if (scheduledTime > now.getTime() && scheduledTime < twelveHoursFromNow) {
+              await sendImmediateReminder(userEmail, userName, typedMcDataWithId, contentItem);
             }
           }
         }
       }
-    } catch (emailErr) {
-      console.error("❌ Error sending emails after successful payment:", emailErr);
     }
 
+    console.log("[RAZORPAY] ✅ Payment completed");
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, message: "Payment verified successfully" }),
+      body: JSON.stringify({ 
+        success: true, 
+        message: "Payment verified successfully",
+        // ✅ Return PDF as base64 - client can download it
+        receiptPdf: pdfBase64,
+        receiptFilename: `receipt-${razorpay_order_id}.pdf`
+      }),
     };
+    
   } catch (err: any) {
-    const orderId = JSON.parse(event.body || "{}")?.razorpay_order_id;
-    console.error(`❌ FATAL Payment Verify Error for order [${orderId || 'unknown'}]:`, err);
-    return { statusCode: 500, body: JSON.stringify({ success: false, error: err?.message || String(err) }) };
+    console.error("❌ FATAL Error:", err);
+    return { 
+      statusCode: 500, 
+      body: JSON.stringify({ success: false, error: err?.message || String(err) }) 
+    };
   }
 };
