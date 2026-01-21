@@ -45,8 +45,14 @@ export const handler: Handler = async (event, context) => {
   }
   console.log(`✅ [${new Date().toISOString()}] All required environment variables are present.`);
 
-  const { email, userName, masterclass, userId } = bodyData as { email: string, userName: string, masterclass: Masterclass, userId: string };
-  console.log(`🔍 [${new Date().toISOString()}] Extracted payload: Email=${email}, UserName=${userName}, MasterclassId=${masterclass?.id}, UserId=${userId}`);
+  const { email, userName, masterclass, userId, pdfBase64 } = bodyData as { 
+    email: string, 
+    userName: string, 
+    masterclass: Masterclass, 
+    userId: string,
+    pdfBase64: string | null 
+  };
+  console.log(`🔍 [${new Date().toISOString()}] Extracted payload: Email=${email}, UserName=${userName}, MasterclassId=${masterclass?.id}, UserId=${userId}, HasPDF=${!!pdfBase64}`);
 
   // --- ✅ NEW: More granular payload validation ---
   if (!email) return errorResponse(`[${new Date().toISOString()}] Missing: email in payload.`);
@@ -179,10 +185,24 @@ export const handler: Handler = async (event, context) => {
     const start = Date.now();
     const subject = `✅ Your Purchase Confirmation for: ${masterclass.title}`;
     const encodedSubject = encodeSubject(subject);
+
+    // --- ✅ NEW: Add PDF receipt as an attachment if it exists ---
+    const attachments = [];
+    if (pdfBase64) {
+      console.log(`📄 [${new Date().toISOString()}] PDF receipt found, adding as attachment.`);
+      attachments.push({
+        filename: `receipt-growpro-${masterclass.id}.pdf`,
+        content: pdfBase64,
+        encoding: 'base64',
+        contentType: 'application/pdf',
+      });
+    }
+
     await sendEmail(
       email,
       encodedSubject,
-      htmlContent
+      htmlContent,
+      attachments
     );
     console.log(`✅ [${new Date().toISOString()}] Successfully sent email to ${email} in ${Date.now() - start} ms.`);
   } catch (err: any) {

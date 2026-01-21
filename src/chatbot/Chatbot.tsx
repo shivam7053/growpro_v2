@@ -111,6 +111,8 @@ export default function Chatbot() {
               bottom: "100px",
               right: "24px",
               zIndex: 999999,
+              height: "500px",
+              maxHeight: "500px",
             }}
             className="w-80 md:w-96 h-[500px] bg-gray-900 rounded-2xl shadow-2xl border border-white/10 flex flex-col overflow-hidden"
           >
@@ -128,8 +130,8 @@ export default function Chatbot() {
               </button>
             </div>
 
-            {/* Messages - Dark background */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-800">
+            {/* Messages - Dark background with proper scrolling */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-800" style={{ maxHeight: "calc(500px - 140px)" }}>
               {messages.map((msg) => (
                 <div
                   key={msg.id}
@@ -138,7 +140,7 @@ export default function Chatbot() {
                   }`}
                 >
                   <div
-                    className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+                    className={`max-w-[80%] p-3 rounded-2xl text-sm break-words ${
                       msg.sender === "user"
                         ? "bg-white text-gray-900 rounded-br-none"
                         : "bg-gray-700 text-white rounded-bl-none"
