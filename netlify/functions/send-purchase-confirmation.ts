@@ -84,26 +84,43 @@ export const handler: Handler = async (event, context) => {
     console.log(`📄 Generating email content list with ${masterclass.content.length} items.`);
     console.log(`🔗 [${new Date().toISOString()}] Using SITE_URL for links: ${process.env.SITE_URL}`);
     return masterclass.content.map(item => {
-      const isZoom = item.source === 'zoom';
-      const link = isZoom ? (item.zoom_link || `https://zoom.us/j/${item.zoom_meeting_id}`) : item.youtube_url;
-      const linkText = isZoom ? "Join Session" : "Watch Video";
+      let link = "#";
+      let linkText = "View Content";
+      let sourceType = "Content";
+      let detailsHtml = "";
 
-      const zoomDetails = isZoom && item.scheduled_date ? `
-        <div style="margin-top: 10px; padding-left: 15px; border-left: 2px solid #e5e7eb; font-size: 14px; color: #4b5563;">
-          <strong>Scheduled for:</strong> ${new Date(item.scheduled_date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}<br>
-          <strong>Meeting ID:</strong> ${item.zoom_meeting_id || 'N/A'}<br>
-          ${item.zoom_passcode ? `<strong>Passcode:</strong> ${item.zoom_passcode}` : ''}
-        </div>
-      ` : '';
+      if (item.source === 'zoom') {
+        link = item.zoom_link || `https://zoom.us/j/${item.zoom_meeting_id}`;
+        linkText = "Join Session";
+        sourceType = "Live Zoom Session";
+        
+        if (item.scheduled_date) {
+             detailsHtml = `
+            <div style="margin-top: 10px; padding-left: 15px; border-left: 2px solid #e5e7eb; font-size: 14px; color: #4b5563;">
+              <strong>Scheduled for:</strong> ${new Date(item.scheduled_date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}<br>
+              <strong>Meeting ID:</strong> ${item.zoom_meeting_id || 'N/A'}<br>
+              ${item.zoom_passcode ? `<strong>Passcode:</strong> ${item.zoom_passcode}` : ''}
+            </div>
+          `;
+        }
+      } else if (item.source === 'youtube') {
+        link = item.youtube_url || "#";
+        linkText = "Watch Video";
+        sourceType = "YouTube Video";
+      } else if (item.source === 'test') {
+        link = `${process.env.SITE_URL}/masterclasses/${masterclass.id}`;
+        linkText = "Take Assessment";
+        sourceType = "Assessment Test";
+      }
 
       return `
         <div style="margin-bottom: 20px; padding: 15px; background-color: #f9fafb; border-radius: 8px;">
           <p style="margin: 0; font-weight: 600; color: #1f2937;">${item.order + 1}. ${item.title}</p>
-          <p style="margin: 5px 0 12px; font-size: 14px; color: #6b7280;">Source: ${isZoom ? 'Live Zoom Session' : 'YouTube Video'}</p>
+          <p style="margin: 5px 0 12px; font-size: 14px; color: #6b7280;">Source: ${sourceType}</p>
           <a href="${link}" target="_blank" style="display: inline-block; padding: 8px 16px; background-color: #4f46e5; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
             ${linkText}
           </a>
-          ${zoomDetails}
+          ${detailsHtml}
         </div>
       `;
     }).join('');

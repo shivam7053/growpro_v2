@@ -2,7 +2,7 @@
 import { Handler } from "@netlify/functions";
 import { adminDb } from "../../src/lib/firebaseAdmin";
 import { sendEmail } from "../../src/utils/gmailHelper";
-import { Masterclass, MasterclassContent } from "../../src/types/masterclass";
+import { Masterclass, MasterclassContent, ZoomContent } from "../../src/types/masterclass";
 
 const CRON_SECRET = process.env.CRON_SECRET_KEY;
 
@@ -156,7 +156,7 @@ async function send12HourReminder(
   email: string,
   userName: string,
   masterclass: Masterclass,
-  contentItem: MasterclassContent
+  contentItem: ZoomContent
 ) {
   const scheduledDate = new Date(contentItem.scheduled_date!);
 
@@ -190,7 +190,7 @@ async function sendWelcomeAndReminder(
   email: string,
   userName: string,
   masterclass: Masterclass,
-  contentItem: MasterclassContent
+  contentItem: ZoomContent
 ) {
   const scheduledDate = new Date(contentItem.scheduled_date!);
 

@@ -17,8 +17,11 @@ import {
   MasterclassContent,
   YoutubeContent,
   ZoomContent,
+  TestContent,
+  MCQQuestion,
+  MCQOption,
 } from "@/types/masterclass";
-import { Plus, Trash2, Edit2, Video, X, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Edit2, Video, X, AlertCircle, FileText } from "lucide-react";
 
 export default function AdminMasterclasses() {
   const router = useRouter();
@@ -42,7 +45,7 @@ export default function AdminMasterclasses() {
  
   // State for the MasterclassContent modal (for YouTube/Zoom)
   const [contentFormData, setContentFormData] = useState<
-    Partial<YoutubeContent> | Partial<ZoomContent>
+    Partial<YoutubeContent> | Partial<ZoomContent> | Partial<TestContent>
   >({
     source: "youtube",
     title: "",
@@ -108,6 +111,23 @@ export default function AdminMasterclasses() {
     } else if (contentFormData.source === 'zoom') {
       if (!contentFormData.zoom_meeting_id || !contentFormData.zoom_meeting_id.trim()) {
         return alert("Zoom Meeting ID is required for Zoom content.");
+      }
+    } else if (contentFormData.source === 'test') {
+      const testData = contentFormData as TestContent;
+      if (testData.passingGrade === undefined || testData.passingGrade < 0 || testData.passingGrade > 100) {
+        return alert("Passing grade must be a number between 0 and 100.");
+      }
+      if (!testData.questions || testData.questions.length === 0) {
+        return alert("A test must have at least one question.");
+      }
+      for (const q of testData.questions) {
+        if (!q.questionText.trim()) return alert("All questions must have text.");
+        if (q.options.length < 2) return alert(`Question "${q.questionText}" must have at least two options.`);
+        if (!q.correctOptionId) return alert(`A correct answer must be selected for question: "${q.questionText}"`);
+        if (!q.options.find(opt => opt.id === q.correctOptionId)) return alert(`The selected correct answer for "${q.questionText}" is invalid.`);
+        for (const o of q.options) {
+          if (!o.text.trim()) return alert(`All options for question "${q.questionText}" must have text.`);
+        }
       }
     }
 
@@ -294,6 +314,58 @@ export default function AdminMasterclasses() {
     }));
   };
 
+  // Handlers for MCQ Test Content
+  const handleQuestionChange = (qIndex: number, field: keyof MCQQuestion, value: any) => {
+    const testContent = contentFormData as Partial<TestContent>;
+    const updatedQuestions = [...(testContent.questions || [])];
+    (updatedQuestions[qIndex] as any)[field] = value;
+    setContentFormData({ ...testContent, questions: updatedQuestions });
+  };
+
+  const handleOptionChange = (qIndex: number, oIndex: number, value: string) => {
+      const testContent = contentFormData as Partial<TestContent>;
+      const updatedQuestions = [...(testContent.questions || [])];
+      updatedQuestions[qIndex].options[oIndex].text = value;
+      setContentFormData({ ...testContent, questions: updatedQuestions });
+  };
+
+  const addQuestion = () => {
+      const testContent = contentFormData as Partial<TestContent>;
+      const newQuestion: MCQQuestion = {
+          id: `q_${Date.now()}`,
+          questionText: '',
+          options: [
+              { id: `o1_${Date.now()}`, text: '' },
+              { id: `o2_${Date.now()}`, text: '' },
+          ],
+          correctOptionId: ''
+      };
+      setContentFormData({
+          ...testContent,
+          questions: [...(testContent.questions || []), newQuestion]
+      });
+  };
+
+  const deleteQuestion = (qIndex: number) => {
+      const testContent = contentFormData as Partial<TestContent>;
+      const updatedQuestions = (testContent.questions || []).filter((_, index) => index !== qIndex);
+      setContentFormData({ ...testContent, questions: updatedQuestions });
+  };
+
+  const addOption = (qIndex: number) => {
+      const testContent = contentFormData as Partial<TestContent>;
+      const updatedQuestions = [...(testContent.questions || [])];
+      updatedQuestions[qIndex].options.push({ id: `o_${Date.now()}`, text: '' });
+      setContentFormData({ ...testContent, questions: updatedQuestions });
+  };
+
+  const deleteOption = (qIndex: number, oIndex: number) => {
+      const testContent = contentFormData as Partial<TestContent>;
+      const updatedQuestions = [...(testContent.questions || [])];
+      updatedQuestions[qIndex].options = updatedQuestions[qIndex].options.filter((_, index) => index !== oIndex);
+      setContentFormData({ ...testContent, questions: updatedQuestions });
+  };
+
   // Calculate pricing info from content
   const calculatePricingInfo = () => {
     return { isFree: formData.type === "free", price: formData.price };
@@ -384,7 +456,7 @@ export default function AdminMasterclasses() {
         {/* Content Section (Videos and Zoom sessions) */}
         <div className="mt-6 border-t pt-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Content ({currentContent.length})</h3>
+            <h3 className="text-lg font-semibold">Course Content ({currentContent.length})</h3>
             <button
               type="button"
               onClick={() => setShowContentModal(true)}
@@ -402,7 +474,9 @@ export default function AdminMasterclasses() {
                   <p className="text-sm text-gray-600 truncate">
                     {item.source === "youtube"
                       ? (item as YoutubeContent).youtube_url
-                      : `Zoom ID: ${(item as ZoomContent).zoom_meeting_id}`}
+                      : item.source === "zoom"
+                      ? `Zoom ID: ${(item as ZoomContent).zoom_meeting_id}`
+                      : `Questions: ${(item as TestContent).questions?.length || 0}, Passing: ${(item as TestContent).passingGrade}%`}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -479,18 +553,24 @@ export default function AdminMasterclasses() {
                 value={contentFormData.source}
                 onChange={(e) =>
                   {
-                    const newSource = e.target.value as "youtube" | "zoom";
+                    const newSource = e.target.value as "youtube" | "zoom" | "test";
                     const baseState = {
                       title: contentFormData.title,
                       description: contentFormData.description,
+                      duration: contentFormData.duration,
                     };
-                    setContentFormData({ source: newSource, ...baseState });
+                    if (newSource === 'test') {
+                      setContentFormData({ source: newSource, ...baseState, questions: [], passingGrade: 80 });
+                    } else {
+                      setContentFormData({ source: newSource, ...baseState });
+                    }
                   }
                 }
                 className="w-full border p-3 rounded-lg"
               >
                 <option value="youtube">YouTube Video</option>
                 <option value="zoom">Zoom Session</option>
+                <option value="test">MCQ Test</option>
               </select>
 
               <input
@@ -588,6 +668,67 @@ export default function AdminMasterclasses() {
                 </div>
               )}
 
+              {contentFormData.source === "test" && (
+                <div className="space-y-4">
+                  <input
+                    type="number"
+                    placeholder="Passing Grade (%) *"
+                    value={(contentFormData as Partial<TestContent>).passingGrade || ''}
+                    onChange={(e) => setContentFormData({ ...contentFormData, passingGrade: Number(e.target.value) })}
+                    className="w-full border p-3 rounded-lg"
+                  />
+                  <div className="border-t pt-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-semibold">Questions</h4>
+                      <button type="button" onClick={addQuestion} className="bg-green-500 text-white px-3 py-1 rounded-md text-sm">Add Question</button>
+                    </div>
+                    <div className="space-y-4 max-h-60 overflow-y-auto p-2 bg-gray-50 rounded-lg">
+                      {(contentFormData as TestContent).questions?.map((q, qIndex) => (
+                        <div key={q.id} className="p-3 border rounded-md bg-white">
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="font-medium">Question {qIndex + 1}</p>
+                            <button type="button" onClick={() => deleteQuestion(qIndex)} className="text-red-500 hover:text-red-700">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <textarea
+                            placeholder="Question Text"
+                            value={q.questionText}
+                            onChange={(e) => handleQuestionChange(qIndex, 'questionText', e.target.value)}
+                            className="w-full border p-2 rounded-lg mb-2"
+                            rows={2}
+                          />
+                          <div className="space-y-2">
+                            {q.options.map((opt, oIndex) => (
+                              <div key={opt.id} className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name={`correct_opt_${q.id}`}
+                                  checked={q.correctOptionId === opt.id}
+                                  onChange={() => handleQuestionChange(qIndex, 'correctOptionId', opt.id)}
+                                  className="h-4 w-4"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder={`Option ${oIndex + 1}`}
+                                  value={opt.text}
+                                  onChange={(e) => handleOptionChange(qIndex, oIndex, e.target.value)}
+                                  className="flex-grow border p-2 rounded-lg"
+                                />
+                                <button type="button" onClick={() => deleteOption(qIndex, oIndex)} className="text-gray-500 hover:text-red-600">
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          <button type="button" onClick={() => addOption(qIndex)} className="text-blue-600 text-sm mt-2">Add Option</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <input
                 type="text"
                 placeholder="Duration (e.g., 45 min)"
@@ -635,7 +776,10 @@ export default function AdminMasterclasses() {
                 {cls.speaker_name} • {cls.speaker_designation || '—'}
               </p>
               <p className="text-sm text-gray-700 mt-1 flex items-center gap-1">
-                <Video className="w-4 h-4" /> {cls.content?.length || 0} content items
+                <Video className="w-4 h-4" /> {cls.content?.filter(c => c.source === 'youtube' || c.source === 'zoom').length || 0} videos/sessions
+              </p>
+              <p className="text-sm text-gray-700 mt-1 flex items-center gap-1">
+                <FileText className="w-4 h-4" /> {cls.content?.filter(c => c.source === 'test').length || 0} tests
               </p>
 
               <p className="text-xs text-gray-600 mt-1">Created: {new Date(cls.created_at).toLocaleDateString()}</p>

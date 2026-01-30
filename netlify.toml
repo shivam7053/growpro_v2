@@ -6,6 +6,7 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+  included_files = ["public/*.png"]
 
 [functions."send-reminders"]
   schedule = "0 * * * *"
@@ -38,4 +39,9 @@
 [[redirects]]
   from = "/api/notify-masterclass-update"
   to = "/.netlify/functions/notify-masterclass-update"
+  status = 200
+
+[[redirects]]
+  from = "/api/certificate/*"
+  to = "/.netlify/functions/generate-certificate"
   status = 200
